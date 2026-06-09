@@ -1,0 +1,54 @@
+"use client"
+import { useState, useRef } from "react"
+import { Camera } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+
+export default function AvatarUpload( {username} ) {
+    const [avatar, setAvatar] = useState(null)
+    const fileInput = useRef(null)
+    
+    function handleClickInput() {
+        fileInput.current.click()
+    }
+
+    async function handleFileChange(e) {
+    const file = e.target.files[0]
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${username}/${Date.now()}.${fileExt}`
+    if (!file) return
+
+    const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, file, { upsert: true })
+
+    if (uploadError) {
+        alert(uploadError.message)
+        return
+    }
+
+    const { data } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(fileName)
+
+    await supabase
+        .from("profiles")
+        .update({ avatar_url: data.publicUrl })
+        .eq("username", username)
+
+    setAvatar(data.publicUrl)
+}
+
+    return (
+    <div className="w-24 h-24 rounded-full border-4 border-[#b16cff] flex items-center justify-center font-bold cursor-pointer group">
+        <div className="relative w-full h-full bg-[#0a0a0f] rounded-full flex items-center justify-center text-[#b16cff]" onClick={handleClickInput}>
+            <input ref={fileInput} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+            {avatar
+                ? <img src={avatar} className="w-full h-full object-cover rounded-full" />
+                : <span className="group-hover:hidden">{username[0]}</span>
+            }
+            {avatar && <div className="absolute inset-0 rounded-full hidden group-hover:block bg-[#2d2d3f]" />}
+            <Camera size={28} className="text-[#5a5a6a] hidden group-hover:block absolute z-10" />
+        </div>
+    </div>
+)
+}
