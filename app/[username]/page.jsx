@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase"
 import ConnectAccount from "../components/ConnectAccount"
 import Image from "next/image"
 import AvatarUpload from "../components/AvatarUpload"
+import { platformConfig } from "@/lib/platforms"
 
 
 export default async function Profile({ params }) {
@@ -48,7 +49,9 @@ return (
 
         <div className= "flex bg-surface rounded-lg p-4 gap-4 mt-2 justify-between  ">
           <div className= "flex gap-4">
-          <div>Icon</div>
+          <svg role="img" viewBox="0 0 24 24" width="24" height="24" fill={platformConfig[account.platform].color}>
+              <path d={platformConfig[account.platform].icon.path} />
+          </svg>
           <div>
             <p>{account.platform_username}</p>
             <p>{account.platform}</p>
