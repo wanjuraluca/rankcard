@@ -24,7 +24,7 @@ return (
     <div className= "flex flex-col">
       <div className="border-[#b16cff]">
       <div className="-mt-12 ms-8"> {/* Avatar Container */}
-    <AvatarUpload username={data.username[0]}/>
+        <AvatarUpload username={data.username} avatarUrl={data.avatar_url} />
     </div>
     </div>
       <p className= "text-text-primary text-lg font-bold">{data.username}</p>

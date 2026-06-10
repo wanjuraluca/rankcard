@@ -3,8 +3,8 @@ import { useState, useRef } from "react"
 import { Camera } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
-export default function AvatarUpload( {username} ) {
-    const [avatar, setAvatar] = useState(null)
+export default function AvatarUpload( {username, avatarUrl} ) {
+    const [avatar, setAvatar] = useState(avatarUrl)
     const fileInput = useRef(null)
     
     function handleClickInput() {
