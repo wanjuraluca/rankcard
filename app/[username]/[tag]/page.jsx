@@ -9,10 +9,10 @@ export default async function Profile({ params }) {
   return ( 
     <div className="text-white">
       {rankData.map(g => (
-        <p>{queueNames[g.queueType]}: {g.tier} {g.rank} {g.leaguePoints}</p>
+        <p key={g.queueType}>{queueNames[g.queueType]}: {g.tier} {g.rank} {g.leaguePoints}</p>
       ))}
       {tftData.map(g => (
-        <p>{tftRanks[g.queueType]}: {g.tier} {g.rank} {g.leaguePoints}</p>
+        <p key={g.queueType}>{tftRanks[g.queueType]}: {g.tier} {g.rank} {g.leaguePoints}</p>
       ))}
       <p>Valorant: {valorantData.data.current.tier.name} - {valorantData.data.current.rr} RR</p>
       <Link href="/faker"> NikoDuPic</Link>

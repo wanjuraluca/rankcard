@@ -3,6 +3,7 @@ import ConnectAccount from "../components/ConnectAccount"
 import Image from "next/image"
 import AvatarUpload from "../components/AvatarUpload"
 import { platformConfig } from "@/lib/platforms"
+import RankBadge from "../components/RankBadge"
 
 
 export default async function Profile({ params }) {
@@ -47,7 +48,7 @@ return (
 
        {accounts.map((account) => (
 
-        <div className= "flex bg-surface rounded-lg p-4 gap-4 mt-2 justify-between  ">
+        <div key={account.id} className= "flex bg-surface rounded-lg p-4 gap-4 mt-2 justify-between  ">
           <div className= "flex gap-4">
           <svg role="img" viewBox="0 0 24 24" width="24" height="24" fill={platformConfig[account.platform].color}>
               <path d={platformConfig[account.platform].icon.path} />
@@ -57,7 +58,7 @@ return (
             <p>{account.platform}</p>
           </div>
           </div>
-          <div>Rank</div>
+          <RankBadge account={account} />
         </div>
     ))}
       </div>

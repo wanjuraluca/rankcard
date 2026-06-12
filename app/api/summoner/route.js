@@ -34,7 +34,7 @@ export async function GET(request) {
   )
 
   const respone4 = await fetch(
-    `https://api.henrikdev.xyz/valorant/v3/by-puuid/mmr/eu/pc/${valorantAccountData.data.puuid}`,
+    `https://api.henrikdev.xyz/valorant/v3/by-puuid/mmr/eu/pc/${account.puuid}`,
     {
       headers: {
         'Authorization': process.env.VAL_API_KEY
