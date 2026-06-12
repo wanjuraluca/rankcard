@@ -2,7 +2,7 @@
 
 A dashboard that gives you a complete overview of yourself as a competitive gamer — showing stats and insights across all your connected titles in one place.
 
-**Live:** https://rankcard-1awq.vercel.app
+**Live:** https://rankcard-1awq.vercel.app/Luca
 
 ## Features
 
