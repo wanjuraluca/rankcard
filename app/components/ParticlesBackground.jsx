@@ -23,25 +23,26 @@ const [ready, setReady] = useState(false);
   return (
     <Particles
       id="tsparticles"
+      className="absolute inset-0 -z-0"
       options={{
-        fullScreen: { enable: true, zIndex: 0 },
+        fullScreen: { enable: false },
         background: { color: "transparent" },
         fpsLimit: 60,
         particles: {
           color: { value: "#b16cff" },
           links: {
             color: "#b16cff",
-            distance: 150,
+            distance: 160,
             enable: true,
             opacity: 0.3,
-            width: 1,
+            width: 1.5,
           },
           move: {
             enable: true,
-            speed: 1,
+            speed: 0.45,
           },
           number: {
-            value: 60,
+            value: 160,
           },
           opacity: {
             value: 0.5,
@@ -49,6 +50,22 @@ const [ready, setReady] = useState(false);
           size: {
             value: 2,
           },
+        },
+        interactivity: {
+            events:  {
+                onHover: {
+                    enable: true,
+                    mode: "grab",
+                },
+            },
+            modes: {
+                grab: {
+                    distance: 130,
+                    links: {
+                        opacity: 1,
+                    },
+                },
+            },
         },
       }}
 
