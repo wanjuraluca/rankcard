@@ -30,7 +30,7 @@ export default function Login() {
       const { data, error } = await supabase.auth.signUp({ email, password })
       if (error) alert(error.message)
       else {
-        await supabase.from("profiles").insert({ id: data.user.id, username: username })
+        await supabase.from("profiles").insert({ user_id: data.user.id, username: username })
         router.push("/")
       }
       
@@ -38,7 +38,14 @@ export default function Login() {
   }
 
   return (
-    <div className="bg-[#0c0c10] min-h-screen p-8">
+    <div className="flex items-center justify-center relative overflow-hidden bg-[#0c0c10] min-h-screen p-8">
+      <div className="w-full max-w-[392px] bg-surface border border-line rounded 3xl p-8 shadow-2xl">
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <a href= "/" className="flex items-center gap-8">
+          <img src="/Icons/LogoSmall.png" className="h-8"/>
+          <span className="font-bold text-lg">RankCard</span> 
+          </a>
+        </div>
       <h1 style={{fontFamily: "'Courier New', monospace"}} className="text-white border-t-2 border-t-[#6c63ff] rounded-2xl border">
         {isLogin ? "Login" : "Register"}
       </h1>
@@ -51,6 +58,7 @@ export default function Login() {
       <p onClick={() => setIsLogin(!isLogin)} style={{cursor: "pointer", color: "gray"}}>
         {isLogin ? "Noch kein Konto? Registrieren" : "Schon ein Konto? Login"}
       </p>
+    </div>
     </div>
   )
 }
