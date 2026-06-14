@@ -5,18 +5,17 @@ import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
 
 export default function ParticlesBackground() {
+  const [ready, setReady] = useState(false);
 
-const [ready, setReady] = useState(false);
+  useEffect(() => {
+    initParticlesEngine(async (engine) => {
+      await loadSlim(engine);
+    }).then(() => {
+      setReady(true);
+    });
+  }, []);
 
-    useEffect(() => {
-        initParticlesEngine(async (engine) => {
-        await loadSlim(engine);
-        }).then(() => {
-        setReady(true);
-        });
-        }, []);
-  
-        if (!ready) {
+  if (!ready) {
     return null;
   }
 
@@ -42,7 +41,12 @@ const [ready, setReady] = useState(false);
             speed: 0.45,
           },
           number: {
-            value: 160,
+            value: 250,
+            density: {
+              enable: true,
+              width: 1920,
+              height: 1080,
+            },
           },
           opacity: {
             value: 0.5,
@@ -52,24 +56,22 @@ const [ready, setReady] = useState(false);
           },
         },
         interactivity: {
-            events:  {
-                onHover: {
-                    enable: true,
-                    mode: "grab",
-                },
+          events: {
+            onHover: {
+              enable: true,
+              mode: "grab",
             },
-            modes: {
-                grab: {
-                    distance: 130,
-                    links: {
-                        opacity: 1,
-                    },
-                },
+          },
+          modes: {
+            grab: {
+              distance: 150,
+              links: {
+                opacity: 1,
+              },
             },
+          },
         },
       }}
-
     />
   );
-
 }
