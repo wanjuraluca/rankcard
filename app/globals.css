@@ -15,6 +15,7 @@
   --color-surface: var(--surface);
   --color-surface-hover: var(--surface-hover);
   --color-accent: var(--accent);
+  --color-line: var(--border);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --font-sans: var(--font-geist-sans);
