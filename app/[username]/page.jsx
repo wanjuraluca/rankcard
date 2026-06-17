@@ -4,11 +4,12 @@ import Image from "next/image"
 import AvatarUpload from "../components/AvatarUpload"
 import { platformConfig } from "@/lib/platforms"
 import RankBadge from "../components/RankBadge"
+import ProfileClient from "../components/ProfileClient"
 
 
 export default async function Profile({ params }) {
   const { username } = await params
-  const { data } = await supabase
+  const { data: profile } = await supabase
     .from("profiles")
     .select("*")
     .eq("username", username)
@@ -17,52 +18,12 @@ export default async function Profile({ params }) {
   const { data: accounts } = await supabase
     .from("connected_accounts")
     .select("*")
-    .eq("user_id", data.id)
+    .eq("user_id", profile.id)
 
-return (
-  <div className="p-2"> {/* Outer Container */}
-    <div className="h-[150px] bg-surface rounded-t-lg border-b-1< border-b border-b-[#b16cff] border-[#b16cff]/30 bg-gradient-to-r from-[#b16cff]/30 to-transparent"> {/* Banner */}
-    </div> 
-    <div className= "flex flex-col">
-      <div className="border-[#b16cff]">
-      <div className="-mt-12 ms-8"> {/* Avatar Container */}
-        <AvatarUpload username={data.username} avatarUrl={data.avatar_url} />
+  return (
+    <div className="h-[100] rounded-t-xl borber border-line border-b-0 bg-[radial-gradient(ellipse_at_20%_50%,rgba(177,108,255,0.4)_0%,transparent_60%)]">
+    <ProfileClient data={profile} accounts={accounts} />
     </div>
-    </div>
-      <p className= "text-text-primary text-lg font-bold">{data.username}</p>
-      <p className= "text-text-secondary" >{data.bio}</p>
-    </div>
-    <div className= "flex p-4 gap-4"> {/* Stats Container */}
-      <div className= "bg-surface rounded-lg p-4 text-text-secondary text-xs w-full">Rank Score
-        <p className= "text-text-primary text-lg">270</p>
-      </div>
-      <div className= "bg-surface rounded-lg p-4 text-text-secondary text-xs w-full">Games Connected
-        <p className= "text-text-primary text-lg">3</p>
-      </div>
-      <div className= "bg-surface rounded-lg p-4 text-text-secondary text-xs w-full"> Highest Rank
-        <p className= "text-text-primary text-lg">Immortal</p>
-      </div>
-      </div>
-      <div className= "flex flex-col"> {/* Connected Accounts Container */}
-        <div className= "text-text-primary text-lg font-bold">Connected Accounts</div>
-
-       {accounts.map((account) => (
-
-        <div key={account.id} className= "flex bg-surface rounded-lg p-4 gap-4 mt-2 justify-between  ">
-          <div className= "flex gap-4">
-          <svg role="img" viewBox="0 0 24 24" width="24" height="24" fill={platformConfig[account.platform].color}>
-              <path d={platformConfig[account.platform].icon.path} />
-          </svg>
-          <div>
-            <p>{account.platform_username}</p>
-            <p>{account.platform}</p>
-          </div>
-          </div>
-          <RankBadge account={account} />
-        </div>
-    ))}
-      </div>
-  </div>
 )
 
 }
