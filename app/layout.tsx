@@ -5,8 +5,8 @@ export const metadata: Metadata = {
   title: "RankCard",
   description: "Your gaming profile",
   icons: {
-    icon: "/Icons/LogoSmall.png",
-  },
+  icon: "/Icons/LogoSmall.png?v=2",
+},
 };
 
 export default function RootLayout({
