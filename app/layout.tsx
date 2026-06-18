@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "RankCard",
   description: "Your gaming profile",
   icons: {
-    icon: "/Icons/Logo.png",
+    icon: "/Icons/LogoSmall.png",
   },
 };
 
