@@ -1,4 +1,5 @@
 "use client"
+<link rel="icon" href="/Icons/Logo.png" />
 
 import AvatarUpload from "./AvatarUpload"
 import { useState, useRef } from "react"

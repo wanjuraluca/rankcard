@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "RankCard",
   description: "Your gaming profile",
+  icons: {
+    icon: "/Icons/Logo.png",
+  },
 };
 
 export default function RootLayout({
