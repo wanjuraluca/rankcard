@@ -1,9 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 
-
 export default function RankBadge({account}) {
-
 
     const [rank, setRank] = useState(null)
 
@@ -18,6 +16,10 @@ export default function RankBadge({account}) {
         
     }, [])
 
-        return (<div>{JSON.stringify(rank)}</div>)
-    
+    return (
+        <div>
+            <p className="text-accent font-bold text-base">{rank ?? "..."}</p>
+            <p className="text-text-secondary text-xs">54% WR · 187 games</p>
+        </div>
+    )
 }
