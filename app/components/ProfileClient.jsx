@@ -4,6 +4,7 @@ import AvatarUpload from "./AvatarUpload"
 import { useState } from "react"
 import { platformConfig } from "@/lib/platforms"
 import RankBadge from "./RankBadge"
+import RankHero from "./RankHero"
 
 export default function ProfileClient({ data, accounts }) {
 
@@ -100,8 +101,16 @@ export default function ProfileClient({ data, accounts }) {
                 </div>
             )}
 
-            {/* LoL Tab */}
-            {activeTab === "league" && <div className="mt-4 text-text-secondary">LoL Inhalt</div>}
+            {activeTab === "league" && (
+            <>
+                <div className="flex items-center gap-2 mt-4 mb-2">
+                 <p className="text-text-secondary text-xs uppercase tracking-widest">League of Legends</p>
+                <div className="flex-1 h-px bg-line" />
+                </div>
+
+                <RankHero account={accounts.find(a => a.platform === "League of Legends")} />
+            </>
+            )}
 
             {/* Valorant Tab */}
             {activeTab === "valorant" && <div className="mt-4 text-text-secondary">Valorant Inhalt</div>}
