@@ -9,7 +9,7 @@ export default function RankBadge({account}) {
         async function fetchRank() {
             const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}`);
             const data = await response.json();
-            const entry = data.rankData?.[0];
+            const entry = data.rankData?.[1];
             setRank(entry ? entry.tier + " " + entry.rank : "Unranked");
         }
 

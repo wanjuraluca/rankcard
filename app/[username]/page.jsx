@@ -5,9 +5,12 @@ import AvatarUpload from "../components/AvatarUpload"
 import { platformConfig } from "@/lib/platforms"
 import RankBadge from "../components/RankBadge"
 import ProfileClient from "../components/ProfileClient"
+import { Analytics } from "@vercel/analytics/next"
 
 
 export default async function Profile({ params }) {
+ <Analytics/>
+
   const { username } = await params
   const { data: profile } = await supabase
     .from("profiles")
@@ -21,9 +24,8 @@ export default async function Profile({ params }) {
     .eq("user_id", profile.id)
 
   return (
-    <div className="h-[100] rounded-t-xl borber border-line border-b-0 bg-[radial-gradient(ellipse_at_20%_50%,rgba(177,108,255,0.4)_0%,transparent_60%)]">
     <ProfileClient data={profile} accounts={accounts} />
-    </div>
+    
 )
 
 }
