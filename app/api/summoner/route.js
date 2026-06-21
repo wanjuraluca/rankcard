@@ -55,5 +55,5 @@ export async function GET(request) {
   const valorantData = await respone4.json()
   const tftData = await response3.json()
 
-  return Response.json({ rankData, tftData, valorantData })
+  return Response.json({ puuid: account.puuid, rankData, tftData, valorantData })
 }

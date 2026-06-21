@@ -1,6 +1,8 @@
 import ParticlesBackground from "./components/ParticlesBackground";
+import { Analytics } from "@vercel/analytics/next"
 
 export default function Home() {
+  <Analytics/>
   return <main className="bg-background min-h-screen relative">
     <nav className="flex justify-between px-8 py-6 items-center border-line border-b-3"> 
       <a href="/" className="flex items-center gap-8">

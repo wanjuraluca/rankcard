@@ -5,10 +5,13 @@ import { useState } from "react"
 import { platformConfig } from "@/lib/platforms"
 import RankBadge from "./RankBadge"
 import RankHero from "./RankHero"
+import AddGameModal from "./AddGameModal"
 
 export default function ProfileClient({ data, accounts }) {
 
     const [activeTab, setActiveTab] = useState("overall")
+    const [showModal, setShowModal] = useState(false)
+    const [accountList, setAccountList] = useState(accounts)
 
     return(
         <div className="bg-background min-h-screen p-3">
@@ -36,7 +39,7 @@ export default function ProfileClient({ data, accounts }) {
                 <button onClick={() => setActiveTab("overall")} className={`border rounded-lg bg-surface px-4 py-2 text-sm ${activeTab === "overall" ? "border-accent bg-accent/10 text-accent" : "border-line text-text-secondary"}`}>Overall Performance</button>
                 <button onClick={() => setActiveTab("league")} className={`border rounded-lg bg-surface px-4 py-2 text-sm ${activeTab === "league" ? "border-accent bg-accent/10 text-accent" : "border-line text-text-secondary"}`}>LoL</button>
                 <button onClick={() => setActiveTab("valorant")} className={`border rounded-lg bg-surface px-4 py-2 text-sm ${activeTab === "valorant" ? "border-accent bg-accent/10 text-accent" : "border-line text-text-secondary"}`}>Valorant</button>
-                <button onClick={() => setActiveTab("addGame")} className={`border rounded-lg bg-surface px-4 py-2 text-sm ${activeTab === "addGame" ? "border-accent bg-accent/10 text-accent" : "border-line text-text-secondary"}`}>+ Add Game</button>
+                <button onClick={() => setShowModal(true)} className="border rounded-lg bg-surface px-4 py-2 text-sm border-line text-text-secondary">+ Add Game</button>
             </div>
 
             {/* Overall Tab */}
@@ -63,7 +66,7 @@ export default function ProfileClient({ data, accounts }) {
                             <p className="text-text-secondary text-xs">Avg. KDA</p>
                         </div>
                         <div className="bg-surface border border-line rounded-xl p-3">
-                            <p className="text-text-primary text-xl font-bold">{accounts.length}</p>
+                            <p className="text-text-primary text-xl font-bold">{accountList.length}</p>
                             <p className="text-text-secondary text-xs">Games Connected</p>
                         </div>
                     </div>
@@ -76,7 +79,7 @@ export default function ProfileClient({ data, accounts }) {
 
                     {/* Connected Games Cards */}
                     <div className="grid grid-cols-3 gap-2">
-                        {accounts.map((account) => (
+                        {accountList.map((account) => (
                             <div key={account.id} className="bg-surface border border-line rounded-xl p-4">
                                 <div className="flex items-center gap-2 mb-3">
                                     <div className="w-7 h-7 rounded-md flex items-center justify-center bg-accent/10">
@@ -93,7 +96,7 @@ export default function ProfileClient({ data, accounts }) {
                             </div>
                         ))}
                         {/* Add Game Card */}
-                        <div className="bg-surface border border-dashed border-line rounded-xl p-4 flex flex-col items-center justify-center gap-2 opacity-50">
+                        <div onClick={() => setShowModal(true)} className="bg-surface border border-dashed border-line rounded-xl p-4 flex flex-col items-center justify-center gap-2 opacity-50 cursor-pointer hover:opacity-75">
                             <p className="text-text-secondary text-xl">+</p>
                             <p className="text-text-secondary text-xs">Add Game</p>
                         </div>
@@ -108,20 +111,19 @@ export default function ProfileClient({ data, accounts }) {
                 <div className="flex-1 h-px bg-line" />
                 </div>
 
-                <RankHero account={accounts.find(a => a.platform === "League of Legends")} />
+                <RankHero account={accountList.find(a => a.platform === "League of Legends")} />
             </>
             )}
 
             {/* Valorant Tab */}
             {activeTab === "valorant" && <div className="mt-4 text-text-secondary">Valorant Inhalt</div>}
 
-            {/* Add Game Tab */}
-            {activeTab === "addGame" && (
-                <div className="mt-4 bg-surface border border-dashed border-line rounded-xl p-10 flex flex-col items-center justify-center gap-3 opacity-50">
-                    <p className="text-text-secondary text-3xl">🎮</p>
-                    <p className="text-text-primary font-medium">Neues Spiel verbinden</p>
-                    <p className="text-text-secondary text-sm">Verbinde einen weiteren Account um deine Stats hier anzuzeigen.</p>
-                </div>
+            {/* Add Game Modal */}
+            {showModal && (
+                <AddGameModal
+                    onClose={() => setShowModal(false)}
+                    onConnected={(newAccount) => setAccountList([...accountList, newAccount])}
+                />
             )}
 
         </div>
