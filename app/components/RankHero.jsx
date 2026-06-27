@@ -1,22 +1,103 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useLayoutEffect, useRef } from "react"
+import LpHistoryChart from "./LpHistoryChart"
+import MatchDetail from "./MatchDetail"
 
-export default function RankHero({ account }) {
+function formatDuration(seconds) {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`
+}
 
-    const [rankData, setRankData] = useState(null)
+function formatTimeAgo(timestampMs) {
+    const diffMs = Date.now() - timestampMs
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    if (diffDays < 1) return "today"
+    if (diffDays === 1) return "1 day ago"
+    if (diffDays < 30) return `${diffDays} days ago`
+    const diffMonths = Math.floor(diffDays / 30)
+    if (diffMonths === 1) return "1 month ago"
+    return `${diffMonths} months ago`
+}
+
+function average(values) {
+    return values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : null
+}
+
+function buildTopChampions(matchHistory) {
+    const byChampion = {}
+    for (const match of matchHistory) {
+        if (!byChampion[match.champion]) byChampion[match.champion] = []
+        byChampion[match.champion].push(match)
+    }
+    return Object.entries(byChampion)
+        .map(([champion, matches]) => {
+            const wins = matches.filter(m => m.win).length
+            const kda = average(matches.map(m => (m.kills + m.assists) / Math.max(m.deaths, 1)))
+            return {
+                champion,
+                games: matches.length,
+                winRate: Math.round((wins / matches.length) * 100),
+                kda: kda.toFixed(1)
+            }
+        })
+        .sort((a, b) => b.games - a.games)
+        .slice(0, 3)
+}
+
+export default function RankHero({ account, accentColor = "#b16cff" }) {
+
+    const [rankEntry, setRankEntry] = useState(null)
+    const [matchHistory, setMatchHistory] = useState([])
+    const [ddragonVersion, setDdragonVersion] = useState(null)
+    const [yourPuuid, setYourPuuid] = useState(null)
+    const [expandedMatchId, setExpandedMatchId] = useState(null)
+    const [itemData, setItemData] = useState(null)
+    const [loading, setLoading] = useState(true)
+    const scrollYBeforeToggle = useRef(null)
+
+    function toggleMatch(matchId) {
+        scrollYBeforeToggle.current = window.scrollY
+        setExpandedMatchId(prev => (prev === matchId ? null : matchId))
+    }
+
+    // Expanding/collapsing a match row can shift layout enough that the
+    // browser auto-scrolls (focus handling, scroll anchoring) — pin the
+    // scroll position back to where it was right before the click so the
+    // row just unfolds in place instead of the page jumping around.
+    useLayoutEffect(() => {
+        if (scrollYBeforeToggle.current !== null) {
+            window.scrollTo(0, scrollYBeforeToggle.current)
+            scrollYBeforeToggle.current = null
+        }
+    }, [expandedMatchId])
 
     useEffect(() => {
         async function fetchRank() {
             const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}`);
             const data = await response.json();
-            const entry = data.rankData?.[1];
-            setRankData(entry ?? null);
+            const entry = data.rankData?.find((queue) => queue.queueType === "RANKED_SOLO_5x5");
+            setRankEntry(entry ?? null)
+            setMatchHistory(data.matchHistory ?? [])
+            setDdragonVersion(data.ddragonVersion ?? null)
+            setYourPuuid(data.puuid ?? null)
+            setLoading(false)
         }
 
         fetchRank();
     }, [])
 
-    if (!rankData) {
+    useEffect(() => {
+        if (!ddragonVersion) return
+        async function fetchItemData() {
+            const response = await fetch(`https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/data/en_US/item.json`)
+            const json = await response.json()
+            setItemData(json.data ?? null)
+        }
+        fetchItemData()
+    }, [ddragonVersion])
+
+    if (loading) {
         return (
             <div className="bg-surface border border-line rounded-xl p-6">
                 <p className="text-text-secondary text-sm">Loading rank...</p>
@@ -24,53 +105,197 @@ export default function RankHero({ account }) {
         );
     }
 
-    const winRate = Math.round((rankData.wins / (rankData.wins + rankData.losses)) * 100) || 0;
-    const totalGames = rankData.wins + rankData.losses;
+    if (!rankEntry) {
+        return (
+            <div className="bg-surface border border-line rounded-xl p-6 text-center">
+                <p className="text-text-secondary text-sm">No ranked Solo/Duo games found yet.</p>
+            </div>
+        );
+    }
+
+    const winRate = Math.round((rankEntry.wins / (rankEntry.wins + rankEntry.losses)) * 100) || 0;
+    const totalGames = rankEntry.wins + rankEntry.losses;
+
+    const avgKda = average(matchHistory.map(m => (m.kills + m.assists) / Math.max(m.deaths, 1)))
+    const avgCsPerMin = average(matchHistory.map(m => m.cs / (m.gameDurationSeconds / 60)))
+    const avgVision = average(matchHistory.map(m => m.visionScore))
+    const avgKillParticipation = average(matchHistory.map(m => m.killParticipationPct).filter(v => v != null))
+    const avgDamage = average(matchHistory.map(m => m.damageDealt))
+    const topChampions = buildTopChampions(matchHistory)
+
+    function championIconUrl(championName) {
+        return ddragonVersion ? `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/champion/${championName}.png` : null
+    }
 
     return (
-        <div className="flex bg-surface border border-line rounded-xl p-6 gap-6 items-center">
+        <div
+            className="bg-surface border border-line rounded-2xl p-5 relative overflow-hidden"
+            style={{ borderTopWidth: 3, borderTopColor: accentColor }}
+        >
+            <div className="flex gap-5 items-center flex-wrap">
 
-            {/* Emblem */}
-            <div className="w-24 h-24 rounded-lg bg-accent/10 border border-line flex items-center justify-center flex-shrink-0 overflow-hidden">
-                <img
-                    src={`https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${rankData.tier.toLowerCase()}.png`}
-                    alt={rankData.tier}
-                    className="w-full h-full object-contain scale-450 translate-y-2"
-                />
-            </div>
-
-            {/* Rank Info */}
-            <div className="flex-1">
-                <p className="text-text-primary font-medium text-2xl">
-                    {rankData.tier} {rankData.rank}
-                </p>
-                <p className="text-text-secondary text-sm mt-1">
-                    {rankData.leaguePoints} LP · Solo/Duo
-                </p>
-                <div className="h-2 bg-line rounded-full mt-3">
-                    <div
-                        className="h-2 bg-accent rounded-full"
-                        style={{ width: `${rankData.leaguePoints}%` }}
+                {/* Rank emblem */}
+                <div className="w-24 h-24 flex-shrink-0 overflow-hidden">
+                    <img
+                        src={`https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${rankEntry.tier.toLowerCase()}.png`}
+                        alt={rankEntry.tier}
+                        className="w-full h-full object-contain scale-450 translate-y-2"
                     />
                 </div>
-                <div className="flex justify-between text-text-secondary text-[10px] mt-1">
-                    <span>0 LP</span>
-                    <span>{rankData.tier} {rankData.rank} → 100 LP</span>
+
+                {/* Rank info */}
+                <div className="flex-1 min-w-[180px]">
+                    <p className="text-text-primary font-extrabold text-2xl">
+                        {rankEntry.tier} {rankEntry.rank}
+                    </p>
+                    <p className="text-text-secondary text-sm mt-1">
+                        {rankEntry.leaguePoints} LP · Solo/Duo
+                    </p>
+                    <div className="h-2 bg-hairline rounded-full mt-3 overflow-hidden">
+                        <div
+                            className="h-2 rounded-full transition-[width]"
+                            style={{ width: `${rankEntry.leaguePoints}%`, backgroundColor: accentColor }}
+                        />
+                    </div>
+                    <div className="flex justify-between text-text-secondary text-[10px] mt-1">
+                        <span>0 LP</span>
+                        <span>100 LP</span>
+                    </div>
+                </div>
+
+                {/* Recent form */}
+                {matchHistory.length > 0 && (
+                    <div className="text-right">
+                        <p className="text-text-secondary text-[10px] uppercase tracking-widest mb-1.5">Recent Form</p>
+                        <div className="flex gap-1 justify-end">
+                            {matchHistory.map((match) => (
+                                <span
+                                    key={match.matchId}
+                                    className="w-[18px] h-[18px] rounded-[3px]"
+                                    style={{ backgroundColor: match.win ? "#4ade80" : "#f87171" }}
+                                    title={match.win ? "Win" : "Loss"}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Stat tiles */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5">
+                <div className="bg-surface-deep rounded-xl p-3">
+                    <p className="text-text-primary font-extrabold text-xl">{avgCsPerMin ? avgCsPerMin.toFixed(1) : "—"}</p>
+                    <p className="text-text-secondary text-xs">CS / min</p>
+                </div>
+                <div className="bg-surface-deep rounded-xl p-3">
+                    <p className="text-text-primary font-extrabold text-xl">{avgVision ? Math.round(avgVision) : "—"}</p>
+                    <p className="text-text-secondary text-xs">Vision / game</p>
+                </div>
+                <div className="bg-surface-deep rounded-xl p-3">
+                    <p className="text-text-primary font-extrabold text-xl">{avgKillParticipation ? `${Math.round(avgKillParticipation)}%` : "—"}</p>
+                    <p className="text-text-secondary text-xs">Kill part.</p>
+                </div>
+                <div className="bg-surface-deep rounded-xl p-3">
+                    <p className="text-text-primary font-extrabold text-xl">{avgDamage ? `${(avgDamage / 1000).toFixed(1)}k` : "—"}</p>
+                    <p className="text-text-secondary text-xs">Avg. dmg</p>
                 </div>
             </div>
 
-            {/* Stats */}
-            <div className="flex flex-col items-end gap-2">
-                <div className="text-right">
-                    <p className="text-green-400 font-medium text-lg leading-tight">{winRate}%</p>
-                    <p className="text-text-secondary text-xs">Win Rate</p>
+            {/* Top Champions + LP graph */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5">
+                <div className="bg-surface-deep rounded-xl p-4">
+                    <p className="text-text-secondary text-[11px] uppercase tracking-widest mb-3">Top Champions</p>
+                    <div className="flex flex-col gap-2.5">
+                        {topChampions.length === 0 && (
+                            <p className="text-text-secondary text-sm">No recent ranked games yet.</p>
+                        )}
+                        {topChampions.map((champ) => (
+                            <div key={champ.champion} className="flex items-center gap-2.5">
+                                {championIconUrl(champ.champion) && (
+                                    <img
+                                        src={championIconUrl(champ.champion)}
+                                        alt={champ.champion}
+                                        className="w-9 h-9 rounded-md object-cover bg-surface flex-shrink-0"
+                                        onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
+                                    />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-text-primary text-[13px] font-bold truncate">{champ.champion}</p>
+                                    <p className="text-text-secondary text-[10px]">{champ.kda} KDA · {champ.games} games</p>
+                                </div>
+                                <p className="text-positive text-[13px] font-bold flex-shrink-0">{champ.winRate}%</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-                <div className="text-right">
-                    <p className="font-medium text-lg leading-tight">{totalGames}</p>
-                    <p className="text-text-secondary text-xs">Games</p>
+                <div className="bg-surface-deep rounded-xl p-4">
+                    <p className="text-text-secondary text-[11px] uppercase tracking-widest mb-3">LP History</p>
+                    <LpHistoryChart
+                        accountId={account.id}
+                        matchHistory={matchHistory}
+                        currentLeaguePoints={rankEntry.leaguePoints}
+                        accentColor={accentColor}
+                        ddragonVersion={ddragonVersion}
+                    />
                 </div>
             </div>
 
+            {/* Match history */}
+            {matchHistory.length > 0 && (
+                <div className="mt-5">
+                    <div className="flex items-center gap-2 mb-2.5">
+                        <p className="text-text-secondary text-xs uppercase tracking-widest">Match History</p>
+                        <div className="flex-1 h-px bg-hairline" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                        {matchHistory.map((match) => {
+                            const isExpanded = expandedMatchId === match.matchId
+                            return (
+                                <div
+                                    key={match.matchId}
+                                    className="bg-surface-deep rounded-xl overflow-hidden"
+                                    style={{ borderLeft: `3px solid ${match.win ? "#4ade80" : "#f87171"}` }}
+                                >
+                                    <button
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => toggleMatch(match.matchId)}
+                                        className="w-full flex items-center gap-3 p-3 text-left"
+                                    >
+                                        {championIconUrl(match.champion) && (
+                                            <img
+                                                src={championIconUrl(match.champion)}
+                                                alt={match.champion}
+                                                className="w-9 h-9 rounded-md object-cover bg-surface flex-shrink-0"
+                                                onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
+                                            />
+                                        )}
+                                        <div className="w-[110px] flex-shrink-0">
+                                            <p className="text-text-primary text-sm font-bold truncate">{match.champion}</p>
+                                            <p className="text-text-secondary text-[10px]">{match.role || "—"}</p>
+                                        </div>
+                                        <div className="flex-1 font-mono text-sm text-text-primary">
+                                            {match.kills}/{match.deaths}/{match.assists}
+                                            <span className="text-text-secondary text-xs ml-2">{match.cs} CS</span>
+                                        </div>
+                                        <p className={`text-sm font-bold flex-shrink-0 ${match.win ? "text-positive" : "text-negative"}`}>
+                                            {match.win ? "Win" : "Loss"}
+                                        </p>
+                                        <div className="text-right flex-shrink-0">
+                                            <p className="text-text-secondary font-mono text-xs">{formatDuration(match.gameDurationSeconds)}</p>
+                                            <p className="text-text-secondary text-[10px]">{formatTimeAgo(match.gameEndTimestamp)}</p>
+                                        </div>
+                                    </button>
+                                    {isExpanded && (
+                                        <div className="border-t border-hairline">
+                                            <MatchDetail match={match} ddragonVersion={ddragonVersion} yourPuuid={yourPuuid} itemData={itemData} />
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

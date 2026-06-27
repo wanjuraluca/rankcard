@@ -4,22 +4,35 @@
   --background: #0a0a0f;
   --surface: #15151f;
   --surface-hover: #1c1c28;
+  --surface-deep: #0e0d16;
   --accent: #b16cff;
+  --accent-soft: #c9a6ff;
+  --accent-tint: rgba(177, 108, 255, 0.12);
   --text-primary: #f4f3f7;
   --text-secondary: #8a8a9a;
   --border: rgba(177, 108, 255, 0.25);
+  --hairline: rgba(255, 255, 255, 0.08);
+  --positive: #4ade80;
+  --negative: #f87171;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-surface-hover: var(--surface-hover);
+  --color-surface-deep: var(--surface-deep);
   --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-tint: var(--accent-tint);
   --color-line: var(--border);
+  --color-hairline: var(--hairline);
   --color-acnt: var(--accent);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
   --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
 }
 
 body {

@@ -3,53 +3,69 @@ import { useState } from "react"
 import { platformConfig } from "@/lib/platforms"
 import { supabase } from "@/lib/supabase"
 
-export default function AddGameModal({ onClose, onConnected }) {
+export default function AddGameModal({ onClose, onConnected, existingAccounts = [] }) {
 
-    // Welches Spiel ist ausgewählt? (Key aus platformConfig, z.B. "League of Legends")
+    // Which game is selected? (key from platformConfig, e.g. "League of Legends")
     const [selectedGame, setSelectedGame] = useState(null)
     const [username, setUsername] = useState("")
     const [tag, setTag] = useState("")
     const [loading, setLoading] = useState(false)
     const [errorMsg, setErrorMsg] = useState("")
 
-    // Die Config des gewählten Spiels (oder null, wenn noch keins gewählt)
+    // Config of the selected game (or null if none selected yet)
     const selectedConfig = selectedGame ? platformConfig[selectedGame] : null
 
-    // Braucht das gewählte Spiel ein Tag-Feld? (riot/battlenet = ja, steam = nein)
+    // Does the selected game need a tag field? (riot/battlenet = yes, steam = no)
     const needsTag = selectedConfig?.inputType === "riot" || selectedConfig?.inputType === "battlenet"
+
+    function isDuplicateAccount() {
+        return existingAccounts.some((account) => {
+            if (account.platform !== selectedGame) return false
+            const sameUsername = account.platform_username.toLowerCase() === username.toLowerCase()
+            if (!needsTag) return sameUsername
+            return sameUsername && (account.platform_tag ?? "").toLowerCase() === tag.toLowerCase()
+        })
+    }
 
     async function handleConnect() {
         setErrorMsg("")
+
+        // 0. Block accounts that are already connected
+        if (isDuplicateAccount()) {
+            setErrorMsg("This account is already connected.")
+            return
+        }
+
         setLoading(true)
 
         try {
-            // 1. Eingeloggten User holen
+            // 1. Get the logged-in user
             const { data: userData, error: userError } = await supabase.auth.getUser()
             if (userError || !userData?.user) {
-                setErrorMsg("Du bist nicht eingeloggt.")
+                setErrorMsg("You are not logged in.")
                 setLoading(false)
                 return
             }
             const userId = userData.user.id
 
-            // 2. puuid Standard: null (fuer Steam o.ae. ohne Riot-Validierung)
+            // 2. puuid default: null (for Steam etc. without Riot validation)
             let puuid = null
 
-            // 3. Bei Riot-Spielen: Account ueber die API validieren + puuid holen
+            // 3. For Riot games: validate the account via the API + get puuid
             if (selectedConfig.inputType === "riot") {
                 const res = await fetch(`/api/summoner?platform=${selectedGame}&name=${username}&tag=${tag}`)
                 const data = await res.json()
 
-                // Wenn kein puuid zurueckkommt, existiert der Account nicht
+                // If no puuid comes back, the account doesn't exist
                 if (!data.puuid) {
-                    setErrorMsg("Account nicht gefunden. Pruefe Name und Tag.")
+                    setErrorMsg("Account not found. Check the name and tag.")
                     setLoading(false)
                     return
                 }
                 puuid = data.puuid
             }
 
-            // 4. In die Datenbank schreiben
+            // 4. Write to the database
             const { data: inserted, error: insertError } = await supabase
                 .from("connected_accounts")
                 .insert({
@@ -68,12 +84,12 @@ export default function AddGameModal({ onClose, onConnected }) {
                 return
             }
 
-            // 5. Erfolg: neuen Account nach oben melden + Modal schliessen
+            // 5. Success: report the new account upward + close the modal
             onConnected(inserted)
             onClose()
 
         } catch (err) {
-            setErrorMsg("Etwas ist schiefgelaufen. Versuche es erneut.")
+            setErrorMsg("Something went wrong. Please try again.")
             setLoading(false)
         }
     }
@@ -81,20 +97,20 @@ export default function AddGameModal({ onClose, onConnected }) {
     return (
         <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-50" onClick={onClose}>
 
-            {/* Modal Box - stopPropagation, damit Klick INS Modal es nicht schliesst */}
+            {/* Modal box - stopPropagation so clicking INSIDE the modal doesn't close it */}
             <div className="bg-surface border border-line rounded-2xl p-7 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
 
                 {/* Header */}
                 <div className="flex justify-between items-start mb-6">
                     <div>
-                        <p className="text-text-primary text-lg font-medium">Spiel verbinden</p>
-                        <p className="text-text-secondary text-sm mt-1">Waehle ein Spiel und gib deinen Account an.</p>
+                        <p className="text-text-primary text-lg font-medium">Connect a game</p>
+                        <p className="text-text-secondary text-sm mt-1">Pick a game and enter your account.</p>
                     </div>
                     <button onClick={onClose} className="text-text-secondary text-xl leading-none">✕</button>
                 </div>
 
-                {/* Spiel-Auswahl */}
-                <p className="text-text-secondary text-xs uppercase tracking-widest mb-2.5">Spiel</p>
+                {/* Game selection */}
+                <p className="text-text-secondary text-xs uppercase tracking-widest mb-2.5">Game</p>
                 <div className="grid grid-cols-4 gap-2 mb-6">
                     {Object.keys(platformConfig).map((key) => {
                         const config = platformConfig[key]
@@ -113,27 +129,27 @@ export default function AddGameModal({ onClose, onConnected }) {
                         )
                     })}
 
-                    {/* "bald" Platzhalter-Karte fuer zukuenftige Spiele */}
+                    {/* "Coming soon" placeholder card for future games */}
                     <div className="border border-dashed border-line rounded-lg py-3 flex flex-col items-center justify-center gap-1.5">
                         <span className="text-text-secondary text-lg leading-none">+</span>
-                        <span className="text-text-secondary text-[10px]">bald</span>
+                        <span className="text-text-secondary text-[10px]">soon</span>
                     </div>
                 </div>
 
-                {/* Account-Eingabe - nur sichtbar wenn ein Spiel gewaehlt ist */}
+                {/* Account input - only visible once a game is selected */}
                 {selectedGame && (
                     <>
                         <p className="text-text-secondary text-xs uppercase tracking-widest mb-2.5">Account</p>
                         <div className="flex gap-2.5 mb-2">
-                            {/* Spielername - immer da */}
+                            {/* Username - always shown */}
                             <input
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                placeholder="Spielername"
+                                placeholder="Username"
                                 className="flex-[2] bg-background border border-line rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent outline-none"
                             />
-                            {/* Tag - nur bei riot/battlenet */}
+                            {/* Tag - only for riot/battlenet */}
                             {needsTag && (
                                 <input
                                     type="text"
@@ -145,12 +161,12 @@ export default function AddGameModal({ onClose, onConnected }) {
                             )}
                         </div>
                         <p className="text-text-secondary text-xs mb-6">
-                            {needsTag ? "z.B. DinDjarin#1007" : "z.B. dein Steam-Profilname"}
+                            {needsTag ? "e.g. DinDjarin#1007" : "e.g. your Steam profile name"}
                         </p>
                     </>
                 )}
 
-                {/* Fehlermeldung */}
+                {/* Error message */}
                 {errorMsg && (
                     <p className="text-red-400 text-sm mb-4">{errorMsg}</p>
                 )}
@@ -161,14 +177,14 @@ export default function AddGameModal({ onClose, onConnected }) {
                         onClick={onClose}
                         className="flex-1 border border-line rounded-lg py-2.5 text-sm text-text-secondary"
                     >
-                        Abbrechen
+                        Cancel
                     </button>
                     <button
                         onClick={handleConnect}
                         disabled={!selectedGame || !username || (needsTag && !tag) || loading}
                         className="flex-1 bg-accent rounded-lg py-2.5 text-sm text-white font-medium disabled:opacity-40"
                     >
-                        {loading ? "Verbinde..." : "Verbinden"}
+                        {loading ? "Connecting..." : "Connect"}
                     </button>
                 </div>
 
