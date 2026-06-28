@@ -6,7 +6,7 @@ import AccountMenu from "./AccountMenu"
 import Footer from "./Footer"
 import { useState, useEffect } from "react"
 import { platformConfig } from "@/lib/platforms"
-import { getLeagueScore, getValorantScore, getCs2Score } from "@/lib/rankScore"
+import { extractGameStats, average } from "@/lib/gameStats"
 import { supabase } from "@/lib/supabase"
 import RankBadge from "./RankBadge"
 import RankHero from "./RankHero"
@@ -19,57 +19,6 @@ const gameTabs = [
     { key: "valorant", platform: "Valorant" },
     { key: "cs2", platform: "CSGO" },
 ]
-
-// Only games with a live rank/match API behind them (lib/rankScore.js) feed
-// into the overall averages below — CS2 has no API integration yet, so it's
-// simply excluded until that's wired up. Adding a new game means adding a
-// branch here and a percentile table in lib/rankScore.js, nothing else.
-function extractGameStats(platform, apiData) {
-    if (platform === "League of Legends") {
-        if (!Array.isArray(apiData.rankData)) return null
-        const entry = apiData.rankData.find(q => q.queueType === "RANKED_SOLO_5x5")
-        if (!entry) return null
-        const totalGames = entry.wins + entry.losses
-        const matchHistory = Array.isArray(apiData.matchHistory) ? apiData.matchHistory : []
-        const kdas = matchHistory.map(m => (m.kills + m.assists) / Math.max(m.deaths, 1))
-        return {
-            winRate: totalGames > 0 ? (entry.wins / totalGames) * 100 : null,
-            rankScore: getLeagueScore(entry.tier, entry.rank),
-            kda: average(kdas),
-        }
-    }
-
-    if (platform === "Valorant") {
-        const tierName = apiData.valorantData?.data?.current?.tier?.name
-        const matchHistory = Array.isArray(apiData.valorantMatchHistory) ? apiData.valorantMatchHistory : []
-        const wins = matchHistory.filter(m => m.win).length
-        const kdas = matchHistory.map(m => (m.kills + m.assists) / Math.max(m.deaths, 1))
-        return {
-            winRate: matchHistory.length > 0 ? (wins / matchHistory.length) * 100 : null,
-            rankScore: getValorantScore(tierName),
-            kda: average(kdas),
-        }
-    }
-
-    if (platform === "CSGO") {
-        const matchHistory = Array.isArray(apiData.cs2MatchHistory) ? apiData.cs2MatchHistory : []
-        const wins = matchHistory.filter(m => m.win).length
-        const kdas = matchHistory.map(m => (m.kills + m.assists) / Math.max(m.deaths, 1))
-        return {
-            winRate: matchHistory.length > 0 ? (wins / matchHistory.length) * 100 : null,
-            rankScore: getCs2Score(apiData.cs2Profile?.ranks?.premier),
-            kda: average(kdas),
-        }
-    }
-
-    return null
-}
-
-function average(numbers) {
-    const valid = numbers.filter(n => n != null)
-    if (valid.length === 0) return null
-    return valid.reduce((sum, n) => sum + n, 0) / valid.length
-}
 
 export default function ProfileClient({ data, accounts }) {
 
@@ -306,6 +255,44 @@ export default function ProfileClient({ data, accounts }) {
                             </div>
                         )}
                     </div>
+
+                    {/* Export Card */}
+                    {isOwnProfile && (
+                        <>
+                            <div className="flex items-center gap-2 mt-5 mb-2.5">
+                                <p className="text-text-secondary text-xs uppercase tracking-widest">Export Card</p>
+                                <div className="flex-1 h-px bg-hairline" />
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <a
+                                    href={`/api/card?username=${data.username}`}
+                                    download
+                                    className="border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all"
+                                >
+                                    Download Overall Card
+                                </a>
+                                {data.is_pro ? (
+                                    [...new Set(accountList.map(a => a.platform))].map((platform) => {
+                                        const config = platformConfig[platform]
+                                        return (
+                                            <a
+                                                key={platform}
+                                                href={`/api/card?username=${data.username}&platform=${platform}`}
+                                                download
+                                                className="border border-hairline rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-surface-hover active:bg-surface-hover active:scale-95 transition-all"
+                                            >
+                                                Download {config?.shortName ?? platform} Card
+                                            </a>
+                                        )
+                                    })
+                                ) : (
+                                    <span className="self-center text-xs text-text-secondary">
+                                        Per-game cards are a <span className="text-accent-soft font-semibold">Pro</span> feature.
+                                    </span>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
 

@@ -106,7 +106,11 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                 .single()
 
             if (insertError) {
-                setErrorMsg(insertError.message)
+                setErrorMsg(
+                    insertError.code === "23505"
+                        ? "This account is already connected."
+                        : insertError.message
+                )
                 setLoading(false)
                 return
             }
