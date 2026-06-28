@@ -161,24 +161,26 @@ export default function ProfileClient({ data, accounts }) {
             <div className="h-[140px] rounded-t-2xl border border-line border-b-0 bg-[radial-gradient(ellipse_55%_130%_at_20%_60%,rgba(177,108,255,0.45),transparent_60%)]" />
 
             {/* Profile Strip */}
-            <div className="bg-surface border border-line rounded-b-2xl p-4 flex gap-4 items-center flex-wrap">
-                <div className="-mt-16">
+            <div className="bg-surface border border-line rounded-b-2xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center">
+                <div className="-mt-16 self-start">
                     <AvatarUpload username={data.username} avatarUrl={data.avatar_url} />
                 </div>
-                <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-text-primary text-2xl font-extrabold">{data.username}</p>
                         <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-accent-tint text-accent-soft border border-accent/40">PRO</span>
                     </div>
                     <BioEditor username={data.username} bio={data.bio} />
                 </div>
-                <button
-                    onClick={handleShareProfile}
-                    className="border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all"
-                >
-                    {shareCopied ? "Link copied ✓" : "Share profile ↗"}
-                </button>
-                {isOwnProfile && <AccountMenu />}
+                <div className="flex items-center gap-2 sm:flex-shrink-0">
+                    <button
+                        onClick={handleShareProfile}
+                        className="flex-1 sm:flex-none border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all"
+                    >
+                        {shareCopied ? "Link copied ✓" : "Share profile ↗"}
+                    </button>
+                    {isOwnProfile && <AccountMenu />}
+                </div>
             </div>
 
             {/* Tab Bar */}

@@ -72,25 +72,25 @@ function PlayerRow({ player, ddragonVersion, itemData, isYou }) {
     const kda = ((player.kills + player.assists) / Math.max(player.deaths, 1)).toFixed(1)
 
     return (
-        <div className={`flex items-center gap-2 py-1.5 px-2 rounded-lg ${isYou ? "bg-accent-tint" : ""}`}>
+        <div className={`flex items-center gap-1.5 sm:gap-2 py-1.5 px-2 rounded-lg ${isYou ? "bg-accent-tint" : ""}`}>
             <img
                 src={championIconUrl(player.champion, ddragonVersion)}
                 alt={player.champion}
-                className="w-7 h-7 rounded-md object-cover bg-surface flex-shrink-0"
+                className="w-6 h-6 sm:w-7 sm:h-7 rounded-md object-cover bg-surface flex-shrink-0"
                 onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
             />
-            <div className="w-[120px] flex-shrink-0 min-w-0">
-                <p className={`text-xs font-bold truncate ${isYou ? "text-accent-soft" : "text-text-primary"}`}>
+            <div className="w-[78px] sm:w-[120px] flex-shrink-0 min-w-0">
+                <p className={`text-[11px] sm:text-xs font-bold truncate ${isYou ? "text-accent-soft" : "text-text-primary"}`}>
                     {player.summonerName}{player.summonerTag ? `#${player.summonerTag}` : ""}
                 </p>
                 <p className="text-text-secondary text-[10px] truncate">{player.champion}</p>
             </div>
-            <div className="w-[80px] flex-shrink-0 font-mono text-xs text-text-primary">
+            <div className="w-[58px] sm:w-[80px] flex-shrink-0 font-mono text-[11px] sm:text-xs text-text-primary">
                 {player.kills}/{player.deaths}/{player.assists}
                 <span className="text-text-secondary text-[10px] block">{kda} KDA</span>
             </div>
-            <div className="w-[50px] flex-shrink-0 text-text-secondary text-xs">{player.cs} CS</div>
-            <div className="flex gap-0.5 flex-wrap flex-1 justify-end">
+            <div className="w-[40px] sm:w-[50px] flex-shrink-0 text-text-secondary text-[11px] sm:text-xs hidden sm:block">{player.cs} CS</div>
+            <div className="hidden sm:flex gap-0.5 flex-wrap flex-1 justify-end">
                 {player.items.map((itemId, i) => (
                     <ItemIcon key={i} itemId={itemId} ddragonVersion={ddragonVersion} itemData={itemData} />
                 ))}
