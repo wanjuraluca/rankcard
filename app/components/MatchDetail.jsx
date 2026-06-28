@@ -1,5 +1,10 @@
 "use client"
 
+import { useRef, useState } from "react"
+
+const TOOLTIP_WIDTH = 224 // w-56
+const VIEWPORT_MARGIN = 8
+
 function itemIconUrl(itemId, ddragonVersion) {
     return ddragonVersion ? `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/item/${itemId}.png` : null
 }
@@ -21,17 +26,35 @@ function stripItemDescription(html) {
 
 function ItemIcon({ itemId, ddragonVersion, itemData }) {
     const item = itemData?.[itemId]
+    const wrapperRef = useRef(null)
+    const [tooltipStyle, setTooltipStyle] = useState(null)
+
+    const handleMouseEnter = () => {
+        const rect = wrapperRef.current?.getBoundingClientRect()
+        if (!rect) return
+
+        const centeredLeft = rect.left + rect.width / 2 - TOOLTIP_WIDTH / 2
+        const clampedLeft = Math.min(
+            Math.max(centeredLeft, VIEWPORT_MARGIN),
+            window.innerWidth - TOOLTIP_WIDTH - VIEWPORT_MARGIN
+        )
+
+        setTooltipStyle({ left: clampedLeft, bottom: window.innerHeight - rect.top + 6 })
+    }
 
     return (
-        <div className="relative group">
+        <div ref={wrapperRef} className="relative group" onMouseEnter={handleMouseEnter}>
             <img
                 src={itemIconUrl(itemId, ddragonVersion)}
                 alt={item?.name ?? ""}
                 className="w-5 h-5 rounded-[3px] bg-surface"
                 onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
             />
-            {item && (
-                <div className="hidden group-hover:block absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-56 bg-surface border border-line rounded-lg p-2.5 shadow-lg pointer-events-none">
+            {item && tooltipStyle && (
+                <div
+                    style={{ left: tooltipStyle.left, bottom: tooltipStyle.bottom }}
+                    className="hidden group-hover:block fixed z-50 w-56 bg-surface border border-line rounded-lg p-2.5 shadow-lg pointer-events-none"
+                >
                     <p className="text-text-primary text-xs font-bold mb-1">{item.name}</p>
                     {item.gold?.total > 0 && (
                         <p className="text-accent-soft text-[10px] mb-1">{item.gold.total} gold</p>
