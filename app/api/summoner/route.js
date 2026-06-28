@@ -23,6 +23,14 @@ export async function GET(request) {
 
   const account = await response.json()
   const valorantAccountData = await valAccountData.json()
+  // Henrik shards Valorant data by region (eu/na/ap/kr/br/latam) — using the
+  // wrong one returns "Invalid UUID/PUUID" even for a real, active account.
+  // The account lookup above tells us which shard this player is actually on.
+  const valorantRegion = valorantAccountData?.data?.region || 'eu'
+  // Henrik's own puuid for this account can differ from Riot's official one
+  // (their account cache can lag behind a tag change) — their by-puuid
+  // endpoints only recognize their own puuid, so use that, not Riot's.
+  const valorantPuuid = valorantAccountData?.data?.puuid ?? account.puuid
 
   const respone2 = await fetch(
     `https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/${account.puuid}`,
@@ -34,7 +42,7 @@ export async function GET(request) {
   )
 
   const respone4 = await fetch(
-    `https://api.henrikdev.xyz/valorant/v3/by-puuid/mmr/eu/pc/${account.puuid}`,
+    `https://api.henrikdev.xyz/valorant/v3/by-puuid/mmr/${valorantRegion}/pc/${valorantPuuid}`,
     {
       headers: {
         'Authorization': process.env.VAL_API_KEY
@@ -56,11 +64,12 @@ export async function GET(request) {
   const tftData = await response3.json()
   const matchHistory = await fetchMatchHistory(account.puuid)
   const ddragonVersion = await fetchDdragonVersion()
-  const valorantMatchHistory = await fetchValorantMatchHistory(account.puuid)
-  const valorantMmrHistory = await fetchValorantMmrHistory(account.puuid)
+  const valorantMatchHistory = await fetchValorantMatchHistory(valorantPuuid, valorantRegion)
+  const valorantMmrHistory = await fetchValorantMmrHistory(valorantPuuid, valorantRegion)
 
   return Response.json({
     puuid: account.puuid,
+    valorantPuuid,
     rankData,
     tftData,
     valorantData,
@@ -75,11 +84,11 @@ export async function GET(request) {
 // (Riot has no public Valorant match-history API). Endpoints and field names
 // have changed across versions before (v1 -> v2 -> v3 -> v4) — if this starts
 // returning empty data, check https://docs.henrikdev.xyz for schema changes.
-async function fetchValorantMatchHistory(puuid) {
+async function fetchValorantMatchHistory(puuid, region) {
   // No platform segment here — unlike the mmr endpoints, by-puuid/matches
   // takes only the region. Adding /pc/ (like the mmr endpoint needs) 404s.
   const response = await fetch(
-    `https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/eu/${puuid}?size=8`,
+    `https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/${region}/${puuid}?size=8`,
     {
       headers: {
         'Authorization': process.env.VAL_API_KEY
@@ -136,10 +145,10 @@ async function fetchValorantMatchHistory(puuid) {
   }).filter(Boolean)
 }
 
-async function fetchValorantMmrHistory(puuid) {
+async function fetchValorantMmrHistory(puuid, region) {
   // v1, not v2 — the v2/by-puuid/mmr-history route doesn't exist (404s).
   const response = await fetch(
-    `https://api.henrikdev.xyz/valorant/v1/by-puuid/mmr-history/eu/${puuid}`,
+    `https://api.henrikdev.xyz/valorant/v1/by-puuid/mmr-history/${region}/${puuid}`,
     {
       headers: {
         'Authorization': process.env.VAL_API_KEY

@@ -76,7 +76,7 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
             setValorantData(data.valorantData?.data?.current ?? null)
             setMatchHistory(data.valorantMatchHistory ?? [])
             setMmrHistory(data.valorantMmrHistory ?? [])
-            setYourPuuid(data.puuid ?? null)
+            setYourPuuid(data.valorantPuuid ?? null)
             setLoading(false)
         }
 
