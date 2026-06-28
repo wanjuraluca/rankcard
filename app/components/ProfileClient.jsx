@@ -2,10 +2,13 @@
 
 import AvatarUpload from "./AvatarUpload"
 import BioEditor from "./BioEditor"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { platformConfig } from "@/lib/platforms"
+import { getLeagueScore, getValorantScore } from "@/lib/rankScore"
+import { supabase } from "@/lib/supabase"
 import RankBadge from "./RankBadge"
 import RankHero from "./RankHero"
+import ValorantHero from "./ValorantHero"
 import AddGameModal from "./AddGameModal"
 
 const gameTabs = [
@@ -14,11 +17,95 @@ const gameTabs = [
     { key: "cs2", platform: "CSGO" },
 ]
 
+// Only games with a live rank/match API behind them (lib/rankScore.js) feed
+// into the overall averages below — CS2 has no API integration yet, so it's
+// simply excluded until that's wired up. Adding a new game means adding a
+// branch here and a percentile table in lib/rankScore.js, nothing else.
+function extractGameStats(platform, apiData) {
+    if (platform === "League of Legends") {
+        if (!Array.isArray(apiData.rankData)) return null
+        const entry = apiData.rankData.find(q => q.queueType === "RANKED_SOLO_5x5")
+        if (!entry) return null
+        const totalGames = entry.wins + entry.losses
+        const matchHistory = Array.isArray(apiData.matchHistory) ? apiData.matchHistory : []
+        const kdas = matchHistory.map(m => (m.kills + m.assists) / Math.max(m.deaths, 1))
+        return {
+            winRate: totalGames > 0 ? (entry.wins / totalGames) * 100 : null,
+            rankScore: getLeagueScore(entry.tier, entry.rank),
+            kda: average(kdas),
+        }
+    }
+
+    if (platform === "Valorant") {
+        const tierName = apiData.valorantData?.data?.current_data?.currenttierpatched
+        const matchHistory = Array.isArray(apiData.valorantMatchHistory) ? apiData.valorantMatchHistory : []
+        const wins = matchHistory.filter(m => m.win).length
+        const kdas = matchHistory.map(m => (m.kills + m.assists) / Math.max(m.deaths, 1))
+        return {
+            winRate: matchHistory.length > 0 ? (wins / matchHistory.length) * 100 : null,
+            rankScore: getValorantScore(tierName),
+            kda: average(kdas),
+        }
+    }
+
+    return null
+}
+
+function average(numbers) {
+    const valid = numbers.filter(n => n != null)
+    if (valid.length === 0) return null
+    return valid.reduce((sum, n) => sum + n, 0) / valid.length
+}
+
 export default function ProfileClient({ data, accounts }) {
 
     const [activeTab, setActiveTab] = useState("overall")
     const [showModal, setShowModal] = useState(false)
     const [accountList, setAccountList] = useState(accounts)
+    const [gameStats, setGameStats] = useState({})
+    const [removingId, setRemovingId] = useState(null)
+
+    async function removeAccount(account) {
+        const confirmed = window.confirm(
+            `Remove ${account.platform_username}${account.platform_tag ? `#${account.platform_tag}` : ""} (${platformConfig[account.platform]?.shortName})?`
+        )
+        if (!confirmed) return
+
+        setRemovingId(account.id)
+        const { error } = await supabase.from("connected_accounts").delete().eq("id", account.id)
+        setRemovingId(null)
+
+        if (error) {
+            window.alert(`Could not remove account: ${error.message}`)
+            return
+        }
+
+        setAccountList(prev => prev.filter(a => a.id !== account.id))
+        setGameStats(prev => {
+            const { [account.id]: _removed, ...rest } = prev
+            return rest
+        })
+        const tabForAccount = gameTabs.find(t => t.platform === account.platform)
+        if (tabForAccount && activeTab === tabForAccount.key) {
+            setActiveTab("overall")
+        }
+    }
+
+    useEffect(() => {
+        const scoredAccounts = accountList.filter(a => a.platform === "League of Legends" || a.platform === "Valorant")
+
+        scoredAccounts.forEach(async (account) => {
+            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}`)
+            const apiData = await response.json()
+            const stats = extractGameStats(account.platform, apiData)
+            setGameStats(prev => ({ ...prev, [account.id]: stats }))
+        })
+    }, [accountList])
+
+    const statsList = Object.values(gameStats)
+    const avgWinRate = average(statsList.map(s => s?.winRate))
+    const avgRankScore = average(statsList.map(s => s?.rankScore))
+    const avgKda = average(statsList.map(s => s?.kda))
 
     const activeGameTab = gameTabs.find(tab => tab.key === activeTab)
 
@@ -87,15 +174,21 @@ export default function ProfileClient({ data, accounts }) {
                     {/* Metric Cards */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div className="bg-surface border border-accent/40 rounded-2xl p-4">
-                            <p className="text-accent text-2xl font-extrabold">2,000</p>
+                            <p className="text-accent text-2xl font-extrabold">
+                                {avgRankScore != null ? Math.round(avgRankScore).toLocaleString() : "—"}
+                            </p>
                             <p className="text-text-secondary text-xs">Rank Score</p>
                         </div>
                         <div className="bg-surface border border-hairline rounded-2xl p-4">
-                            <p className="text-text-primary text-2xl font-extrabold">55%</p>
+                            <p className="text-text-primary text-2xl font-extrabold">
+                                {avgWinRate != null ? `${Math.round(avgWinRate)}%` : "—"}
+                            </p>
                             <p className="text-text-secondary text-xs">Avg Win Rate</p>
                         </div>
                         <div className="bg-surface border border-hairline rounded-2xl p-4">
-                            <p className="text-text-primary text-2xl font-extrabold">2.47</p>
+                            <p className="text-text-primary text-2xl font-extrabold">
+                                {avgKda != null ? avgKda.toFixed(2) : "—"}
+                            </p>
                             <p className="text-text-secondary text-xs">Avg KDA</p>
                         </div>
                         <div className="bg-surface border border-hairline rounded-2xl p-4">
@@ -119,9 +212,17 @@ export default function ProfileClient({ data, accounts }) {
                                 <div
                                     key={account.id}
                                     onClick={() => tabForAccount && setActiveTab(tabForAccount.key)}
-                                    className="bg-surface border border-hairline rounded-2xl p-4 cursor-pointer hover:border-accent/40 transition-colors"
+                                    className="bg-surface border border-hairline rounded-2xl p-4 cursor-pointer hover:border-accent/40 transition-colors relative"
                                     style={{ borderTopWidth: 3, borderTopColor: config?.color }}
                                 >
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); removeAccount(account) }}
+                                        disabled={removingId === account.id}
+                                        title="Remove account"
+                                        className="absolute top-2.5 right-2.5 text-text-secondary hover:text-negative text-xs leading-none disabled:opacity-40"
+                                    >
+                                        ✕
+                                    </button>
                                     <div className="flex items-center gap-2 mb-3">
                                         <div
                                             className="rounded-[9px] flex items-center justify-center"
@@ -161,11 +262,22 @@ export default function ProfileClient({ data, accounts }) {
                         <div className="flex items-center gap-2 mt-5 mb-2.5">
                             <p className="text-text-secondary text-xs uppercase tracking-widest">{config.name}</p>
                             <div className="flex-1 h-px bg-hairline" />
+                            {account && (
+                                <button
+                                    onClick={() => removeAccount(account)}
+                                    disabled={removingId === account.id}
+                                    className="text-text-secondary hover:text-negative text-xs disabled:opacity-40"
+                                >
+                                    Remove account
+                                </button>
+                            )}
                         </div>
 
                         {account ? (
                             activeGameTab.platform === "League of Legends" ? (
                                 <RankHero account={account} accentColor={config.color} />
+                            ) : activeGameTab.platform === "Valorant" ? (
+                                <ValorantHero account={account} accentColor={config.color} />
                             ) : (
                                 <div className="bg-surface border border-hairline rounded-2xl p-6 text-center">
                                     <p className="text-text-secondary text-sm">Live rank data for {config.name} is coming soon.</p>

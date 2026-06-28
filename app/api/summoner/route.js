@@ -56,8 +56,103 @@ export async function GET(request) {
   const tftData = await response3.json()
   const matchHistory = await fetchMatchHistory(account.puuid)
   const ddragonVersion = await fetchDdragonVersion()
+  const valorantMatchHistory = await fetchValorantMatchHistory(account.puuid)
+  const valorantMmrHistory = await fetchValorantMmrHistory(account.puuid)
 
-  return Response.json({ puuid: account.puuid, rankData, tftData, valorantData, matchHistory, ddragonVersion })
+  return Response.json({
+    puuid: account.puuid,
+    rankData,
+    tftData,
+    valorantData,
+    matchHistory,
+    ddragonVersion,
+    valorantMatchHistory,
+    valorantMmrHistory
+  })
+}
+
+// Henrik's API is an unofficial, community-run wrapper around Valorant data
+// (Riot has no public Valorant match-history API). Endpoints and field names
+// have changed across versions before (v1 -> v2 -> v3 -> v4) — if this starts
+// returning empty data, check https://docs.henrikdev.xyz for schema changes.
+async function fetchValorantMatchHistory(puuid) {
+  const response = await fetch(
+    `https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/eu/pc/${puuid}?size=8`,
+    {
+      headers: {
+        'Authorization': process.env.VAL_API_KEY
+      }
+    }
+  )
+  const json = await response.json()
+  const matches = json?.data
+  if (!Array.isArray(matches)) return []
+
+  return matches.map((match) => {
+    const allPlayers = match.players?.all_players ?? []
+    const me = allPlayers.find(p => p.puuid === puuid)
+    if (!me) return null
+
+    const myTeam = allPlayers.filter(p => p.team === me.team)
+    const won = match.teams?.[me.team?.toLowerCase()]?.has_won ?? null
+    const roundsPlayed = match.metadata?.rounds_played || 1
+    const myShots = (me.stats?.headshots ?? 0) + (me.stats?.bodyshots ?? 0) + (me.stats?.legshots ?? 0)
+    const topScore = Math.max(...allPlayers.map(p => p.stats?.score ?? 0))
+
+    const players = allPlayers.map(p => ({
+      puuid: p.puuid,
+      name: p.name,
+      tag: p.tag,
+      team: p.team,
+      agent: p.character?.name,
+      agentIcon: p.assets?.agent?.small ?? null,
+      kills: p.stats?.kills ?? 0,
+      deaths: p.stats?.deaths ?? 0,
+      assists: p.stats?.assists ?? 0,
+      score: p.stats?.score ?? 0
+    }))
+
+    return {
+      matchId: match.metadata?.matchid,
+      agent: me.character?.name,
+      agentIcon: me.assets?.agent?.small ?? null,
+      map: match.metadata?.map,
+      mode: match.metadata?.mode,
+      win: won,
+      kills: me.stats?.kills ?? 0,
+      deaths: me.stats?.deaths ?? 0,
+      assists: me.stats?.assists ?? 0,
+      score: me.stats?.score ?? 0,
+      acs: Math.round((me.stats?.score ?? 0) / roundsPlayed),
+      headshotPct: myShots > 0 ? Math.round(((me.stats?.headshots ?? 0) / myShots) * 100) : 0,
+      isMvp: myTeam.every(p => (p.stats?.score ?? 0) <= (me.stats?.score ?? 0)) && (me.stats?.score ?? 0) === topScore,
+      roundsPlayed,
+      gameLengthSeconds: match.metadata?.game_length ? Math.round(match.metadata.game_length / 1000) : null,
+      gameStartTimestamp: match.metadata?.game_start ? match.metadata.game_start * 1000 : null,
+      players
+    }
+  }).filter(Boolean)
+}
+
+async function fetchValorantMmrHistory(puuid) {
+  const response = await fetch(
+    `https://api.henrikdev.xyz/valorant/v2/by-puuid/mmr-history/eu/${puuid}`,
+    {
+      headers: {
+        'Authorization': process.env.VAL_API_KEY
+      }
+    }
+  )
+  const json = await response.json()
+  const history = json?.data
+  if (!Array.isArray(history)) return []
+
+  return history.map(entry => ({
+    tier: entry.currenttierpatched,
+    rr: entry.ranking_in_tier,
+    change: entry.mmr_change_to_last_game,
+    timestamp: entry.date_raw ? entry.date_raw * 1000 : null
+  })).reverse() // oldest first, matching the League match-history convention
 }
 
 async function fetchDdragonVersion() {
