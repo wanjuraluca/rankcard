@@ -1,6 +1,7 @@
 "use client"
 
 import AvatarUpload from "./AvatarUpload"
+import BioEditor from "./BioEditor"
 import { useState } from "react"
 import { platformConfig } from "@/lib/platforms"
 import RankBadge from "./RankBadge"
@@ -37,7 +38,7 @@ export default function ProfileClient({ data, accounts }) {
                         <p className="text-text-primary text-2xl font-extrabold">{data.username}</p>
                         <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-accent-tint text-accent-soft border border-accent/40">PRO</span>
                     </div>
-                    <p className="text-text-secondary font-mono text-sm mt-1">{data.bio}</p>
+                    <BioEditor username={data.username} bio={data.bio} />
                 </div>
                 <button className="border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint transition-colors">
                     Share profile ↗
