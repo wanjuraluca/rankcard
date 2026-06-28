@@ -24,6 +24,16 @@ function average(values) {
     return values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : null
 }
 
+const MODE_OPTIONS = [
+    { value: '', label: 'All Modes' },
+    { value: 'competitive', label: 'Competitive' },
+    { value: 'unrated', label: 'Unrated' },
+    { value: 'deathmatch', label: 'Deathmatch' },
+    { value: 'spikerush', label: 'Spike Rush' },
+    { value: 'swiftplay', label: 'Swiftplay' },
+    { value: 'premier', label: 'Premier' },
+]
+
 function buildTopAgents(matchHistory) {
     const byAgent = {}
     for (const match of matchHistory) {
@@ -55,6 +65,9 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
     const [yourPuuid, setYourPuuid] = useState(null)
     const [expandedMatchId, setExpandedMatchId] = useState(null)
     const [loading, setLoading] = useState(true)
+    const [modeFilter, setModeFilter] = useState('')
+    const [modeMenuOpen, setModeMenuOpen] = useState(false)
+    const [matchesLoading, setMatchesLoading] = useState(false)
     const scrollYBeforeToggle = useRef(null)
 
     function toggleMatch(matchId) {
@@ -71,17 +84,25 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
 
     useEffect(() => {
         async function fetchRank() {
-            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}`)
+            const modeQuery = modeFilter ? `&mode=${modeFilter}` : ''
+            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}${modeQuery}`)
             const data = await response.json()
             setValorantData(data.valorantData?.data?.current ?? null)
             setMatchHistory(data.valorantMatchHistory ?? [])
             setMmrHistory(data.valorantMmrHistory ?? [])
             setYourPuuid(data.valorantPuuid ?? null)
             setLoading(false)
+            setMatchesLoading(false)
         }
 
         fetchRank()
-    }, [])
+    }, [modeFilter])
+
+    function selectMode(value) {
+        setModeFilter(value)
+        setModeMenuOpen(false)
+        setMatchesLoading(true)
+    }
 
     if (loading) {
         return (
@@ -222,12 +243,38 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
             </div>
 
             {/* Match history */}
-            {matchHistory.length > 0 && (
-                <div className="mt-5">
-                    <div className="flex items-center gap-2 mb-2.5">
-                        <p className="text-text-secondary text-xs uppercase tracking-widest">Match History</p>
-                        <div className="flex-1 h-px bg-hairline" />
+            <div className="mt-5">
+                <div className="flex items-center gap-2 mb-2.5">
+                    <p className="text-text-secondary text-xs uppercase tracking-widest">Match History</p>
+                    <div className="flex-1 h-px bg-hairline" />
+                    <div className="relative">
+                        <button
+                            onClick={() => setModeMenuOpen(prev => !prev)}
+                            className="text-text-secondary hover:text-text-primary text-xs border border-hairline rounded-lg px-2.5 py-1 flex items-center gap-1.5"
+                        >
+                            {MODE_OPTIONS.find(o => o.value === modeFilter)?.label ?? 'All Modes'}
+                            <span className="text-[9px]">▾</span>
+                        </button>
+                        {modeMenuOpen && (
+                            <div className="absolute right-0 top-full mt-1 z-10 bg-surface border border-line rounded-lg py-1 w-36 shadow-lg">
+                                {MODE_OPTIONS.map(option => (
+                                    <button
+                                        key={option.value}
+                                        onClick={() => selectMode(option.value)}
+                                        className={`w-full text-left text-xs px-3 py-1.5 hover:bg-accent-tint ${option.value === modeFilter ? "text-accent-soft font-semibold" : "text-text-primary"}`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
+                </div>
+                {matchesLoading ? (
+                    <p className="text-text-secondary text-sm">Loading matches...</p>
+                ) : matchHistory.length === 0 ? (
+                    <p className="text-text-secondary text-sm">No matches found for this mode.</p>
+                ) : (
                     <div className="flex flex-col gap-1.5">
                         {matchHistory.map((match) => {
                             const isExpanded = expandedMatchId === match.matchId
@@ -254,7 +301,7 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
                                         )}
                                         <div className="w-[110px] flex-shrink-0">
                                             <p className="text-text-primary text-sm font-bold truncate">{match.agent}</p>
-                                            <p className="text-text-secondary text-[10px] truncate">{match.map}</p>
+                                            <p className="text-text-secondary text-[10px] truncate">{match.map} · {match.mode}</p>
                                         </div>
                                         <div className="flex-1 font-mono text-sm text-text-primary">
                                             {match.kills}/{match.deaths}/{match.assists}
@@ -282,8 +329,8 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
                             )
                         })}
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     )
 }

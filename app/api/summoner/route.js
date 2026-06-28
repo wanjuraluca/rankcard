@@ -13,19 +13,20 @@ export async function GET(request) {
   const name = searchParams.get('name')
   const tag = searchParams.get('tag')
   const platform = searchParams.get('platform')
+  const valorantMode = searchParams.get('mode') || null
 
-  const cacheKey = `${platform}:${name}:${tag}`.toLowerCase()
+  const cacheKey = `${platform}:${name}:${tag}:${valorantMode}`.toLowerCase()
   const cached = requestCache.get(cacheKey)
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
     return Response.json(cached.data)
   }
 
-  const data = await fetchSummonerData(name, tag)
+  const data = await fetchSummonerData(name, tag, valorantMode)
   requestCache.set(cacheKey, { data, timestamp: Date.now() })
   return Response.json(data)
 }
 
-async function fetchSummonerData(name, tag) {
+async function fetchSummonerData(name, tag, valorantMode) {
   const response = await fetch(
     `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${name}/${tag}`,
     {
@@ -87,7 +88,7 @@ async function fetchSummonerData(name, tag) {
   const tftData = await response3.json()
   const matchHistory = await fetchMatchHistory(account.puuid)
   const ddragonVersion = await fetchDdragonVersion()
-  const valorantMatchHistory = await fetchValorantMatchHistory(valorantPuuid, valorantRegion)
+  const valorantMatchHistory = await fetchValorantMatchHistory(valorantPuuid, valorantRegion, valorantMode)
   const valorantMmrHistory = await fetchValorantMmrHistory(valorantPuuid, valorantRegion)
 
   return {
@@ -107,11 +108,12 @@ async function fetchSummonerData(name, tag) {
 // (Riot has no public Valorant match-history API). Endpoints and field names
 // have changed across versions before (v1 -> v2 -> v3 -> v4) — if this starts
 // returning empty data, check https://docs.henrikdev.xyz for schema changes.
-async function fetchValorantMatchHistory(puuid, region) {
+async function fetchValorantMatchHistory(puuid, region, mode) {
   // No platform segment here — unlike the mmr endpoints, by-puuid/matches
   // takes only the region. Adding /pc/ (like the mmr endpoint needs) 404s.
+  const modeQuery = mode ? `&mode=${mode}` : ''
   const response = await fetch(
-    `https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/${region}/${puuid}?size=8`,
+    `https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/${region}/${puuid}?size=8${modeQuery}`,
     {
       headers: {
         'Authorization': process.env.VAL_API_KEY
