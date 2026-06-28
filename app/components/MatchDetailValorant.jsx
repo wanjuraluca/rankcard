@@ -33,14 +33,31 @@ export default function MatchDetailValorant({ match, yourPuuid }) {
         return <p className="text-text-secondary text-xs px-2 py-2">No detailed scoreboard available for this match.</p>
     }
 
-    const teamA = match.players.filter(p => p.team === match.players[0].team)
-    const teamB = match.players.filter(p => p.team !== match.players[0].team)
+    const distinctTeams = new Set(match.players.map(p => p.team))
+    // Free-for-all modes (Deathmatch etc.) give every player their own
+    // "team" (their own puuid) since there's no real team split — Henrik
+    // has no separate flag for this, so we infer it: if every player is on
+    // a different team, it's FFA and we show one sorted list instead of
+    // a two-team breakdown (which would otherwise print a raw puuid as a
+    // "team name").
+    const isFreeForAll = distinctTeams.size === match.players.length
+
+    const groups = isFreeForAll
+        ? [match.players]
+        : [
+            match.players.filter(p => p.team === match.players[0].team),
+            match.players.filter(p => p.team !== match.players[0].team)
+        ]
 
     return (
         <div className="px-2 py-2 flex flex-col gap-3">
-            {[teamA, teamB].map((team, i) => (
+            {groups.map((team, i) => (
                 <div key={i}>
-                    <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-text-secondary">{team[0]?.team}</p>
+                    {!isFreeForAll && (
+                        <p className="text-[10px] font-bold uppercase tracking-widest mb-1 text-text-secondary">
+                            {/^[a-z]+$/i.test(team[0]?.team) ? team[0].team : `Team ${i + 1}`}
+                        </p>
+                    )}
                     <div className="flex flex-col gap-0.5">
                         {team
                             .slice()
