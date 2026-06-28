@@ -10,12 +10,22 @@ export default function Login() {
   const [isLogin, setIsLogin] = useState(true)
   const [username, setUsername] = useState("")
   const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState("")
   const router = useRouter()
 
- async function handleSubmit() {
+  function friendlyError(message) {
+    if (message === "Invalid login credentials") return "Incorrect email or password."
+    if (message === "User already registered") return "An account with this email already exists."
+    if (message.toLowerCase().includes("password")) return "Password must be at least 6 characters."
+    return message
+  }
+
+ async function handleSubmit(e) {
+  e.preventDefault()
+  setError("")
   if (isLogin) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) alert(error.message)
+    if (error) setError(friendlyError(error.message))
     else {
       const { data: profile } = await supabase
         .from("profiles")
@@ -30,7 +40,7 @@ export default function Login() {
       password,
       options: { data: { username: username } },
     })
-    if (error) alert(error.message)
+    if (error) setError(friendlyError(error.message))
     else {
       router.push("/")
     }
@@ -68,7 +78,7 @@ export default function Login() {
           {/* toggle */}
           <div className="flex rounded-xl border border-line bg-background p-1">
             <button
-              onClick={() => setIsLogin(true)}
+              onClick={() => { setIsLogin(true); setError("") }}
               className={`flex-1 cursor-pointer rounded-lg py-2 text-sm font-semibold transition-colors ${
                 isLogin ? "border border-line bg-surface text-white" : "text-text-secondary"
               }`}
@@ -76,7 +86,7 @@ export default function Login() {
               Sign in
             </button>
             <button
-              onClick={() => setIsLogin(false)}
+              onClick={() => { setIsLogin(false); setError("") }}
               className={`flex-1 cursor-pointer rounded-lg py-2 text-sm font-semibold transition-colors ${
                 !isLogin ? "border border-line bg-surface text-white" : "text-text-secondary"
               }`}
@@ -96,7 +106,7 @@ export default function Login() {
           </div>
 
           {/* form */}
-          <div className="mt-6 flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
             {!isLogin && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-text-secondary">Username</label>
@@ -143,13 +153,19 @@ export default function Login() {
               </div>
             </div>
 
+            {error && (
+              <div className="rounded-lg border border-negative/40 bg-negative/10 px-3.5 py-2.5 text-sm text-negative">
+                {error}
+              </div>
+            )}
+
             <button
-              onClick={handleSubmit}
+              type="submit"
               className="mt-1 w-full cursor-pointer rounded-lg bg-accent py-3 text-[15px] font-bold text-black shadow-[0_0_30px_rgba(177,108,255,0.5)] transition-shadow hover:text-white duration-350 hover:shadow-[0_0_40px_rgba(177,108,255,0.5)]"
             >
               {isLogin ? "Sign in" : "Create profile"}
             </button>
-          </div>
+          </form>
 
           {!isLogin && (
             <div className="mt-4 rounded-lg border border-line bg-background p-3 text-xs leading-relaxed text-text-secondary">
@@ -160,7 +176,7 @@ export default function Login() {
           <p className="mt-6 text-center text-sm text-text-secondary">
             {isLogin ? "New to RankCard? " : "Already have an account? "}
             <button
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => { setIsLogin(!isLogin); setError("") }}
               className="cursor-pointer font-semibold text-accent hover:underline"
             >
               {isLogin ? "Create an account" : "Sign in"}
