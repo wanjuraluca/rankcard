@@ -4,11 +4,12 @@ import AvatarUpload from "./AvatarUpload"
 import BioEditor from "./BioEditor"
 import { useState, useEffect } from "react"
 import { platformConfig } from "@/lib/platforms"
-import { getLeagueScore, getValorantScore } from "@/lib/rankScore"
+import { getLeagueScore, getValorantScore, getCs2Score } from "@/lib/rankScore"
 import { supabase } from "@/lib/supabase"
 import RankBadge from "./RankBadge"
 import RankHero from "./RankHero"
 import ValorantHero from "./ValorantHero"
+import Cs2Hero from "./Cs2Hero"
 import AddGameModal from "./AddGameModal"
 
 const gameTabs = [
@@ -44,6 +45,17 @@ function extractGameStats(platform, apiData) {
         return {
             winRate: matchHistory.length > 0 ? (wins / matchHistory.length) * 100 : null,
             rankScore: getValorantScore(tierName),
+            kda: average(kdas),
+        }
+    }
+
+    if (platform === "CSGO") {
+        const matchHistory = Array.isArray(apiData.cs2MatchHistory) ? apiData.cs2MatchHistory : []
+        const wins = matchHistory.filter(m => m.win).length
+        const kdas = matchHistory.map(m => (m.kills + m.assists) / Math.max(m.deaths, 1))
+        return {
+            winRate: matchHistory.length > 0 ? (wins / matchHistory.length) * 100 : null,
+            rankScore: getCs2Score(apiData.cs2Profile?.ranks?.premier),
             kda: average(kdas),
         }
     }
@@ -92,7 +104,7 @@ export default function ProfileClient({ data, accounts }) {
     }
 
     useEffect(() => {
-        const scoredAccounts = accountList.filter(a => a.platform === "League of Legends" || a.platform === "Valorant")
+        const scoredAccounts = accountList.filter(a => a.platform === "League of Legends" || a.platform === "Valorant" || a.platform === "CSGO")
 
         scoredAccounts.forEach(async (account) => {
             const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}`)
@@ -279,9 +291,7 @@ export default function ProfileClient({ data, accounts }) {
                             ) : activeGameTab.platform === "Valorant" ? (
                                 <ValorantHero account={account} accentColor={config.color} />
                             ) : (
-                                <div className="bg-surface border border-hairline rounded-2xl p-6 text-center">
-                                    <p className="text-text-secondary text-sm">Live rank data for {config.name} is coming soon.</p>
-                                </div>
+                                <Cs2Hero account={account} accentColor={config.color} />
                             )
                         ) : (
                             <div

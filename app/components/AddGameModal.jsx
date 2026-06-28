@@ -65,6 +65,20 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                 puuid = data.puuid
             }
 
+            // 3b. For Steam games: validate the account + resolve the SteamID64
+            // (vanity names like "winter" aren't usable directly by Leetify/Steam's API)
+            if (selectedConfig.inputType === "steam") {
+                const res = await fetch(`/api/summoner?platform=${selectedGame}&name=${username}`)
+                const data = await res.json()
+
+                if (!data.steam64Id) {
+                    setErrorMsg("Steam account not found. Check your profile name or SteamID64.")
+                    setLoading(false)
+                    return
+                }
+                puuid = data.steam64Id
+            }
+
             // 4. Write to the database
             const { data: inserted, error: insertError } = await supabase
                 .from("connected_accounts")

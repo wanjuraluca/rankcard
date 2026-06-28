@@ -21,11 +21,15 @@ export async function GET(request) {
     return Response.json(cached.data)
   }
 
-  const data = await fetchSummonerData(name, tag, valorantMode)
+  const data = platform === 'CSGO'
+    ? await fetchCs2Data(name)
+    : await fetchSummonerData(name, tag, valorantMode)
   requestCache.set(cacheKey, { data, timestamp: Date.now() })
   return Response.json(data)
 }
 
+// CS2 has no Riot account, so it skips the entire Riot/Henrik flow below and
+// uses Steam + Leetify instead. See fetchCs2Data.
 async function fetchSummonerData(name, tag, valorantMode) {
   const response = await fetch(
     `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${name}/${tag}`,
@@ -191,6 +195,102 @@ async function fetchValorantMmrHistory(puuid, region) {
     image: entry.images?.large ?? null,
     timestamp: entry.date_raw ? entry.date_raw * 1000 : null
   })).reverse() // oldest first, matching the League match-history convention
+}
+
+// CS2 has no official rank/match-history API (Valve doesn't expose Premier
+// rating). Leetify (leetify.com) runs a documented public API for this —
+// see https://api-public-docs.cs-prod.leetify.com/. It works without a key
+// at a lower rate limit; LEETIFY_API_KEY is optional.
+async function fetchCs2Data(steamInput) {
+  const steam64Id = await resolveSteam64Id(steamInput)
+  if (!steam64Id) {
+    return { steam64Id: null, cs2Profile: null, cs2MatchHistory: [] }
+  }
+
+  const leetifyHeaders = process.env.LEETIFY_API_KEY
+    ? { 'Authorization': `Bearer ${process.env.LEETIFY_API_KEY}` }
+    : {}
+
+  const [profileResponse, matchesResponse] = await Promise.all([
+    fetch(`https://api-public.cs-prod.leetify.com/v3/profile?steam64_id=${steam64Id}`, { headers: leetifyHeaders }),
+    fetch(`https://api-public.cs-prod.leetify.com/v3/profile/matches?steam64_id=${steam64Id}`, { headers: leetifyHeaders })
+  ])
+
+  // Leetify only has data for players who've actually used Leetify (synced
+  // a match/demo) — most CS2 accounts simply aren't in their system, and
+  // that 404 comes back as a plain "Not Found" string, not JSON.
+  const cs2Profile = profileResponse.ok ? await profileResponse.json() : null
+  const rawMatches = matchesResponse.ok ? await matchesResponse.json() : []
+
+  // /v3/profile/matches only returns the queried player's own row per match
+  // (a personal history list), not the full scoreboard — that needs a
+  // second call per match, same two-stage pattern as the League fetch above.
+  const recentMatchIds = Array.isArray(rawMatches) ? rawMatches.slice(0, 8).map(m => m.id) : []
+  const fullMatches = await Promise.all(
+    recentMatchIds.map(async (matchId) => {
+      const res = await fetch(`https://api-public.cs-prod.leetify.com/v2/matches/${matchId}`, { headers: leetifyHeaders })
+      return res.ok ? res.json() : null
+    })
+  )
+  const cs2MatchHistory = fullMatches
+    .map(match => match && buildCs2Match(match, steam64Id))
+    .filter(Boolean)
+
+  return { steam64Id, cs2Profile, cs2MatchHistory }
+}
+
+// A Steam vanity name (what most people type, e.g. their profile URL slug)
+// has to be resolved to a numeric SteamID64 — Leetify and the rest of the
+// Steam Web API only accept the numeric ID. If the input is already a
+// 17-digit SteamID64, skip the resolution call.
+async function resolveSteam64Id(input) {
+  if (/^\d{17}$/.test(input)) return input
+
+  const response = await fetch(
+    `https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key=${process.env.STEAM_API_KEY}&vanityurl=${encodeURIComponent(input)}`
+  )
+  const json = await response.json()
+  return json?.response?.success === 1 ? json.response.steamid : null
+}
+
+function buildCs2Match(match, steam64Id) {
+  const allStats = match.stats ?? []
+  const me = allStats.find(p => p.steam64_id === steam64Id)
+  if (!me) return null
+
+  const myTeamScore = match.team_scores?.find(t => t.team_number === me.initial_team_number)
+  const otherTeamScore = match.team_scores?.find(t => t.team_number !== me.initial_team_number)
+  const won = myTeamScore && otherTeamScore ? myTeamScore.score > otherTeamScore.score : null
+  const topScore = Math.max(...allStats.map(p => p.score ?? 0))
+
+  const players = allStats.map(p => ({
+    steam64Id: p.steam64_id,
+    name: p.name,
+    team: p.initial_team_number,
+    kills: p.total_kills ?? 0,
+    deaths: p.total_deaths ?? 0,
+    assists: p.total_assists ?? 0,
+    score: p.score ?? 0
+  }))
+
+  return {
+    matchId: match.id,
+    map: match.map_name,
+    mode: match.data_source,
+    win: won,
+    kills: me.total_kills ?? 0,
+    deaths: me.total_deaths ?? 0,
+    assists: me.total_assists ?? 0,
+    score: me.score ?? 0,
+    adr: me.rounds_count ? Math.round(me.total_damage / me.rounds_count) : null,
+    headshotPct: me.accuracy_head != null ? Math.round(me.accuracy_head * 100) : null,
+    mvps: me.mvps ?? 0,
+    isMvp: (me.score ?? 0) === topScore,
+    roundsPlayed: me.rounds_count ?? null,
+    leetifyRating: me.leetify_rating ?? null,
+    gameStartTimestamp: match.finished_at ? new Date(match.finished_at).getTime() : null,
+    players
+  }
 }
 
 async function fetchDdragonVersion() {

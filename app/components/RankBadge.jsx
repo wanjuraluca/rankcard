@@ -1,11 +1,24 @@
 "use client"
 import { useState, useEffect } from "react"
 
+// Mirrors Cs2Hero's PREMIER_BANDS — kept duplicated rather than shared since
+// this is just a display color, not scoring logic (see lib/rankScore.js).
+const PREMIER_BANDS = [
+    { min: 30000, name: "Yellow", color: "#facc15" },
+    { min: 25000, name: "Red", color: "#f87171" },
+    { min: 20000, name: "Pink", color: "#f472b6" },
+    { min: 15000, name: "Purple", color: "#c084fc" },
+    { min: 10000, name: "Blue", color: "#60a5fa" },
+    { min: 5000, name: "Light Blue", color: "#7dd3fc" },
+    { min: 0, name: "Grey", color: "#9a96a8" },
+]
+
 export default function RankBadge({ account }) {
 
     const [rankEntry, setRankEntry] = useState(null)
     const [valorantEntry, setValorantEntry] = useState(null)
     const [valorantImage, setValorantImage] = useState(null)
+    const [cs2Profile, setCs2Profile] = useState(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -17,6 +30,7 @@ export default function RankBadge({ account }) {
             setValorantEntry(data.valorantData?.data?.current ?? null)
             const mmrHistory = data.valorantMmrHistory ?? []
             setValorantImage(mmrHistory[mmrHistory.length - 1]?.image ?? null)
+            setCs2Profile(data.cs2Profile ?? null)
             setLoading(false)
         }
 
@@ -26,6 +40,29 @@ export default function RankBadge({ account }) {
 
     if (loading) {
         return <p className="text-text-secondary text-xs">Loading rank...</p>
+    }
+
+    if (account.platform === "CSGO") {
+        const premierRating = cs2Profile?.ranks?.premier
+        if (premierRating == null) {
+            return <p className="text-text-secondary text-sm">Unranked</p>
+        }
+        const band = PREMIER_BANDS.find(b => premierRating >= b.min) ?? PREMIER_BANDS[PREMIER_BANDS.length - 1]
+
+        return (
+            <div className="flex items-center gap-3">
+                <div
+                    className="w-[46px] h-[46px] flex-shrink-0 rounded-full flex items-center justify-center border-2"
+                    style={{ borderColor: band.color, backgroundColor: `${band.color}1f` }}
+                >
+                    <span className="text-text-primary font-extrabold text-[11px]">{Math.round(premierRating / 1000)}k</span>
+                </div>
+                <div>
+                    <p className="text-text-primary text-sm font-bold">{band.name}</p>
+                    <p className="text-text-secondary text-[11px]">{premierRating.toLocaleString()} Premier</p>
+                </div>
+            </div>
+        )
     }
 
     if (account.platform === "Valorant") {
