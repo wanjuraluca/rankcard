@@ -159,7 +159,7 @@ async function handleSubmit(e) {
               <button
                 onClick={handleCheckConfirmation}
                 disabled={checkingConfirmation}
-                className="mt-6 w-full cursor-pointer rounded-lg bg-accent py-3 text-[15px] font-bold text-black shadow-[0_0_30px_rgba(177,108,255,0.5)] transition-shadow hover:text-white duration-350 hover:shadow-[0_0_40px_rgba(177,108,255,0.5)] disabled:opacity-60"
+                className="mt-6 w-full cursor-pointer rounded-lg bg-accent py-3 text-[15px] font-bold text-black shadow-[0_0_30px_rgba(177,108,255,0.5)] transition-all hover:text-white active:text-white active:scale-95 duration-150 hover:shadow-[0_0_40px_rgba(177,108,255,0.5)] disabled:opacity-60"
               >
                 {checkingConfirmation ? "Checking..." : "I've confirmed my email"}
               </button>
@@ -298,7 +298,7 @@ async function handleSubmit(e) {
             <button
               type="submit"
               disabled={!isLogin && usernameStatus !== "available"}
-              className="mt-1 w-full cursor-pointer rounded-lg bg-accent py-3 text-[15px] font-bold text-black shadow-[0_0_30px_rgba(177,108,255,0.5)] transition-shadow hover:text-white duration-350 hover:shadow-[0_0_40px_rgba(177,108,255,0.5)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+              className="mt-1 w-full cursor-pointer rounded-lg bg-accent py-3 text-[15px] font-bold text-black shadow-[0_0_30px_rgba(177,108,255,0.5)] transition-all hover:text-white active:text-white active:scale-95 duration-150 hover:shadow-[0_0_40px_rgba(177,108,255,0.5)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:active:scale-100"
             >
               {isLogin ? "Sign in" : "Create profile"}
             </button>

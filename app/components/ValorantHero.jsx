@@ -136,13 +136,13 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
 
     return (
         <div
-            className="bg-surface border border-line rounded-2xl p-5 relative overflow-hidden"
+            className="bg-surface border border-line rounded-2xl p-4 sm:p-5 relative overflow-hidden"
             style={{ borderTopWidth: 3, borderTopColor: accentColor }}
         >
-            <div className="flex gap-5 items-center flex-wrap">
+            <div className="flex gap-3 sm:gap-5 items-center flex-wrap">
 
                 {/* Rank emblem */}
-                <div className="w-24 h-24 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 overflow-hidden flex items-center justify-center">
                     {rankImage && (
                         <img src={rankImage} alt={valorantData.tier?.name} className="w-full h-full object-contain" />
                     )}
@@ -287,31 +287,31 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
                                     <button
                                         onMouseDown={(e) => e.preventDefault()}
                                         onClick={() => toggleMatch(match.matchId)}
-                                        className="w-full flex items-center gap-3 p-3 text-left"
+                                        className="w-full flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 text-left active:bg-hairline/40 transition-colors"
                                     >
                                         {match.agentIcon ? (
                                             <img
                                                 src={match.agentIcon}
                                                 alt={match.agent}
-                                                className="w-9 h-9 rounded-md object-cover bg-surface flex-shrink-0"
+                                                className="w-8 h-8 sm:w-9 sm:h-9 rounded-md object-cover bg-surface flex-shrink-0"
                                                 onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
                                             />
                                         ) : (
-                                            <div className="w-9 h-9 rounded-md bg-surface flex-shrink-0" />
+                                            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-md bg-surface flex-shrink-0" />
                                         )}
-                                        <div className="w-[110px] flex-shrink-0">
-                                            <p className="text-text-primary text-sm font-bold truncate">{match.agent}</p>
-                                            <p className="text-text-secondary text-[10px] truncate">{match.map} · {match.mode}</p>
+                                        <div className="w-[64px] sm:w-[110px] flex-shrink-0">
+                                            <p className="text-text-primary text-xs sm:text-sm font-bold truncate">{match.agent}</p>
+                                            <p className="text-text-secondary text-[10px] truncate hidden sm:block">{match.map} · {match.mode}</p>
                                         </div>
-                                        <div className="flex-1 font-mono text-sm text-text-primary">
+                                        <div className="flex-1 font-mono text-xs sm:text-sm text-text-primary">
                                             {match.kills}/{match.deaths}/{match.assists}
-                                            <span className="text-text-secondary text-xs ml-2">{match.acs} ACS</span>
-                                            {match.isMvp && <span className="text-accent-soft text-xs ml-2">MVP</span>}
+                                            <span className="text-text-secondary text-[10px] sm:text-xs ml-1 sm:ml-2">{match.acs} ACS</span>
+                                            {match.isMvp && <span className="text-accent-soft text-[10px] sm:text-xs ml-1 sm:ml-2">MVP</span>}
                                         </div>
-                                        <p className={`text-sm font-bold flex-shrink-0 ${match.win ? "text-positive" : "text-negative"}`}>
+                                        <p className={`text-xs sm:text-sm font-bold flex-shrink-0 ${match.win ? "text-positive" : "text-negative"}`}>
                                             {match.win ? "Win" : "Loss"}
                                         </p>
-                                        <div className="text-right flex-shrink-0">
+                                        <div className="text-right flex-shrink-0 hidden sm:block">
                                             <p className="text-text-secondary font-mono text-xs">
                                                 {match.gameLengthSeconds ? formatDuration(match.gameLengthSeconds) : "—"}
                                             </p>

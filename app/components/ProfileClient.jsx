@@ -174,7 +174,7 @@ export default function ProfileClient({ data, accounts }) {
                 </div>
                 <button
                     onClick={handleShareProfile}
-                    className="border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint transition-colors"
+                    className="border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all"
                 >
                     {shareCopied ? "Link copied ✓" : "Share profile ↗"}
                 </button>
@@ -206,7 +206,7 @@ export default function ProfileClient({ data, accounts }) {
                 {isOwnProfile && (
                     <button
                         onClick={() => setShowModal(true)}
-                        className="border border-dashed border-accent/45 rounded-lg px-4 py-2 text-sm font-semibold text-accent-soft"
+                        className="border border-dashed border-accent/45 rounded-lg px-4 py-2 text-sm font-semibold text-accent-soft hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all"
                     >
                         + Add Game
                     </button>
@@ -263,7 +263,7 @@ export default function ProfileClient({ data, accounts }) {
                                 <div
                                     key={account.id}
                                     onClick={() => tabForAccount && setActiveTab(tabForAccount.key)}
-                                    className="bg-surface border border-hairline rounded-2xl p-4 cursor-pointer hover:border-accent/40 transition-colors relative"
+                                    className="bg-surface border border-hairline rounded-2xl p-4 cursor-pointer hover:border-accent/40 active:border-accent/40 active:scale-[0.98] transition-all relative"
                                     style={{ borderTopWidth: 3, borderTopColor: config?.color }}
                                 >
                                     {isOwnProfile && (
@@ -271,7 +271,7 @@ export default function ProfileClient({ data, accounts }) {
                                             onClick={(e) => { e.stopPropagation(); removeAccount(account) }}
                                             disabled={removingId === account.id}
                                             title="Remove account"
-                                            className="absolute top-2.5 right-2.5 text-text-secondary hover:text-negative text-xs leading-none disabled:opacity-40"
+                                            className="absolute top-2.5 right-2.5 text-text-secondary hover:text-negative active:text-negative active:scale-90 transition-transform text-xs leading-none disabled:opacity-40"
                                         >
                                             ✕
                                         </button>
@@ -298,7 +298,7 @@ export default function ProfileClient({ data, accounts }) {
                         })}
                         {/* Add Game Card */}
                         {isOwnProfile && (
-                            <div onClick={() => setShowModal(true)} className="bg-surface border border-dashed border-accent/35 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent/60 transition-colors min-h-[110px]">
+                            <div onClick={() => setShowModal(true)} className="bg-surface border border-dashed border-accent/35 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent/60 active:border-accent/60 active:scale-[0.98] transition-all min-h-[110px]">
                                 <p className="text-accent-soft text-xl">＋</p>
                                 <p className="text-accent-soft text-xs">Add Game</p>
                             </div>

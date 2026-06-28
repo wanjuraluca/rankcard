@@ -48,7 +48,7 @@ export default function AccountMenu() {
         <div className="relative">
             <button
                 onClick={() => setOpen(!open)}
-                className="border border-hairline rounded-lg px-3 py-2 text-sm text-text-secondary hover:border-accent/40 hover:text-text-primary transition-colors"
+                className="border border-hairline rounded-lg px-3 py-2 text-sm text-text-secondary hover:border-accent/40 hover:text-text-primary active:border-accent/40 active:text-text-primary active:scale-95 transition-all"
             >
                 ⋯
             </button>
@@ -59,14 +59,14 @@ export default function AccountMenu() {
                     <div className="absolute right-0 top-full mt-2 z-20 w-48 rounded-xl border border-line bg-surface p-1.5 shadow-2xl">
                         <button
                             onClick={handleSignOut}
-                            className="w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-background transition-colors"
+                            className="w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-background active:bg-background transition-colors"
                         >
                             Sign out
                         </button>
                         <button
                             onClick={handleDeleteAccount}
                             disabled={deleting}
-                            className="w-full text-left rounded-lg px-3 py-2 text-sm text-negative hover:bg-negative/10 transition-colors disabled:opacity-50"
+                            className="w-full text-left rounded-lg px-3 py-2 text-sm text-negative hover:bg-negative/10 active:bg-negative/10 transition-colors disabled:opacity-50"
                         >
                             {deleting ? "Deleting..." : "Delete account"}
                         </button>

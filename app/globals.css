@@ -39,6 +39,10 @@ html {
   scrollbar-gutter: stable;
 }
 
+a, button {
+  -webkit-tap-highlight-color: transparent;
+}
+
 .legal-content h2 {
   margin-top: 0.5rem;
   font-size: 1.05rem;

@@ -151,13 +151,13 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
 
     return (
         <div
-            className="bg-surface border border-line rounded-2xl p-5 relative overflow-hidden"
+            className="bg-surface border border-line rounded-2xl p-4 sm:p-5 relative overflow-hidden"
             style={{ borderTopWidth: 3, borderTopColor: accentColor }}
         >
-            <div className="flex gap-5 items-center flex-wrap">
+            <div className="flex gap-3 sm:gap-5 items-center flex-wrap">
 
                 {/* Rank emblem */}
-                <div className="w-24 h-24 flex-shrink-0 overflow-hidden">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 overflow-hidden">
                     <img
                         src={`https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${rankEntry.tier.toLowerCase()}.png`}
                         alt={rankEntry.tier}
@@ -307,28 +307,28 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                                     <button
                                         onMouseDown={(e) => e.preventDefault()}
                                         onClick={() => toggleMatch(match.matchId)}
-                                        className="w-full flex items-center gap-3 p-3 text-left"
+                                        className="w-full flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 text-left active:bg-hairline/40 transition-colors"
                                     >
                                         {championIconUrl(match.champion) && (
                                             <img
                                                 src={championIconUrl(match.champion)}
                                                 alt={match.champion}
-                                                className="w-9 h-9 rounded-md object-cover bg-surface flex-shrink-0"
+                                                className="w-8 h-8 sm:w-9 sm:h-9 rounded-md object-cover bg-surface flex-shrink-0"
                                                 onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
                                             />
                                         )}
-                                        <div className="w-[110px] flex-shrink-0">
-                                            <p className="text-text-primary text-sm font-bold truncate">{match.champion}</p>
-                                            <p className="text-text-secondary text-[10px]">{match.role || "—"}</p>
+                                        <div className="w-[64px] sm:w-[110px] flex-shrink-0">
+                                            <p className="text-text-primary text-xs sm:text-sm font-bold truncate">{match.champion}</p>
+                                            <p className="text-text-secondary text-[10px] hidden sm:block">{match.role || "—"}</p>
                                         </div>
-                                        <div className="flex-1 font-mono text-sm text-text-primary">
+                                        <div className="flex-1 font-mono text-xs sm:text-sm text-text-primary">
                                             {match.kills}/{match.deaths}/{match.assists}
-                                            <span className="text-text-secondary text-xs ml-2">{match.cs} CS</span>
+                                            <span className="text-text-secondary text-[10px] sm:text-xs ml-1 sm:ml-2">{match.cs} CS</span>
                                         </div>
-                                        <p className={`text-sm font-bold flex-shrink-0 ${match.win ? "text-positive" : "text-negative"}`}>
+                                        <p className={`text-xs sm:text-sm font-bold flex-shrink-0 ${match.win ? "text-positive" : "text-negative"}`}>
                                             {match.win ? "Win" : "Loss"}
                                         </p>
-                                        <div className="text-right flex-shrink-0">
+                                        <div className="text-right flex-shrink-0 hidden sm:block">
                                             <p className="text-text-secondary font-mono text-xs">{formatDuration(match.gameDurationSeconds)}</p>
                                             <p className="text-text-secondary text-[10px]">{formatTimeAgo(match.gameEndTimestamp)}</p>
                                         </div>

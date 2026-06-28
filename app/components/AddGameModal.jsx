@@ -122,10 +122,10 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
     }
 
     return (
-        <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-50" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-50 p-4" onClick={onClose}>
 
             {/* Modal box - stopPropagation so clicking INSIDE the modal doesn't close it */}
-            <form className="bg-surface border border-line rounded-2xl p-7 w-full max-w-md" onClick={(e) => e.stopPropagation()} onSubmit={handleConnect}>
+            <form className="bg-surface border border-line rounded-2xl p-5 sm:p-7 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} onSubmit={handleConnect}>
 
                 {/* Header */}
                 <div className="flex justify-between items-start mb-6">
@@ -133,7 +133,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                         <p className="text-text-primary text-lg font-medium">Connect a game</p>
                         <p className="text-text-secondary text-sm mt-1">Pick a game and enter your account.</p>
                     </div>
-                    <button type="button" onClick={onClose} className="text-text-secondary text-xl leading-none">✕</button>
+                    <button type="button" onClick={onClose} className="text-text-secondary hover:text-text-primary active:text-text-primary active:scale-90 transition-transform text-xl leading-none">✕</button>
                 </div>
 
                 {/* Game selection */}
@@ -147,7 +147,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                                 key={key}
                                 type="button"
                                 onClick={() => setSelectedGame(key)}
-                                className={`border rounded-lg py-3 flex flex-col items-center gap-1.5 ${isSelected ? "border-accent bg-accent/10" : "border-line bg-background"}`}
+                                className={`border rounded-lg py-3 flex flex-col items-center gap-1.5 active:scale-95 transition-transform ${isSelected ? "border-accent bg-accent/10" : "border-line bg-background"}`}
                             >
                                 <svg role="img" viewBox="0 0 24 24" width="22" height="22" fill={isSelected ? config.color : "#9a96a8"}>
                                     <path d={config.icon.path} />
@@ -212,14 +212,14 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 border border-line rounded-lg py-2.5 text-sm text-text-secondary"
+                        className="flex-1 border border-line rounded-lg py-2.5 text-sm text-text-secondary active:bg-background active:scale-95 transition-all"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
                         disabled={!selectedGame || !username || (needsTag && !tag) || loading}
-                        className="flex-1 bg-accent rounded-lg py-2.5 text-sm text-white font-medium disabled:opacity-40"
+                        className="flex-1 bg-accent rounded-lg py-2.5 text-sm text-white font-medium disabled:opacity-40 active:scale-95 transition-transform"
                     >
                         {loading ? "Connecting..." : "Connect"}
                     </button>
