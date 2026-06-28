@@ -37,7 +37,7 @@ function extractGameStats(platform, apiData) {
     }
 
     if (platform === "Valorant") {
-        const tierName = apiData.valorantData?.data?.current_data?.currenttierpatched
+        const tierName = apiData.valorantData?.data?.current?.tier?.name
         const matchHistory = Array.isArray(apiData.valorantMatchHistory) ? apiData.valorantMatchHistory : []
         const wins = matchHistory.filter(m => m.win).length
         const kdas = matchHistory.map(m => (m.kills + m.assists) / Math.max(m.deaths, 1))

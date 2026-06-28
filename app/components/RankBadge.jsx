@@ -5,6 +5,7 @@ export default function RankBadge({ account }) {
 
     const [rankEntry, setRankEntry] = useState(null)
     const [valorantEntry, setValorantEntry] = useState(null)
+    const [valorantImage, setValorantImage] = useState(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -13,7 +14,9 @@ export default function RankBadge({ account }) {
             const data = await response.json();
             const entry = data.rankData?.find((queue) => queue.queueType === "RANKED_SOLO_5x5");
             setRankEntry(entry ?? null)
-            setValorantEntry(data.valorantData?.data?.current_data ?? null)
+            setValorantEntry(data.valorantData?.data?.current ?? null)
+            const mmrHistory = data.valorantMmrHistory ?? []
+            setValorantImage(mmrHistory[mmrHistory.length - 1]?.image ?? null)
             setLoading(false)
         }
 
@@ -33,13 +36,13 @@ export default function RankBadge({ account }) {
         return (
             <div className="flex items-center gap-3">
                 <div className="w-[46px] h-[46px] flex-shrink-0 overflow-hidden flex items-center justify-center">
-                    {valorantEntry.images?.small && (
-                        <img src={valorantEntry.images.small} alt={valorantEntry.currenttierpatched} className="w-full h-full object-contain" />
+                    {valorantImage && (
+                        <img src={valorantImage} alt={valorantEntry.tier?.name} className="w-full h-full object-contain" />
                     )}
                 </div>
                 <div>
-                    <p className="text-text-primary text-sm font-bold">{valorantEntry.currenttierpatched}</p>
-                    <p className="text-text-secondary text-[11px]">{valorantEntry.ranking_in_tier} RR</p>
+                    <p className="text-text-primary text-sm font-bold">{valorantEntry.tier?.name}</p>
+                    <p className="text-text-secondary text-[11px]">{valorantEntry.rr} RR</p>
                 </div>
             </div>
         )

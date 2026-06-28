@@ -73,7 +73,7 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
         async function fetchRank() {
             const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}`)
             const data = await response.json()
-            setValorantData(data.valorantData?.data?.current_data ?? null)
+            setValorantData(data.valorantData?.data?.current ?? null)
             setMatchHistory(data.valorantMatchHistory ?? [])
             setMmrHistory(data.valorantMmrHistory ?? [])
             setYourPuuid(data.puuid ?? null)
@@ -109,7 +109,9 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
     const mvpCount = matchHistory.filter(m => m.isMvp).length
     const topAgents = buildTopAgents(matchHistory)
 
-    const rankImage = valorantData.images?.large ?? null
+    // The current-mmr endpoint doesn't include a rank icon — the mmr-history
+    // endpoint does, so we take the icon from its most recent entry instead.
+    const rankImage = mmrHistory[mmrHistory.length - 1]?.image ?? null
 
     return (
         <div
@@ -121,23 +123,23 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
                 {/* Rank emblem */}
                 <div className="w-24 h-24 flex-shrink-0 overflow-hidden flex items-center justify-center">
                     {rankImage && (
-                        <img src={rankImage} alt={valorantData.currenttierpatched} className="w-full h-full object-contain" />
+                        <img src={rankImage} alt={valorantData.tier?.name} className="w-full h-full object-contain" />
                     )}
                 </div>
 
                 {/* Rank info */}
                 <div className="flex-1 min-w-[180px]">
                     <p className="text-text-primary font-extrabold text-2xl">
-                        {valorantData.currenttierpatched}
+                        {valorantData.tier?.name}
                     </p>
                     <p className="text-text-secondary text-sm mt-1">
-                        {valorantData.ranking_in_tier} RR
+                        {valorantData.rr} RR
                         {winRate != null && <> · {winRate}% WR</>}
                     </p>
                     <div className="h-2 bg-hairline rounded-full mt-3 overflow-hidden">
                         <div
                             className="h-2 rounded-full transition-[width]"
-                            style={{ width: `${valorantData.ranking_in_tier}%`, backgroundColor: accentColor }}
+                            style={{ width: `${valorantData.rr}%`, backgroundColor: accentColor }}
                         />
                     </div>
                     <div className="flex justify-between text-text-secondary text-[10px] mt-1">

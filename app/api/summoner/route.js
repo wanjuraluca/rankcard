@@ -76,8 +76,10 @@ export async function GET(request) {
 // have changed across versions before (v1 -> v2 -> v3 -> v4) — if this starts
 // returning empty data, check https://docs.henrikdev.xyz for schema changes.
 async function fetchValorantMatchHistory(puuid) {
+  // No platform segment here — unlike the mmr endpoints, by-puuid/matches
+  // takes only the region. Adding /pc/ (like the mmr endpoint needs) 404s.
   const response = await fetch(
-    `https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/eu/pc/${puuid}?size=8`,
+    `https://api.henrikdev.xyz/valorant/v3/by-puuid/matches/eu/${puuid}?size=8`,
     {
       headers: {
         'Authorization': process.env.VAL_API_KEY
@@ -135,8 +137,9 @@ async function fetchValorantMatchHistory(puuid) {
 }
 
 async function fetchValorantMmrHistory(puuid) {
+  // v1, not v2 — the v2/by-puuid/mmr-history route doesn't exist (404s).
   const response = await fetch(
-    `https://api.henrikdev.xyz/valorant/v2/by-puuid/mmr-history/eu/${puuid}`,
+    `https://api.henrikdev.xyz/valorant/v1/by-puuid/mmr-history/eu/${puuid}`,
     {
       headers: {
         'Authorization': process.env.VAL_API_KEY
@@ -151,6 +154,7 @@ async function fetchValorantMmrHistory(puuid) {
     tier: entry.currenttierpatched,
     rr: entry.ranking_in_tier,
     change: entry.mmr_change_to_last_game,
+    image: entry.images?.large ?? null,
     timestamp: entry.date_raw ? entry.date_raw * 1000 : null
   })).reverse() // oldest first, matching the League match-history convention
 }
