@@ -18,10 +18,20 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
     // Does the selected game need a tag field? (riot/battlenet = yes, steam = no)
     const needsTag = selectedConfig?.inputType === "riot" || selectedConfig?.inputType === "battlenet"
 
+    // Accepts a plain vanity name/SteamID64, or a full profile URL pasted in
+    // (e.g. "https://steamcommunity.com/id/winter" or ".../profiles/7656...")
+    // and pulls out just the slug/ID Steam's API actually wants.
+    function parseSteamInput(value) {
+        const trimmed = value.trim().replace(/\/$/, "")
+        const match = trimmed.match(/steamcommunity\.com\/(?:id|profiles)\/([^/]+)/i)
+        return match ? match[1] : trimmed
+    }
+
     function isDuplicateAccount() {
+        const comparisonValue = selectedConfig?.inputType === "steam" ? parseSteamInput(username) : username
         return existingAccounts.some((account) => {
             if (account.platform !== selectedGame) return false
-            const sameUsername = account.platform_username.toLowerCase() === username.toLowerCase()
+            const sameUsername = account.platform_username.toLowerCase() === comparisonValue.toLowerCase()
             if (!needsTag) return sameUsername
             return sameUsername && (account.platform_tag ?? "").toLowerCase() === tag.toLowerCase()
         })
@@ -67,12 +77,14 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
 
             // 3b. For Steam games: validate the account + resolve the SteamID64
             // (vanity names like "winter" aren't usable directly by Leetify/Steam's API)
+            let steamInput = username
             if (selectedConfig.inputType === "steam") {
-                const res = await fetch(`/api/summoner?platform=${selectedGame}&name=${username}`)
+                steamInput = parseSteamInput(username)
+                const res = await fetch(`/api/summoner?platform=${selectedGame}&name=${encodeURIComponent(steamInput)}`)
                 const data = await res.json()
 
                 if (!data.steam64Id) {
-                    setErrorMsg("Steam account not found. Check your profile name or SteamID64.")
+                    setErrorMsg("Steam account not found. Check your profile link, name, or SteamID64.")
                     setLoading(false)
                     return
                 }
@@ -85,7 +97,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                 .insert({
                     user_id: userId,
                     platform: selectedGame,
-                    platform_username: username,
+                    platform_username: selectedConfig.inputType === "steam" ? steamInput : username,
                     platform_tag: needsTag ? tag : null,
                     puuid: puuid
                 })
@@ -160,7 +172,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                placeholder="Username"
+                                placeholder={selectedConfig.inputType === "steam" ? "Steam profile link, name, or SteamID64" : "Username"}
                                 className="flex-[2] bg-background border border-line rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent outline-none"
                             />
                             {/* Tag - only for riot/battlenet */}
@@ -175,7 +187,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                             )}
                         </div>
                         <p className="text-text-secondary text-xs mb-6">
-                            {needsTag ? "e.g. DinDjarin#1007" : "e.g. your Steam profile name"}
+                            {needsTag ? "e.g. DinDjarin#1007" : selectedConfig.inputType === "steam" ? "e.g. steamcommunity.com/id/winter or just \"winter\"" : "e.g. your Steam profile name"}
                         </p>
                     </>
                 )}
