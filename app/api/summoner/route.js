@@ -1,18 +1,29 @@
+import { after } from 'next/server'
+import { supabaseAdmin } from '@/lib/supabaseAdmin'
+
 // Several components on the same profile page (Overall tab, the connected-
 // games card, the per-game tab) each independently request the same
 // account, multiplying calls to Henrik's rate-limited Valorant API. This
 // short-lived in-memory cache collapses those near-simultaneous duplicate
 // requests into one. It's per-server-process (not shared across Vercel
-// lambdas), so it's a stopgap — the real fix is caching ranks in
-// game_stats, see the roadmap.
+// lambdas), so it stays alongside the DB cache below as a cheap first line
+// of defense against duplicate near-simultaneous requests.
 const CACHE_TTL_MS = 45_000
 const requestCache = new Map()
+
+// DB-level cache (account_cache table) for the unfiltered (no mode) request —
+// this is what RankBadge/Overall-tab/per-game-tab all load on page open, and
+// what made profiles feel slow (several sequential Riot/Henrik/Leetify calls
+// every single visit). Mode-filtered requests (user picked "Ranked Flex" etc.)
+// always go live since they're an explicit, infrequent user action.
+const DB_CACHE_STALE_MS = 5 * 60 * 1000
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const name = searchParams.get('name')
   const tag = searchParams.get('tag')
   const platform = searchParams.get('platform')
+  const accountId = searchParams.get('accountId')
   // Reused for both games' mode filters since a single request only ever
   // targets one game — Valorant's is a mode slug (e.g. "competitive"),
   // League's is a numeric Riot queue ID (e.g. 420 for Ranked Solo/Duo).
@@ -24,10 +35,46 @@ export async function GET(request) {
     return Response.json(cached.data)
   }
 
-  const data = platform === 'CSGO'
-    ? await fetchCs2Data(name)
-    : await fetchSummonerData(name, tag, mode)
+  async function fetchLive() {
+    return platform === 'CSGO'
+      ? await fetchCs2Data(name)
+      : await fetchSummonerData(name, tag, mode)
+  }
+
+  // Only the unfiltered request is DB-cached.
+  if (accountId && !mode) {
+    const { data: row } = await supabaseAdmin
+      .from('account_cache')
+      .select('data, updated_at')
+      .eq('account_id', accountId)
+      .maybeSingle()
+
+    if (row) {
+      const age = Date.now() - new Date(row.updated_at).getTime()
+      requestCache.set(cacheKey, { data: row.data, timestamp: Date.now() })
+      if (age > DB_CACHE_STALE_MS) {
+        // Serve the stale-but-fast cached data now, refresh it in the
+        // background after the response is sent so the next visit is fresh.
+        after(async () => {
+          const fresh = await fetchLive()
+          await supabaseAdmin
+            .from('account_cache')
+            .upsert({ account_id: accountId, data: fresh, updated_at: new Date().toISOString() })
+        })
+      }
+      return Response.json(row.data)
+    }
+  }
+
+  const data = await fetchLive()
   requestCache.set(cacheKey, { data, timestamp: Date.now() })
+
+  if (accountId && !mode) {
+    await supabaseAdmin
+      .from('account_cache')
+      .upsert({ account_id: accountId, data, updated_at: new Date().toISOString() })
+  }
+
   return Response.json(data)
 }
 

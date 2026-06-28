@@ -85,7 +85,7 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
     useEffect(() => {
         async function fetchRank() {
             const modeQuery = modeFilter ? `&mode=${modeFilter}` : ''
-            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}${modeQuery}`)
+            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}${modeQuery}`)
             const data = await response.json()
             setValorantData(data.valorantData?.data?.current ?? null)
             setMatchHistory(data.valorantMatchHistory ?? [])

@@ -140,7 +140,7 @@ export default function ProfileClient({ data, accounts }) {
         const scoredAccounts = accountList.filter(a => a.platform === "League of Legends" || a.platform === "Valorant" || a.platform === "CSGO")
 
         scoredAccounts.forEach(async (account) => {
-            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}`)
+            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}`)
             const apiData = await response.json()
             const stats = extractGameStats(account.platform, apiData)
             setGameStats(prev => ({ ...prev, [account.id]: stats }))

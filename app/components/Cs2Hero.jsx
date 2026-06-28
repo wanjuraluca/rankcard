@@ -80,7 +80,7 @@ export default function Cs2Hero({ account, accentColor = "#4b9fff" }) {
 
     useEffect(() => {
         async function fetchStats() {
-            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}`)
+            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}`)
             const data = await response.json()
             setCs2Profile(data.cs2Profile ?? null)
             setMatchHistory(data.cs2MatchHistory ?? [])

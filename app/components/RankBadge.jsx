@@ -23,7 +23,7 @@ export default function RankBadge({ account }) {
 
     useEffect(() => {
         async function fetchRank() {
-            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}`);
+            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}`);
             const data = await response.json();
             const entry = data.rankData?.find((queue) => queue.queueType === "RANKED_SOLO_5x5");
             setRankEntry(entry ?? null)
