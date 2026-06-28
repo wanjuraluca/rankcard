@@ -1,8 +1,31 @@
+// Several components on the same profile page (Overall tab, the connected-
+// games card, the per-game tab) each independently request the same
+// account, multiplying calls to Henrik's rate-limited Valorant API. This
+// short-lived in-memory cache collapses those near-simultaneous duplicate
+// requests into one. It's per-server-process (not shared across Vercel
+// lambdas), so it's a stopgap — the real fix is caching ranks in
+// game_stats, see the roadmap.
+const CACHE_TTL_MS = 45_000
+const requestCache = new Map()
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const name = searchParams.get('name')
   const tag = searchParams.get('tag')
+  const platform = searchParams.get('platform')
 
+  const cacheKey = `${platform}:${name}:${tag}`.toLowerCase()
+  const cached = requestCache.get(cacheKey)
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return Response.json(cached.data)
+  }
+
+  const data = await fetchSummonerData(name, tag)
+  requestCache.set(cacheKey, { data, timestamp: Date.now() })
+  return Response.json(data)
+}
+
+async function fetchSummonerData(name, tag) {
   const response = await fetch(
     `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${name}/${tag}`,
     {
@@ -67,7 +90,7 @@ export async function GET(request) {
   const valorantMatchHistory = await fetchValorantMatchHistory(valorantPuuid, valorantRegion)
   const valorantMmrHistory = await fetchValorantMmrHistory(valorantPuuid, valorantRegion)
 
-  return Response.json({
+  return {
     puuid: account.puuid,
     valorantPuuid,
     rankData,
@@ -77,7 +100,7 @@ export async function GET(request) {
     ddragonVersion,
     valorantMatchHistory,
     valorantMmrHistory
-  })
+  }
 }
 
 // Henrik's API is an unofficial, community-run wrapper around Valorant data
@@ -115,7 +138,7 @@ async function fetchValorantMatchHistory(puuid, region) {
       name: p.name,
       tag: p.tag,
       team: p.team,
-      agent: p.character?.name,
+      agent: p.character,
       agentIcon: p.assets?.agent?.small ?? null,
       kills: p.stats?.kills ?? 0,
       deaths: p.stats?.deaths ?? 0,
@@ -125,7 +148,7 @@ async function fetchValorantMatchHistory(puuid, region) {
 
     return {
       matchId: match.metadata?.matchid,
-      agent: me.character?.name,
+      agent: me.character,
       agentIcon: me.assets?.agent?.small ?? null,
       map: match.metadata?.map,
       mode: match.metadata?.mode,
