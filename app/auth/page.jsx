@@ -11,6 +11,9 @@ export default function Login() {
   const [username, setUsername] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
+  const [resetSent, setResetSent] = useState(false)
+  const [signupDone, setSignupDone] = useState(false)
+  const [checkingConfirmation, setCheckingConfirmation] = useState(false)
   const router = useRouter()
 
   function friendlyError(message) {
@@ -20,7 +23,39 @@ export default function Login() {
     return message
   }
 
- async function handleSubmit(e) {
+ async function handleForgotPassword() {
+  setError("")
+  if (!email) {
+    setError("Enter your email address first, then click \"Forgot password\".")
+    return
+  }
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  })
+  if (error) setError(friendlyError(error.message))
+  else setResetSent(true)
+}
+
+async function handleCheckConfirmation() {
+  setCheckingConfirmation(true)
+  setError("")
+  const { data } = await supabase.auth.getSession()
+  if (data?.session) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("user_id", data.session.user.id)
+      .single()
+    if (profile) {
+      router.push("/" + profile.username)
+      return
+    }
+  }
+  setCheckingConfirmation(false)
+  setError("Not confirmed yet. Click the link in the email first.")
+}
+
+async function handleSubmit(e) {
   e.preventDefault()
   setError("")
   if (isLogin) {
@@ -38,17 +73,20 @@ export default function Login() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username: username } },
+      options: {
+        data: { username: username },
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
     })
     if (error) setError(friendlyError(error.message))
     else {
-      router.push("/")
+      setSignupDone(true)
     }
   }
 }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-8">
+    <div className="relative flex min-h-screen items-start justify-center overflow-hidden bg-background p-8 pt-16">
 
       {/* ---- background deco ---- */}
       <div
@@ -75,10 +113,37 @@ export default function Login() {
             </a>
           </div>
 
+          {signupDone ? (
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-white">Check your email</h2>
+              <p className="mt-2.5 text-sm leading-relaxed text-text-secondary">
+                We sent a confirmation link to <b className="font-semibold text-white">{email}</b>. Click it to activate your account and your profile will go live.
+              </p>
+              {error && (
+                <div className="mt-4 rounded-lg border border-negative/40 bg-negative/10 px-3.5 py-2.5 text-sm text-negative">
+                  {error}
+                </div>
+              )}
+              <button
+                onClick={handleCheckConfirmation}
+                disabled={checkingConfirmation}
+                className="mt-6 w-full cursor-pointer rounded-lg bg-accent py-3 text-[15px] font-bold text-black shadow-[0_0_30px_rgba(177,108,255,0.5)] transition-shadow hover:text-white duration-350 hover:shadow-[0_0_40px_rgba(177,108,255,0.5)] disabled:opacity-60"
+              >
+                {checkingConfirmation ? "Checking..." : "I've confirmed my email"}
+              </button>
+              <button
+                onClick={() => { setSignupDone(false); setIsLogin(true); setError("") }}
+                className="mt-3 w-full cursor-pointer rounded-lg border border-line bg-background py-3 text-[15px] font-semibold text-white transition-colors hover:border-accent"
+              >
+                Back to sign in
+              </button>
+            </div>
+          ) : (
+          <>
           {/* toggle */}
           <div className="flex rounded-xl border border-line bg-background p-1">
             <button
-              onClick={() => { setIsLogin(true); setError("") }}
+              onClick={() => { setIsLogin(true); setError(""); setResetSent(false) }}
               className={`flex-1 cursor-pointer rounded-lg py-2 text-sm font-semibold transition-colors ${
                 isLogin ? "border border-line bg-surface text-white" : "text-text-secondary"
               }`}
@@ -86,7 +151,7 @@ export default function Login() {
               Sign in
             </button>
             <button
-              onClick={() => { setIsLogin(false); setError("") }}
+              onClick={() => { setIsLogin(false); setError(""); setResetSent(false) }}
               className={`flex-1 cursor-pointer rounded-lg py-2 text-sm font-semibold transition-colors ${
                 !isLogin ? "border border-line bg-surface text-white" : "text-text-secondary"
               }`}
@@ -151,7 +216,22 @@ export default function Login() {
                   {showPassword ? "hide" : "show"}
                 </button>
               </div>
+              {isLogin && (
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  className="self-end cursor-pointer text-xs font-semibold text-accent hover:underline"
+                >
+                  Forgot password?
+                </button>
+              )}
             </div>
+
+            {resetSent && (
+              <div className="rounded-lg border border-positive/40 bg-positive/10 px-3.5 py-2.5 text-sm text-positive">
+                Password reset link sent. Check your inbox.
+              </div>
+            )}
 
             {error && (
               <div className="rounded-lg border border-negative/40 bg-negative/10 px-3.5 py-2.5 text-sm text-negative">
@@ -176,12 +256,14 @@ export default function Login() {
           <p className="mt-6 text-center text-sm text-text-secondary">
             {isLogin ? "New to RankCard? " : "Already have an account? "}
             <button
-              onClick={() => { setIsLogin(!isLogin); setError("") }}
+              onClick={() => { setIsLogin(!isLogin); setError(""); setResetSent(false) }}
               className="cursor-pointer font-semibold text-accent hover:underline"
             >
               {isLogin ? "Create an account" : "Sign in"}
             </button>
           </p>
+          </>
+          )}
         </div>
 
         {/* ===== profile preview (secondary) ===== */}
