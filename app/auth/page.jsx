@@ -1,14 +1,18 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Particles from "@tsparticles/react"
+import Footer from "../components/Footer"
+
+const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/
 
 export default function Login() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLogin, setIsLogin] = useState(true)
   const [username, setUsername] = useState("")
+  const [usernameStatus, setUsernameStatus] = useState("idle") // idle | checking | available | taken | invalid
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [resetSent, setResetSent] = useState(false)
@@ -20,8 +24,32 @@ export default function Login() {
     if (message === "Invalid login credentials") return "Incorrect email or password."
     if (message === "User already registered") return "An account with this email already exists."
     if (message.toLowerCase().includes("password")) return "Password must be at least 6 characters."
+    if (message.toLowerCase().includes("duplicate") || message.toLowerCase().includes("unique")) return "This username is already taken."
     return message
   }
+
+  useEffect(() => {
+    if (isLogin || !username) {
+      setUsernameStatus("idle")
+      return
+    }
+    if (!USERNAME_PATTERN.test(username)) {
+      setUsernameStatus("invalid")
+      return
+    }
+
+    setUsernameStatus("checking")
+    const timeout = setTimeout(async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("username")
+        .ilike("username", username)
+        .maybeSingle()
+      setUsernameStatus(data ? "taken" : "available")
+    }, 400)
+
+    return () => clearTimeout(timeout)
+  }, [username, isLogin])
 
  async function handleForgotPassword() {
   setError("")
@@ -70,6 +98,10 @@ async function handleSubmit(e) {
       router.push("/" + profile.username)
     }
   } else {
+    if (usernameStatus !== "available") {
+      setError("Choose an available username first.")
+      return
+    }
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -86,7 +118,7 @@ async function handleSubmit(e) {
 }
 
   return (
-    <div className="relative flex min-h-screen items-start justify-center overflow-hidden bg-background p-8 pt-16">
+    <div className="relative flex min-h-screen flex-col items-center justify-start overflow-hidden bg-background p-8 pt-16">
 
       {/* ---- background deco ---- */}
       <div
@@ -175,12 +207,36 @@ async function handleSubmit(e) {
             {!isLogin && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-text-secondary">Username</label>
-                <input
-                  value={username}
-                  onChange={e => setUsername(e.target.value)}
-                  placeholder="user"
-                  className="w-full rounded-lg border border-line bg-background px-3.5 py-3 text-[15px] text-white placeholder:text-[#56565f] focus:border-accent focus:shadow-[0_0_0_3px_rgba(177,108,255,0.16)] focus:outline-none"
-                />
+                <div className="relative">
+                  <input
+                    value={username}
+                    onChange={e => setUsername(e.target.value.trim())}
+                    placeholder="user"
+                    className={`w-full rounded-lg border bg-background px-3.5 py-3 pr-9 text-[15px] text-white placeholder:text-[#56565f] focus:shadow-[0_0_0_3px_rgba(177,108,255,0.16)] focus:outline-none ${
+                      usernameStatus === "taken" || usernameStatus === "invalid"
+                        ? "border-negative/50 focus:border-negative"
+                        : usernameStatus === "available"
+                        ? "border-positive/50 focus:border-positive"
+                        : "border-line focus:border-accent"
+                    }`}
+                  />
+                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm">
+                    {usernameStatus === "checking" && (
+                      <span className="block h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-accent" />
+                    )}
+                    {usernameStatus === "available" && <span className="text-positive">✓</span>}
+                    {(usernameStatus === "taken" || usernameStatus === "invalid") && <span className="text-negative">✕</span>}
+                  </span>
+                </div>
+                {usernameStatus === "taken" && (
+                  <span className="text-[11.5px] text-negative">This username is already taken.</span>
+                )}
+                {usernameStatus === "invalid" && (
+                  <span className="text-[11.5px] text-negative">3-20 characters, letters/numbers/underscore only.</span>
+                )}
+                {usernameStatus === "available" && (
+                  <span className="text-[11.5px] text-positive">Username available.</span>
+                )}
                 <span className="font-mono text-[11.5px] text-text-secondary">
                   Your profile link: <b className="font-medium text-accent">rankcard.gg/{username || "user"}</b>
                 </span>
@@ -241,7 +297,8 @@ async function handleSubmit(e) {
 
             <button
               type="submit"
-              className="mt-1 w-full cursor-pointer rounded-lg bg-accent py-3 text-[15px] font-bold text-black shadow-[0_0_30px_rgba(177,108,255,0.5)] transition-shadow hover:text-white duration-350 hover:shadow-[0_0_40px_rgba(177,108,255,0.5)]"
+              disabled={!isLogin && usernameStatus !== "available"}
+              className="mt-1 w-full cursor-pointer rounded-lg bg-accent py-3 text-[15px] font-bold text-black shadow-[0_0_30px_rgba(177,108,255,0.5)] transition-shadow hover:text-white duration-350 hover:shadow-[0_0_40px_rgba(177,108,255,0.5)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
             >
               {isLogin ? "Sign in" : "Create profile"}
             </button>
@@ -295,6 +352,8 @@ async function handleSubmit(e) {
           </div>
         </div>
       </div>
+
+      <Footer />
     </div>
   )
 }

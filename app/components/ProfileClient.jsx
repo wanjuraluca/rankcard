@@ -2,6 +2,8 @@
 
 import AvatarUpload from "./AvatarUpload"
 import BioEditor from "./BioEditor"
+import AccountMenu from "./AccountMenu"
+import Footer from "./Footer"
 import { useState, useEffect } from "react"
 import { platformConfig } from "@/lib/platforms"
 import { getLeagueScore, getValorantScore, getCs2Score } from "@/lib/rankScore"
@@ -76,6 +78,37 @@ export default function ProfileClient({ data, accounts }) {
     const [accountList, setAccountList] = useState(accounts)
     const [gameStats, setGameStats] = useState({})
     const [removingId, setRemovingId] = useState(null)
+    const [isOwnProfile, setIsOwnProfile] = useState(false)
+    const [shareCopied, setShareCopied] = useState(false)
+
+    async function handleShareProfile() {
+        const profileUrl = `${window.location.origin}/${data.username}`
+
+        if (navigator.share) {
+            try {
+                await navigator.share({ title: `${data.username} on RankCard`, url: profileUrl })
+                return
+            } catch (err) {
+                // AbortError when the user just closes the share sheet — not a real error, do nothing
+                if (err.name === "AbortError") return
+            }
+        }
+
+        try {
+            await navigator.clipboard.writeText(profileUrl)
+            setShareCopied(true)
+            setTimeout(() => setShareCopied(false), 2000)
+        } catch {
+            // Clipboard API blocked (old browser, missing permission, etc.) — fall back to a manual copy prompt
+            window.prompt("Copy your profile link:", profileUrl)
+        }
+    }
+
+    useEffect(() => {
+        supabase.auth.getUser().then(({ data: authData }) => {
+            setIsOwnProfile(authData?.user?.id === data.user_id)
+        })
+    }, [])
 
     async function removeAccount(account) {
         const confirmed = window.confirm(
@@ -139,9 +172,13 @@ export default function ProfileClient({ data, accounts }) {
                     </div>
                     <BioEditor username={data.username} bio={data.bio} />
                 </div>
-                <button className="border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint transition-colors">
-                    Share profile ↗
+                <button
+                    onClick={handleShareProfile}
+                    className="border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint transition-colors"
+                >
+                    {shareCopied ? "Link copied ✓" : "Share profile ↗"}
                 </button>
+                {isOwnProfile && <AccountMenu />}
             </div>
 
             {/* Tab Bar */}
@@ -166,12 +203,14 @@ export default function ProfileClient({ data, accounts }) {
                         </button>
                     )
                 })}
-                <button
-                    onClick={() => setShowModal(true)}
-                    className="border border-dashed border-accent/45 rounded-lg px-4 py-2 text-sm font-semibold text-accent-soft"
-                >
-                    + Add Game
-                </button>
+                {isOwnProfile && (
+                    <button
+                        onClick={() => setShowModal(true)}
+                        className="border border-dashed border-accent/45 rounded-lg px-4 py-2 text-sm font-semibold text-accent-soft"
+                    >
+                        + Add Game
+                    </button>
+                )}
             </div>
 
             {/* Overall Tab */}
@@ -227,14 +266,16 @@ export default function ProfileClient({ data, accounts }) {
                                     className="bg-surface border border-hairline rounded-2xl p-4 cursor-pointer hover:border-accent/40 transition-colors relative"
                                     style={{ borderTopWidth: 3, borderTopColor: config?.color }}
                                 >
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); removeAccount(account) }}
-                                        disabled={removingId === account.id}
-                                        title="Remove account"
-                                        className="absolute top-2.5 right-2.5 text-text-secondary hover:text-negative text-xs leading-none disabled:opacity-40"
-                                    >
-                                        ✕
-                                    </button>
+                                    {isOwnProfile && (
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); removeAccount(account) }}
+                                            disabled={removingId === account.id}
+                                            title="Remove account"
+                                            className="absolute top-2.5 right-2.5 text-text-secondary hover:text-negative text-xs leading-none disabled:opacity-40"
+                                        >
+                                            ✕
+                                        </button>
+                                    )}
                                     <div className="flex items-center gap-2 mb-3">
                                         <div
                                             className="rounded-[9px] flex items-center justify-center"
@@ -256,10 +297,12 @@ export default function ProfileClient({ data, accounts }) {
                             )
                         })}
                         {/* Add Game Card */}
-                        <div onClick={() => setShowModal(true)} className="bg-surface border border-dashed border-accent/35 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent/60 transition-colors min-h-[110px]">
-                            <p className="text-accent-soft text-xl">＋</p>
-                            <p className="text-accent-soft text-xs">Add Game</p>
-                        </div>
+                        {isOwnProfile && (
+                            <div onClick={() => setShowModal(true)} className="bg-surface border border-dashed border-accent/35 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent/60 transition-colors min-h-[110px]">
+                                <p className="text-accent-soft text-xl">＋</p>
+                                <p className="text-accent-soft text-xs">Add Game</p>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -274,7 +317,7 @@ export default function ProfileClient({ data, accounts }) {
                         <div className="flex items-center gap-2 mt-5 mb-2.5">
                             <p className="text-text-secondary text-xs uppercase tracking-widest">{config.name}</p>
                             <div className="flex-1 h-px bg-hairline" />
-                            {account && (
+                            {account && isOwnProfile && (
                                 <button
                                     onClick={() => removeAccount(account)}
                                     disabled={removingId === account.id}
@@ -295,11 +338,11 @@ export default function ProfileClient({ data, accounts }) {
                             )
                         ) : (
                             <div
-                                onClick={() => setShowModal(true)}
-                                className="bg-surface border border-dashed border-line rounded-2xl p-6 text-center cursor-pointer hover:border-accent/50 transition-colors"
+                                onClick={() => isOwnProfile && setShowModal(true)}
+                                className={`bg-surface border border-dashed border-line rounded-2xl p-6 text-center ${isOwnProfile ? "cursor-pointer hover:border-accent/50 transition-colors" : ""}`}
                             >
                                 <p className="text-text-secondary text-sm">No {config.name} account connected yet.</p>
-                                <p className="text-accent-soft text-sm mt-1">+ Add Game</p>
+                                {isOwnProfile && <p className="text-accent-soft text-sm mt-1">+ Add Game</p>}
                             </div>
                         )}
                     </div>
@@ -314,6 +357,8 @@ export default function ProfileClient({ data, accounts }) {
                     existingAccounts={accountList}
                 />
             )}
+
+            <Footer />
 
         </div>
     )

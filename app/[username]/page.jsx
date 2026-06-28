@@ -21,7 +21,7 @@ export default async function Profile({ params }) {
   const { data: accounts } = await supabase
     .from("connected_accounts")
     .select("*")
-    .eq("user_id", profile.id)
+    .eq("user_id", profile.user_id)
 
   return (
     <ProfileClient data={profile} accounts={accounts} />

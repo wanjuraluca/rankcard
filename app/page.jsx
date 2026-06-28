@@ -1,4 +1,5 @@
 import ParticlesBackground from "./components/ParticlesBackground";
+import Footer from "./components/Footer";
 import { Analytics } from "@vercel/analytics/next"
 
 export default function Home() {
@@ -49,5 +50,6 @@ export default function Home() {
       </div>
     </section>
 
+    <Footer />
   </main>;
 }
