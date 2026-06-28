@@ -13,9 +13,12 @@ export async function GET(request) {
   const name = searchParams.get('name')
   const tag = searchParams.get('tag')
   const platform = searchParams.get('platform')
-  const valorantMode = searchParams.get('mode') || null
+  // Reused for both games' mode filters since a single request only ever
+  // targets one game — Valorant's is a mode slug (e.g. "competitive"),
+  // League's is a numeric Riot queue ID (e.g. 420 for Ranked Solo/Duo).
+  const mode = searchParams.get('mode') || null
 
-  const cacheKey = `${platform}:${name}:${tag}:${valorantMode}`.toLowerCase()
+  const cacheKey = `${platform}:${name}:${tag}:${mode}`.toLowerCase()
   const cached = requestCache.get(cacheKey)
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
     return Response.json(cached.data)
@@ -23,14 +26,14 @@ export async function GET(request) {
 
   const data = platform === 'CSGO'
     ? await fetchCs2Data(name)
-    : await fetchSummonerData(name, tag, valorantMode)
+    : await fetchSummonerData(name, tag, mode)
   requestCache.set(cacheKey, { data, timestamp: Date.now() })
   return Response.json(data)
 }
 
 // CS2 has no Riot account, so it skips the entire Riot/Henrik flow below and
 // uses Steam + Leetify instead. See fetchCs2Data.
-async function fetchSummonerData(name, tag, valorantMode) {
+async function fetchSummonerData(name, tag, mode) {
   const response = await fetch(
     `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${name}/${tag}`,
     {
@@ -90,9 +93,9 @@ async function fetchSummonerData(name, tag, valorantMode) {
   const rankData = await respone2.json()
   const valorantData = await respone4.json()
   const tftData = await response3.json()
-  const matchHistory = await fetchMatchHistory(account.puuid)
+  const matchHistory = await fetchMatchHistory(account.puuid, mode)
   const ddragonVersion = await fetchDdragonVersion()
-  const valorantMatchHistory = await fetchValorantMatchHistory(valorantPuuid, valorantRegion, valorantMode)
+  const valorantMatchHistory = await fetchValorantMatchHistory(valorantPuuid, valorantRegion, mode)
   const valorantMmrHistory = await fetchValorantMmrHistory(valorantPuuid, valorantRegion)
 
   return {
@@ -299,9 +302,10 @@ async function fetchDdragonVersion() {
   return Array.isArray(versions) ? versions[0] : null
 }
 
-async function fetchMatchHistory(puuid) {
+async function fetchMatchHistory(puuid, queueId) {
+  const queueQuery = queueId ? `&queue=${queueId}` : ''
   const idsResponse = await fetch(
-    `https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=8`,
+    `https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=8${queueQuery}`,
     {
       headers: {
         'X-Riot-Token': process.env.RIOT_API_KEY
