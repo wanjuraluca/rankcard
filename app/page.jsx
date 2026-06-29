@@ -1,8 +1,8 @@
 import ParticlesBackground from "./components/ParticlesBackground";
 import Footer from "./components/Footer";
+import NavAuth from "./components/NavAuth";
 import { Link2, Trophy, Share2 } from "lucide-react";
 import { platformConfig } from "@/lib/platforms";
-import { Analytics } from "@vercel/analytics/next"
 
 const previewGames = [
   { platform: "League of Legends", tier: "Diamond II", detail: "78 LP · 61% WR" },
@@ -11,7 +11,6 @@ const previewGames = [
 ]
 
 export default function Home() {
-  <Analytics/>
   return <main className="bg-background min-h-screen relative">
     <nav className="flex justify-between px-4 sm:px-8 py-5 sm:py-6 items-center border-line border-b-3">
       <a href="/" className="flex items-center gap-2 sm:gap-3">
@@ -19,8 +18,7 @@ export default function Home() {
         <span className="font-bold sm:font-normal">RankCard</span>
       </a>
       <div className="flex gap-2 sm:gap-3 items-center">
-        <a className="text-text-secondary hover:text-white active:text-white transition-colors duration-150 px-2" href="/auth">Sign In</a>
-        <a className="bg-accent text-black font-bold px-3 sm:px-4 py-2 rounded-lg hover:text-white active:scale-95 transition-all duration-150 text-sm sm:text-base" href="/auth">Get started</a>
+        <NavAuth />
       </div>
     </nav>
 
@@ -80,14 +78,16 @@ export default function Home() {
         <div className="h-24 sm:h-28 bg-[radial-gradient(ellipse_55%_130%_at_20%_60%,rgba(177,108,255,0.45),transparent_60%)]" />
         <div className="p-4 sm:p-6 -mt-10 sm:-mt-12">
           <div className="flex items-center gap-3">
-            <div className="grid h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 place-items-center rounded-full border-4 border-accent bg-gradient-to-br from-[#2a2440] to-[#161320] text-xl sm:text-2xl font-bold text-accent">
-              Y
+            <div className="relative flex-shrink-0">
+              <div className="grid h-16 w-16 sm:h-20 sm:w-20 place-items-center rounded-lg border-4 border-accent bg-gradient-to-br from-[#2a2440] to-[#161320] text-xl sm:text-2xl font-bold text-accent">
+                Y
+              </div>
+              <span className="absolute -bottom-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-surface bg-accent text-[11px] font-bold text-black">
+                ★
+              </span>
             </div>
             <div className="mt-8 sm:mt-10">
-              <div className="flex items-center gap-2">
-                <span className="text-lg sm:text-xl font-extrabold text-white">yourname</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent-tint text-accent-soft border border-accent/40">PRO</span>
-              </div>
+              <span className="text-lg sm:text-xl font-extrabold text-white">yourname</span>
               <p className="font-mono text-xs text-text-secondary">rankcard.app/yourname</p>
             </div>
           </div>

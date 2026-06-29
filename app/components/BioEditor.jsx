@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react"
 import { Pencil } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
-export default function BioEditor({ username, bio }) {
+export default function BioEditor({ username, bio, isOwnProfile }) {
     const [value, setValue] = useState(bio ?? "")
     const [editing, setEditing] = useState(false)
     const [error, setError] = useState("")
@@ -39,7 +39,7 @@ export default function BioEditor({ username, bio }) {
         }
     }
 
-    if (editing) {
+    if (editing && isOwnProfile) {
         return (
             <input
                 ref={inputRef}
@@ -60,13 +60,15 @@ export default function BioEditor({ username, bio }) {
                 <p className="text-text-secondary font-mono text-sm">
                     {value || "Add a bio..."}
                 </p>
-                <button
-                    onClick={() => setEditing(true)}
-                    className="text-text-secondary hover:text-accent-soft opacity-0 group-hover:opacity-100 transition-opacity"
-                    aria-label="Edit bio"
-                >
-                    <Pencil size={13} />
-                </button>
+                {isOwnProfile && (
+                    <button
+                        onClick={() => setEditing(true)}
+                        className="text-text-secondary hover:text-accent-soft active:text-accent-soft transition-colors"
+                        aria-label="Edit bio"
+                    >
+                        <Pencil size={13} />
+                    </button>
+                )}
             </div>
             {error && <p className="text-negative text-[11px] mt-1">{error}</p>}
         </div>

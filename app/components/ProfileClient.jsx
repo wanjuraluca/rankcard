@@ -1,6 +1,7 @@
 "use client"
 
 import AvatarUpload from "./AvatarUpload"
+import BannerUpload from "./BannerUpload"
 import BioEditor from "./BioEditor"
 import AccountMenu from "./AccountMenu"
 import Footer from "./Footer"
@@ -13,6 +14,8 @@ import RankHero from "./RankHero"
 import ValorantHero from "./ValorantHero"
 import Cs2Hero from "./Cs2Hero"
 import AddGameModal from "./AddGameModal"
+import UpgradeModal from "./UpgradeModal"
+import ConfirmDialog from "./ConfirmDialog"
 
 const gameTabs = [
     { key: "league", platform: "League of Legends" },
@@ -29,6 +32,24 @@ export default function ProfileClient({ data, accounts }) {
     const [removingId, setRemovingId] = useState(null)
     const [isOwnProfile, setIsOwnProfile] = useState(false)
     const [shareCopied, setShareCopied] = useState(false)
+    const [isPro, setIsPro] = useState(data.is_pro)
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+    const [badgeCopiedType, setBadgeCopiedType] = useState(null)
+    const [removeTarget, setRemoveTarget] = useState(null)
+    const [removeError, setRemoveError] = useState("")
+
+    async function handleCopyBadge(type) {
+        const profileUrl = `${window.location.origin}/${data.username}`
+        const badgeUrl = `${window.location.origin}/api/badge?username=${data.username}`
+        const text = type === "markdown" ? `[![RankCard](${badgeUrl})](${profileUrl})` : badgeUrl
+        try {
+            await navigator.clipboard.writeText(text)
+            setBadgeCopiedType(type)
+            setTimeout(() => setBadgeCopiedType(null), 2000)
+        } catch {
+            window.prompt("Copy your embed snippet:", text)
+        }
+    }
 
     async function handleShareProfile() {
         const profileUrl = `${window.location.origin}/${data.username}`
@@ -59,18 +80,19 @@ export default function ProfileClient({ data, accounts }) {
         })
     }, [])
 
-    async function removeAccount(account) {
-        const confirmed = window.confirm(
-            `Remove ${account.platform_username}${account.platform_tag ? `#${account.platform_tag}` : ""} (${platformConfig[account.platform]?.shortName})?`
-        )
-        if (!confirmed) return
+    function removeAccount(account) {
+        setRemoveTarget(account)
+        setRemoveError("")
+    }
 
+    async function confirmRemoveAccount() {
+        const account = removeTarget
         setRemovingId(account.id)
         const { error } = await supabase.from("connected_accounts").delete().eq("id", account.id)
         setRemovingId(null)
 
         if (error) {
-            window.alert(`Could not remove account: ${error.message}`)
+            setRemoveError(error.message)
             return
         }
 
@@ -83,6 +105,7 @@ export default function ProfileClient({ data, accounts }) {
         if (tabForAccount && activeTab === tabForAccount.key) {
             setActiveTab("overall")
         }
+        setRemoveTarget(null)
     }
 
     useEffect(() => {
@@ -107,19 +130,24 @@ export default function ProfileClient({ data, accounts }) {
         <div className="bg-background min-h-screen p-3 max-w-[1000px] mx-auto">
 
             {/* Banner */}
-            <div className="h-[140px] rounded-t-2xl border border-line border-b-0 bg-[radial-gradient(ellipse_55%_130%_at_20%_60%,rgba(177,108,255,0.45),transparent_60%)]" />
+            <BannerUpload username={data.username} bannerUrl={data.banner_url} editable={isOwnProfile && isPro} />
 
             {/* Profile Strip */}
             <div className="bg-surface border border-line rounded-b-2xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center">
-                <div className="-mt-16 self-start">
-                    <AvatarUpload username={data.username} avatarUrl={data.avatar_url} />
+                <div className="-mt-16 self-start relative">
+                    <AvatarUpload username={data.username} avatarUrl={data.avatar_url} editable={isOwnProfile} />
+                    {isPro && (
+                        <span
+                            title="Pro member"
+                            className="absolute -bottom-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-accent text-[11px] font-bold text-black"
+                        >
+                            ★
+                        </span>
+                    )}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-text-primary text-2xl font-extrabold">{data.username}</p>
-                        <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-accent-tint text-accent-soft border border-accent/40">PRO</span>
-                    </div>
-                    <BioEditor username={data.username} bio={data.bio} />
+                    <p className="text-text-primary text-2xl font-extrabold">{data.username}</p>
+                    <BioEditor username={data.username} bio={data.bio} isOwnProfile={isOwnProfile} />
                 </div>
                 <div className="flex items-center gap-2 sm:flex-shrink-0">
                     <button
@@ -128,7 +156,7 @@ export default function ProfileClient({ data, accounts }) {
                     >
                         {shareCopied ? "Link copied ✓" : "Share profile ↗"}
                     </button>
-                    {isOwnProfile && <AccountMenu />}
+                    {isOwnProfile && <AccountMenu isPro={isPro} onUpgradeClick={() => setShowUpgradeModal(true)} />}
                 </div>
             </div>
 
@@ -271,7 +299,7 @@ export default function ProfileClient({ data, accounts }) {
                                 >
                                     Download Overall Card
                                 </a>
-                                {data.is_pro ? (
+                                {isPro ? (
                                     [...new Set(accountList.map(a => a.platform))].map((platform) => {
                                         const config = platformConfig[platform]
                                         return (
@@ -286,10 +314,51 @@ export default function ProfileClient({ data, accounts }) {
                                         )
                                     })
                                 ) : (
-                                    <span className="self-center text-xs text-text-secondary">
-                                        Per-game cards are a <span className="text-accent-soft font-semibold">Pro</span> feature.
-                                    </span>
+                                    <button
+                                        onClick={() => setShowUpgradeModal(true)}
+                                        className="self-center text-xs text-text-secondary hover:text-text-primary transition-colors"
+                                    >
+                                        Per-game cards are a <span className="text-accent-soft font-semibold">Pro</span> feature. Upgrade →
+                                    </button>
                                 )}
+                            </div>
+                        </>
+                    )}
+
+                    {/* Embed Badge */}
+                    {isOwnProfile && (
+                        <>
+                            <div className="flex items-center gap-2 mt-5 mb-2.5">
+                                <p className="text-text-secondary text-xs uppercase tracking-widest">Embed Badge</p>
+                                <div className="flex-1 h-px bg-hairline" />
+                            </div>
+                            <div className="bg-surface border border-hairline rounded-2xl p-4">
+                                <p className="text-text-secondary text-xs mb-3">
+                                    Always shows your current rank.
+                                </p>
+                                <img
+                                    src={`/api/badge?username=${data.username}`}
+                                    alt={`${data.username}'s RankCard badge`}
+                                    className="rounded-xl border border-hairline max-w-full"
+                                    style={{ width: 300, height: 70 }}
+                                />
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                    <button
+                                        onClick={() => handleCopyBadge("url")}
+                                        className="border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all"
+                                    >
+                                        {badgeCopiedType === "url" ? "Copied ✓" : "Copy image URL (Discord / Slack)"}
+                                    </button>
+                                    <button
+                                        onClick={() => handleCopyBadge("markdown")}
+                                        className="border border-hairline rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-surface-hover active:bg-surface-hover active:scale-95 transition-all"
+                                    >
+                                        {badgeCopiedType === "markdown" ? "Copied ✓" : "Copy Markdown (GitHub)"}
+                                    </button>
+                                </div>
+                                <p className="text-text-secondary text-[11px] mt-2">
+                                    Discord/Slack: paste the image URL alone in a message — it auto-embeds. GitHub: use the Markdown snippet in your README.
+                                </p>
                             </div>
                         </>
                     )}
@@ -347,7 +416,31 @@ export default function ProfileClient({ data, accounts }) {
                 />
             )}
 
-            <Footer />
+            {/* Upgrade to Pro Modal */}
+            {showUpgradeModal && (
+                <UpgradeModal
+                    onClose={() => setShowUpgradeModal(false)}
+                    onUpgraded={() => { setIsPro(true); setShowUpgradeModal(false) }}
+                />
+            )}
+
+            {/* Remove Account Confirmation */}
+            {removeTarget && (
+                <ConfirmDialog
+                    title="Remove this account?"
+                    message={`${removeTarget.platform_username}${removeTarget.platform_tag ? `#${removeTarget.platform_tag}` : ""} (${platformConfig[removeTarget.platform]?.shortName}) will be unlinked from your profile.`}
+                    confirmLabel="Remove"
+                    danger
+                    loading={removingId === removeTarget.id}
+                    error={removeError}
+                    onCancel={() => { setRemoveTarget(null); setRemoveError("") }}
+                    onConfirm={confirmRemoveAccount}
+                />
+            )}
+
+            <div className="mt-8">
+                <Footer />
+            </div>
 
         </div>
     )

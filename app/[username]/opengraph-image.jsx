@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og"
 import { supabase } from "@/lib/supabase"
 import { platformConfig } from "@/lib/platforms"
+import { extractGameStats, average } from "@/lib/gameStats"
 
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
@@ -10,20 +11,41 @@ export const contentType = "image/png"
 const SCALE = 2
 const px = (n) => n * SCALE
 
+async function getCachedData(accountId) {
+    const { data } = await supabase
+        .from("account_cache")
+        .select("data")
+        .eq("account_id", accountId)
+        .maybeSingle()
+    return data?.data ?? {}
+}
+
 export default async function Image({ params }) {
     const { username } = await params
     const { data: profile } = await supabase
         .from("profiles")
-        .select("id, username, bio, avatar_url")
+        .select("user_id, username, bio, avatar_url, is_pro")
         .eq("username", username)
         .single()
 
     const { data: accounts } = profile
         ? await supabase
             .from("connected_accounts")
-            .select("platform")
-            .eq("user_id", profile.id)
+            .select("id, platform")
+            .eq("user_id", profile.user_id)
         : { data: [] }
+
+    const accountList = accounts ?? []
+    const statsList = await Promise.all(
+        accountList.map(async (account) => {
+            const apiData = await getCachedData(account.id)
+            return extractGameStats(account.platform, apiData)
+        })
+    )
+
+    const avgRankScore = average(statsList.map(s => s?.rankScore))
+    const avgWinRate = average(statsList.map(s => s?.winRate))
+    const avgKda = average(statsList.map(s => s?.kda))
 
     const displayName = profile?.username ?? username
 
@@ -71,19 +93,21 @@ export default async function Image({ params }) {
                             <span style={{ fontSize: px(36), fontWeight: 800, color: "#f4f3f7" }}>
                                 {displayName}
                             </span>
-                            <span
-                                style={{
-                                    fontSize: px(13),
-                                    fontWeight: 700,
-                                    color: "#c9a6ff",
-                                    backgroundColor: "rgba(177,108,255,0.12)",
-                                    border: "1px solid rgba(177,108,255,0.4)",
-                                    borderRadius: 999,
-                                    padding: `${px(4)}px ${px(11)}px`,
-                                }}
-                            >
-                                PRO
-                            </span>
+                            {profile?.is_pro && (
+                                <span
+                                    style={{
+                                        fontSize: px(13),
+                                        fontWeight: 700,
+                                        color: "#c9a6ff",
+                                        backgroundColor: "rgba(177,108,255,0.12)",
+                                        border: "1px solid rgba(177,108,255,0.4)",
+                                        borderRadius: 999,
+                                        padding: `${px(4)}px ${px(11)}px`,
+                                    }}
+                                >
+                                    PRO
+                                </span>
+                            )}
                         </div>
                         {profile?.bio && (
                             <span style={{ fontSize: px(16), color: "#8a8a9a", marginTop: px(6) }}>
@@ -96,10 +120,10 @@ export default async function Image({ params }) {
                 {/* Stats row */}
                 <div style={{ display: "flex", gap: px(12), marginTop: px(32) }}>
                     {[
-                        { value: "2,000", label: "Rank Score", accent: true },
-                        { value: "55%", label: "Avg Win Rate" },
-                        { value: "2.47", label: "Avg KDA" },
-                        { value: String(accounts?.length ?? 0), label: "Games Connected" },
+                        { value: avgRankScore != null ? Math.round(avgRankScore).toLocaleString() : "—", label: "Rank Score", accent: true },
+                        { value: avgWinRate != null ? `${Math.round(avgWinRate)}%` : "—", label: "Avg Win Rate" },
+                        { value: avgKda != null ? avgKda.toFixed(2) : "—", label: "Avg KDA" },
+                        { value: String(accountList.length), label: "Games Connected" },
                     ].map((stat) => (
                         <div
                             key={stat.label}
@@ -124,9 +148,9 @@ export default async function Image({ params }) {
                 </div>
 
                 {/* Connected games */}
-                {accounts && accounts.length > 0 && (
+                {accountList.length > 0 && (
                     <div style={{ display: "flex", gap: px(8), marginTop: px(20) }}>
-                        {accounts.map((account, i) => {
+                        {accountList.map((account, i) => {
                             const config = platformConfig[account.platform]
                             if (!config) return null
                             return (

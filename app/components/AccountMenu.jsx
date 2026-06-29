@@ -3,10 +3,13 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import ConfirmDialog from "./ConfirmDialog"
 
-export default function AccountMenu() {
+export default function AccountMenu({ isPro, onUpgradeClick }) {
     const [open, setOpen] = useState(false)
+    const [confirmingDelete, setConfirmingDelete] = useState(false)
     const [deleting, setDeleting] = useState(false)
+    const [deleteError, setDeleteError] = useState("")
     const router = useRouter()
 
     async function handleSignOut() {
@@ -15,15 +18,8 @@ export default function AccountMenu() {
     }
 
     async function handleDeleteAccount() {
-        const step1 = window.confirm(
-            "Delete your RankCard account? This removes your profile and all connected games permanently."
-        )
-        if (!step1) return
-
-        const step2 = window.confirm("Are you sure? This cannot be undone.")
-        if (!step2) return
-
         setDeleting(true)
+        setDeleteError("")
 
         const { data: sessionData } = await supabase.auth.getSession()
         const accessToken = sessionData?.session?.access_token
@@ -35,7 +31,7 @@ export default function AccountMenu() {
 
         if (!res.ok) {
             const { error } = await res.json().catch(() => ({}))
-            window.alert(`Could not delete account: ${error || "Unknown error"}`)
+            setDeleteError(error || "Could not delete account. Please try again.")
             setDeleting(false)
             return
         }
@@ -57,6 +53,14 @@ export default function AccountMenu() {
                 <>
                     <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
                     <div className="absolute right-0 top-full mt-2 z-20 w-48 rounded-xl border border-line bg-surface p-1.5 shadow-2xl">
+                        {!isPro && (
+                            <button
+                                onClick={() => { setOpen(false); onUpgradeClick() }}
+                                className="w-full text-left rounded-lg px-3 py-2 text-sm text-accent-soft font-semibold hover:bg-accent-tint active:bg-accent-tint transition-colors"
+                            >
+                                ★ Upgrade to Pro
+                            </button>
+                        )}
                         <button
                             onClick={handleSignOut}
                             className="w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-background active:bg-background transition-colors"
@@ -64,14 +68,26 @@ export default function AccountMenu() {
                             Sign out
                         </button>
                         <button
-                            onClick={handleDeleteAccount}
-                            disabled={deleting}
-                            className="w-full text-left rounded-lg px-3 py-2 text-sm text-negative hover:bg-negative/10 active:bg-negative/10 transition-colors disabled:opacity-50"
+                            onClick={() => { setOpen(false); setConfirmingDelete(true) }}
+                            className="w-full text-left rounded-lg px-3 py-2 text-sm text-negative hover:bg-negative/10 active:bg-negative/10 transition-colors"
                         >
-                            {deleting ? "Deleting..." : "Delete account"}
+                            Delete account
                         </button>
                     </div>
                 </>
+            )}
+
+            {confirmingDelete && (
+                <ConfirmDialog
+                    title="Delete your account?"
+                    message="This permanently removes your profile and all connected games. This cannot be undone."
+                    confirmLabel="Delete account"
+                    danger
+                    loading={deleting}
+                    error={deleteError}
+                    onCancel={() => { setConfirmingDelete(false); setDeleteError("") }}
+                    onConfirm={handleDeleteAccount}
+                />
             )}
         </div>
     )
