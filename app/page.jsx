@@ -1,7 +1,14 @@
 import ParticlesBackground from "./components/ParticlesBackground";
 import Footer from "./components/Footer";
 import { Link2, Trophy, Share2 } from "lucide-react";
+import { platformConfig } from "@/lib/platforms";
 import { Analytics } from "@vercel/analytics/next"
+
+const previewGames = [
+  { platform: "League of Legends", tier: "Diamond II", detail: "78 LP · 61% WR" },
+  { platform: "Valorant", tier: "Immortal 1", detail: "312 RR · 58% WR" },
+  { platform: "CSGO", tier: "15.2k Elo", detail: "Premier · 54% WR" },
+]
 
 export default function Home() {
   <Analytics/>
@@ -17,8 +24,10 @@ export default function Home() {
       </div>
     </nav>
 
-    <section className="relative min-h-screen overflow-hidden flex flex-col items-center text-center px-4 sm:px-8 pt-20 sm:pt-32 pb-12">
+    <div className="relative overflow-hidden">
       <ParticlesBackground />
+
+    <section className="relative flex flex-col items-center text-center px-4 sm:px-8 pt-20 sm:pt-32 pb-16 sm:pb-24">
       <div className="relative z-10 flex flex-col items-center pointer-events-none">
         <span className="text-accent text-xs sm:text-sm bg-black/20 font-bold border border-line rounded-3xl px-3 py-2">• For competitive gamers</span>
         <h1 className="text-4xl sm:text-6xl text-white font-bold mt-4 leading-tight">
@@ -56,6 +65,77 @@ export default function Home() {
         </div>
       </div>
     </section>
+
+    {/* Profile Preview */}
+    <section className="relative z-10 px-4 sm:px-8 py-16 sm:py-24 flex flex-col items-center">
+      <span className="text-accent text-xs sm:text-sm font-bold uppercase tracking-widest">See it in action</span>
+      <h2 className="text-2xl sm:text-4xl text-white font-bold mt-3 text-center">
+        This is what your link looks like.
+      </h2>
+      <p className="text-text-secondary text-sm sm:text-base mt-3 text-center max-w-md">
+        Real ranks, real stats, one link you can drop in your bio or Discord.
+      </p>
+
+      <div className="relative mt-10 sm:mt-12 w-full max-w-2xl rounded-2xl border border-accent/30 bg-surface shadow-[0_0_50px_rgba(177,108,255,0.18)] overflow-hidden">
+        <div className="h-24 sm:h-28 bg-[radial-gradient(ellipse_55%_130%_at_20%_60%,rgba(177,108,255,0.45),transparent_60%)]" />
+        <div className="p-4 sm:p-6 -mt-10 sm:-mt-12">
+          <div className="flex items-center gap-3">
+            <div className="grid h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 place-items-center rounded-full border-4 border-accent bg-gradient-to-br from-[#2a2440] to-[#161320] text-xl sm:text-2xl font-bold text-accent">
+              Y
+            </div>
+            <div className="mt-8 sm:mt-10">
+              <div className="flex items-center gap-2">
+                <span className="text-lg sm:text-xl font-extrabold text-white">yourname</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-accent-tint text-accent-soft border border-accent/40">PRO</span>
+              </div>
+              <p className="font-mono text-xs text-text-secondary">rankcard.app/yourname</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-6">
+            {[
+              { value: "2,847", label: "Rank Score", accent: true },
+              { value: "58%", label: "Avg Win Rate" },
+              { value: "2.4", label: "Avg KDA" },
+              { value: "3", label: "Games Connected" },
+            ].map((stat) => (
+              <div key={stat.label} className={`rounded-xl p-3 border ${stat.accent ? "border-accent/40 bg-accent-tint" : "border-hairline bg-surface-deep"}`}>
+                <p className={`text-lg sm:text-xl font-extrabold ${stat.accent ? "text-accent" : "text-white"}`}>{stat.value}</p>
+                <p className="text-text-secondary text-[11px]">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-3">
+            {previewGames.map((game) => {
+              const config = platformConfig[game.platform]
+              return (
+                <div key={game.platform} className="rounded-xl border border-hairline bg-surface-deep p-3" style={{ borderTopWidth: 3, borderTopColor: config.color }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="rounded-[7px] flex items-center justify-center" style={{ width: 24, height: 26, backgroundColor: `${config.color}24`, border: `1px solid ${config.color}66` }}>
+                      <svg role="img" viewBox="0 0 24 24" width="12" height="12" fill={config.color}>
+                        <path d={config.icon.path} />
+                      </svg>
+                    </div>
+                    <span className="text-text-primary text-[11px] font-bold">{config.shortName}</span>
+                  </div>
+                  <p className="text-white text-sm font-bold">{game.tier}</p>
+                  <p className="text-text-secondary text-[10px] font-mono">{game.detail}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      <a
+        className="mt-10 shadow-[0_0_30px_rgba(177,108,255,0.5)] bg-accent text-black font-bold px-6 py-3 rounded-lg hover:text-white active:scale-95 transition-all duration-150"
+        href="/auth"
+      >
+        Create your profile
+      </a>
+    </section>
+    </div>
 
     <Footer />
   </main>;
