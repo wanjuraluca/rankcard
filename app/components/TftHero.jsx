@@ -140,13 +140,6 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
             const history = data.tftMatchHistory ?? []
             setTftData(entries)
             setAllMatchHistory(history)
-
-            // Default to whichever mode has more recent games played, falling
-            // back to normal Ranked if both are equal or empty.
-            const doubleUpCount = history.filter(m => m.queueType === "RANKED_TFT_DOUBLE_UP").length
-            const rankedCount = history.filter(m => m.queueType === "RANKED_TFT").length
-            setActiveMode(doubleUpCount > rankedCount ? "RANKED_TFT_DOUBLE_UP" : "RANKED_TFT")
-
             setLoading(false)
         }
         fetchRank()
