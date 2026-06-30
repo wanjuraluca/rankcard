@@ -4,8 +4,17 @@ import { supabase } from "@/lib/supabase"
 import { platformConfig } from "@/lib/platforms"
 import { extractGameStats } from "@/lib/gameStats"
 
-const lookingForOptions = ["Duo Queue", "Flex", "Clash", "Chill", "Smurf welcome"]
 const regionOptions = ["EUW", "EUNE", "NA", "KR"]
+
+// "Looking for" options are game-specific — Flex/Clash are League-only queue
+// types, TFT has no traditional duo queue (Double Up IS its duo mode), CS2
+// has no Flex/Clash equivalent.
+const lookingForOptionsByGame = {
+    "League of Legends": ["Duo Queue", "Flex", "Clash", "Chill", "Smurf welcome"],
+    Valorant: ["Duo Queue", "Chill", "Smurf welcome"],
+    TFT: ["Double Up", "Chill", "Smurf welcome"],
+    CSGO: ["Duo Queue", "Chill", "Smurf welcome"],
+}
 
 // Role options are game-specific — League has lane roles, Valorant has agent
 // classes, TFT/CS2 have no role concept and skip this section entirely.
@@ -30,6 +39,7 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
     const connectedGames = accounts.map(a => a.platform).filter(p => lfgGames.includes(p))
     const roleOptions = roleOptionsByGame[game] ?? null
     const showRoles = roleOptions != null
+    const lookingForOptions = lookingForOptionsByGame[game] ?? []
 
     function toggle(list, setList, value) {
         setList(list.includes(value) ? list.filter(v => v !== value) : [...list, value])
@@ -151,7 +161,7 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
                                 <button
                                     key={key}
                                     type="button"
-                                    onClick={() => { setGame(key); setRoles([]) }}
+                                    onClick={() => { setGame(key); setRoles([]); setLookingFor([]) }}
                                     className={`border rounded-lg px-3 py-2 text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-line bg-background text-text-secondary"}`}
                                 >
                                     <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: config?.color }} />
