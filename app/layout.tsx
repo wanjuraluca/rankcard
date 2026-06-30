@@ -15,11 +15,30 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RankCard — All your ranks. One profile.",
-  description: "Connect League, Valorant and CS2 into one clean, shareable profile with real ranks and deep stats.",
+  metadataBase: new URL("https://rankcard.app"),
+  title: {
+    default: "RankCard — All your ranks. One profile.",
+    template: "%s — RankCard",
+  },
+  description: "Connect League, Valorant, TFT and CS2 into one clean, shareable profile with real ranks and deep stats.",
   icons: {
-  icon: "/Icons/LogoSmall.png?v=2",
-},
+    icon: "/Icons/LogoSmall.png?v=2",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "RankCard",
+    title: "RankCard — All your ranks. One profile.",
+    description: "Connect League, Valorant, TFT and CS2 into one clean, shareable profile with real ranks and deep stats.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "RankCard — All your ranks. One profile.",
+    description: "Connect League, Valorant, TFT and CS2 into one clean, shareable profile with real ranks and deep stats.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
