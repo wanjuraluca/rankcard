@@ -3,6 +3,7 @@
 import AvatarUpload from "./AvatarUpload"
 import BannerUpload from "./BannerUpload"
 import BioEditor from "./BioEditor"
+import DiscordTagEditor from "./DiscordTagEditor"
 import AccountMenu from "./AccountMenu"
 import Footer from "./Footer"
 import { useState, useEffect } from "react"
@@ -229,6 +230,7 @@ export default function ProfileClient({ data, accounts }) {
                         )}
                     </div>
                     <BioEditor username={data.username} bio={data.bio} isOwnProfile={isOwnProfile} />
+                    <DiscordTagEditor username={data.username} discordTag={data.discord_tag} isOwnProfile={isOwnProfile} />
                 </div>
                 <div className="flex items-center gap-2 sm:flex-shrink-0 flex-wrap sm:flex-nowrap relative">
                     <span className="flex items-center gap-1.5 text-xs text-text-secondary border border-hairline rounded-lg px-3 py-2" title="Total profile views">
