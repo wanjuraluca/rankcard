@@ -1,6 +1,6 @@
 import { after } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { getLeagueScore, getValorantScore, getCs2Score } from '@/lib/rankScore'
+import { getLeagueScore, getValorantScore, getCs2Score, getTftScore } from '@/lib/rankScore'
 
 // Several components on the same profile page (Overall tab, the connected-
 // games card, the per-game tab) each independently request the same
@@ -360,6 +360,67 @@ function buildCs2Match(match, steam64Id) {
   }
 }
 
+// Community Dragon's TFT data dump (champions/traits/items for the current
+// set) doesn't have a versioned/stable URL like Data Dragon does — it's
+// always "latest", and the schema has shifted before across sets. We cache
+// the resolved lookup maps in-memory for a while so every match-history
+// request doesn't re-fetch/re-parse a ~20MB JSON blob, but keep parsing
+// defensive (try/catch, optional chaining everywhere) so a schema change
+// degrades to "no icons" instead of crashing the whole route.
+const TFT_DATA_CACHE_TTL_MS = 60 * 60 * 1000
+let tftDataCache = null
+let tftDataCacheTimestamp = 0
+
+function tftAssetPathToUrl(path) {
+  if (!path || typeof path !== 'string') return null
+  return `https://raw.communitydragon.org/latest/game/${path.toLowerCase().replace(/\.tex$/, '.png')}`
+}
+
+async function fetchTftIconMaps() {
+  if (tftDataCache && Date.now() - tftDataCacheTimestamp < TFT_DATA_CACHE_TTL_MS) {
+    return tftDataCache
+  }
+
+  const empty = { championIconByApiName: {}, traitIconByApiName: {}, itemIconByApiName: {} }
+
+  try {
+    const response = await fetch('https://raw.communitydragon.org/latest/cdragon/tft/en_us.json')
+    if (!response.ok) return empty
+    const json = await response.json()
+
+    const setData = Array.isArray(json?.setData) ? json.setData : []
+    const latestSet = setData.reduce((best, current) => {
+      if (!best) return current
+      return (current?.number ?? -1) > (best?.number ?? -1) ? current : best
+    }, null)
+
+    const championIconByApiName = {}
+    for (const champ of latestSet?.champions ?? []) {
+      const url = tftAssetPathToUrl(champ?.tileIcon ?? champ?.squareIcon ?? champ?.icon)
+      if (champ?.apiName && url) championIconByApiName[champ.apiName.toLowerCase()] = url
+    }
+
+    const traitIconByApiName = {}
+    for (const trait of latestSet?.traits ?? []) {
+      const url = tftAssetPathToUrl(trait?.icon)
+      if (trait?.apiName && url) traitIconByApiName[trait.apiName.toLowerCase()] = url
+    }
+
+    const itemIconByApiName = {}
+    for (const item of Array.isArray(json?.items) ? json.items : []) {
+      const url = tftAssetPathToUrl(item?.icon)
+      if (item?.apiName && url) itemIconByApiName[item.apiName.toLowerCase()] = url
+    }
+
+    const result = { championIconByApiName, traitIconByApiName, itemIconByApiName }
+    tftDataCache = result
+    tftDataCacheTimestamp = Date.now()
+    return result
+  } catch {
+    return empty
+  }
+}
+
 async function fetchTftMatchHistory(puuid) {
   const idsResponse = await fetch(
     `https://europe.api.riotgames.com/tft/match/v1/matches/by-puuid/${puuid}/ids?count=10`,
@@ -367,6 +428,8 @@ async function fetchTftMatchHistory(puuid) {
   )
   const matchIds = await idsResponse.json()
   if (!Array.isArray(matchIds)) return []
+
+  const { championIconByApiName, traitIconByApiName, itemIconByApiName } = await fetchTftIconMaps()
 
   const matches = await Promise.all(
     matchIds.map(async (matchId) => {
@@ -383,7 +446,12 @@ async function fetchTftMatchHistory(puuid) {
         .filter(t => t.style > 0)
         .sort((a, b) => b.style - a.style || b.num_units - a.num_units)
         .slice(0, 3)
-        .map(t => ({ name: t.name.replace(/^TFT\d+_/, ''), style: t.style, numUnits: t.num_units }))
+        .map(t => ({
+          name: t.name.replace(/^TFT\d+_/, ''),
+          style: t.style,
+          numUnits: t.num_units,
+          icon: traitIconByApiName[t.name?.toLowerCase()] ?? null
+        }))
 
       // Top carries: units with items, sorted by tier desc then item count desc
       const topUnits = [...(participant.units ?? [])]
@@ -393,11 +461,29 @@ async function fetchTftMatchHistory(puuid) {
         .map(u => ({
           name: u.character_id.replace(/^TFT\d+_/, ''),
           tier: u.tier,
-          items: u.itemNames.map(i => i.replace(/^TFT_Item_/, ''))
+          items: u.itemNames.map(i => i.replace(/^TFT_Item_/, '')),
+          icon: championIconByApiName[u.character_id?.toLowerCase()] ?? null
+        }))
+
+      // Full board composition, for the match-history card's icon row.
+      const allUnits = [...(participant.units ?? [])]
+        .sort((a, b) => b.tier - a.tier)
+        .map(u => ({
+          characterId: u.character_id,
+          name: u.character_id.replace(/^TFT\d+_/, ''),
+          tier: u.tier,
+          items: (u.itemNames ?? []).map(i => ({
+            name: i.replace(/^TFT_Item_/, ''),
+            icon: itemIconByApiName[i?.toLowerCase()] ?? null
+          })),
+          icon: championIconByApiName[u.character_id?.toLowerCase()] ?? null
         }))
 
       // Augments: strip internal prefix noise for readability
-      const augments = (participant.augments ?? []).map(a => a.replace(/^TFT\d+_Augment_/, ''))
+      const augments = (participant.augments ?? []).map(a => ({
+        name: a.replace(/^TFT\d+_Augment_/, ''),
+        icon: itemIconByApiName[a?.toLowerCase()] ?? null
+      }))
 
       return {
         matchId,
@@ -405,6 +491,11 @@ async function fetchTftMatchHistory(puuid) {
         augments,
         topTraits,
         topUnits,
+        allUnits,
+        level: participant.level ?? null,
+        damageDealt: participant.total_damage_to_players ?? null,
+        playersEliminated: participant.players_eliminated ?? null,
+        goldLeft: participant.gold_left ?? null,
         gameLength: match.info?.game_length ?? null,
         game_datetime: match.info?.game_datetime ?? null
       }
@@ -507,6 +598,10 @@ function extractScore(data, platform) {
       return data.cs2Data?.premier_score != null
         ? getCs2Score(data.cs2Data.premier_score)
         : null
+    }
+    if (platform === 'TFT') {
+      const entry = Array.isArray(data.tftData) ? data.tftData.find(e => e.queueType === 'RANKED_TFT') : null
+      return entry ? getTftScore(entry.tier, entry.rank) : null
     }
   } catch {
     return null

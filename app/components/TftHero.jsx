@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
+import TftRatingChart from "./TftRatingChart"
 
 function formatTimeAgo(timestampMs) {
     const diffMs = Date.now() - timestampMs
@@ -33,6 +34,74 @@ function placementLabel(placement) {
     const suffixes = ["st", "nd", "rd", "th"]
     const suffix = placement <= 3 ? suffixes[placement - 1] : suffixes[3]
     return `${placement}${suffix}`
+}
+
+// Small square unit icon with item icons docked underneath. Falls back to a
+// letter badge when the server couldn't resolve an icon URL (Community
+// Dragon's set data can lag behind a new TFT patch) — a missing icon should
+// never break the rest of the match-history card.
+function UnitIcon({ unit }) {
+    return (
+        <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+            <div
+                className="w-7 h-7 rounded-md overflow-hidden flex items-center justify-center text-[10px] font-bold text-text-secondary bg-surface border border-hairline flex-shrink-0"
+                style={unit.tier > 1 ? { borderColor: unit.tier >= 3 ? "#facc15" : "#b16cff" } : undefined}
+                title={`${unit.name}${unit.items?.length ? ` (${unit.items.map(i => i.name).join(", ")})` : ""}`}
+            >
+                {unit.icon ? (
+                    <img src={unit.icon} alt={unit.name} className="w-full h-full object-cover" />
+                ) : (
+                    unit.name?.[0] ?? "?"
+                )}
+            </div>
+            {unit.items?.length > 0 && (
+                <div className="flex gap-[1px]">
+                    {unit.items.slice(0, 3).map((item, i) => (
+                        <div key={i} className="w-[11px] h-[11px] rounded-[2px] overflow-hidden bg-surface border border-hairline flex-shrink-0" title={item.name}>
+                            {item.icon && <img src={item.icon} alt={item.name} className="w-full h-full object-cover" />}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
+
+function TraitBadge({ trait, accentColor }) {
+    return (
+        <div
+            className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 bg-surface"
+            style={{ border: `1.5px solid ${accentColor}` }}
+            title={`${trait.name} (${trait.numUnits} units)`}
+        >
+            {trait.icon ? (
+                <img src={trait.icon} alt={trait.name} className="w-3 h-3 object-contain" style={{ filter: "brightness(0) invert(1)" }} />
+            ) : (
+                <span className="text-[8px] font-bold text-text-primary">{trait.name?.slice(0, 1).toUpperCase()}</span>
+            )}
+        </div>
+    )
+}
+
+function AugmentBadge({ augment }) {
+    if (augment.icon) {
+        return (
+            <div
+                className="w-5 h-5 rounded overflow-hidden bg-surface border border-hairline flex-shrink-0"
+                title={augment.name}
+            >
+                <img src={augment.icon} alt={augment.name} className="w-full h-full object-cover" />
+            </div>
+        )
+    }
+    return (
+        <span
+            className="text-[10px] px-1.5 py-0.5 rounded bg-surface border border-hairline text-text-secondary truncate max-w-[120px]"
+            title={augment.name}
+        >
+            {augment.name}
+        </span>
+    )
 }
 
 export default function TftHero({ account, accentColor = "#0bc4e3" }) {
@@ -79,6 +148,17 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
     const top4Rate = matchHistory.length > 0 ? Math.round((top4Count / matchHistory.length) * 100) : null
     const winsInHistory = matchHistory.filter(m => m.placement === 1).length
     const winRateFromHistory = matchHistory.length > 0 ? Math.round((winsInHistory / matchHistory.length) * 100) : null
+    const avgDamage = average(matchHistory.map(m => m.damageDealt))
+    const avgEliminated = average(matchHistory.map(m => m.playersEliminated))
+    const avgLevel = average(matchHistory.map(m => m.level))
+
+    // Placement distribution: how many of the recent matches landed on each
+    // of the 8 possible placements, as a simple bar chart built from divs.
+    const placementCounts = Array.from({ length: 8 }, (_, i) => {
+        const placement = i + 1
+        return { placement, count: matchHistory.filter(m => m.placement === placement).length }
+    })
+    const maxPlacementCount = Math.max(1, ...placementCounts.map(p => p.count))
 
     return (
         <div
@@ -161,6 +241,65 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
                     <p className="text-text-primary font-extrabold text-xl">{totalGames}</p>
                     <p className="text-text-secondary text-xs">Total games</p>
                 </div>
+                <div className="bg-surface-deep rounded-xl p-3">
+                    <p className="text-text-primary font-extrabold text-xl">
+                        {avgDamage != null ? Math.round(avgDamage) : "—"}
+                    </p>
+                    <p className="text-text-secondary text-xs">Avg. damage</p>
+                </div>
+                <div className="bg-surface-deep rounded-xl p-3">
+                    <p className="text-text-primary font-extrabold text-xl">
+                        {avgEliminated != null ? avgEliminated.toFixed(1) : "—"}
+                    </p>
+                    <p className="text-text-secondary text-xs">Avg. eliminated</p>
+                </div>
+                <div className="bg-surface-deep rounded-xl p-3">
+                    <p className="text-text-primary font-extrabold text-xl">
+                        {avgLevel != null ? avgLevel.toFixed(1) : "—"}
+                    </p>
+                    <p className="text-text-secondary text-xs">Avg. level</p>
+                </div>
+            </div>
+
+            {/* Placement distribution */}
+            <div className="mt-5">
+                <div className="flex items-center gap-2 mb-2.5">
+                    <p className="text-text-secondary text-xs uppercase tracking-widest">Placement Distribution</p>
+                    <div className="flex-1 h-px bg-hairline" />
+                </div>
+                <div className="bg-surface-deep rounded-xl p-4">
+                    <div className="flex items-end justify-between gap-2 h-24">
+                        {placementCounts.map(({ placement, count }) => (
+                            <div key={placement} className="flex-1 flex flex-col items-center justify-end h-full">
+                                <p className="text-text-secondary text-[10px] mb-1">{count > 0 ? count : ""}</p>
+                                <div
+                                    className="w-full rounded-t-md transition-[height]"
+                                    style={{
+                                        height: `${Math.max((count / maxPlacementCount) * 100, count > 0 ? 6 : 2)}%`,
+                                        backgroundColor: placementColor(placement),
+                                        opacity: count > 0 ? 1 : 0.15
+                                    }}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex justify-between gap-2 mt-1.5">
+                        {placementCounts.map(({ placement }) => (
+                            <p key={placement} className="flex-1 text-center text-text-secondary text-[10px]">#{placement}</p>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* Rank history */}
+            <div className="mt-5">
+                <div className="flex items-center gap-2 mb-2.5">
+                    <p className="text-text-secondary text-xs uppercase tracking-widest">Rank History</p>
+                    <div className="flex-1 h-px bg-hairline" />
+                </div>
+                <div className="bg-surface-deep rounded-xl p-4">
+                    <TftRatingChart accountId={account.id} />
+                </div>
             </div>
 
             {/* Match history */}
@@ -174,65 +313,63 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
                     <p className="text-text-secondary text-sm">No recent matches found.</p>
                 ) : (
                     <div className="flex flex-col gap-1.5">
-                        {matchHistory.map((match) => (
-                            <div
-                                key={match.matchId}
-                                className="bg-surface-deep rounded-xl p-2.5 sm:p-3"
-                                style={{ borderLeft: `3px solid ${placementColor(match.placement)}` }}
-                            >
-                                <div className="flex items-center gap-3 flex-wrap">
-                                    {/* Placement badge */}
-                                    <div
-                                        className="w-10 h-10 rounded-lg flex items-center justify-center font-extrabold text-base flex-shrink-0 text-background"
-                                        style={{ backgroundColor: placementColor(match.placement) }}
-                                    >
-                                        {placementLabel(match.placement)}
-                                    </div>
+                        {matchHistory.map((match) => {
+                            const sortedUnits = [...(match.allUnits ?? [])].sort((a, b) => b.tier - a.tier).slice(0, 8)
+                            return (
+                                <div
+                                    key={match.matchId}
+                                    className="bg-surface-deep rounded-xl p-2.5 sm:p-3"
+                                    style={{ borderLeft: `3px solid ${placementColor(match.placement)}` }}
+                                >
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                        {/* Placement badge */}
+                                        <div
+                                            className="w-10 h-10 rounded-lg flex items-center justify-center font-extrabold text-base flex-shrink-0 text-background"
+                                            style={{ backgroundColor: placementColor(match.placement) }}
+                                        >
+                                            {placementLabel(match.placement)}
+                                        </div>
 
-                                    {/* Augments */}
-                                    <div className="flex-1 min-w-0">
-                                        {match.augments.length > 0 && (
-                                            <div className="flex flex-wrap gap-1 mb-1">
-                                                {match.augments.map((aug, i) => (
-                                                    <span
-                                                        key={i}
-                                                        className="text-[10px] px-1.5 py-0.5 rounded bg-surface border border-hairline text-text-secondary truncate max-w-[120px]"
-                                                        title={aug}
-                                                    >
-                                                        {aug}
-                                                    </span>
-                                                ))}
+                                        {/* Composition + traits + augments */}
+                                        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                                            {sortedUnits.length > 0 && (
+                                                <div className="flex gap-1.5 flex-wrap">
+                                                    {sortedUnits.map((unit, i) => (
+                                                        <UnitIcon key={i} unit={unit} />
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                {match.topTraits?.length > 0 && (
+                                                    <div className="flex gap-1">
+                                                        {match.topTraits.map((trait, i) => (
+                                                            <TraitBadge key={i} trait={trait} accentColor={accentColor} />
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {match.augments?.length > 0 && (
+                                                    <div className="flex gap-1">
+                                                        {match.augments.map((augment, i) => (
+                                                            <AugmentBadge key={i} augment={augment} />
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
-                                        {/* Top traits */}
-                                        {match.topTraits.length > 0 && (
-                                            <div className="flex gap-1">
-                                                {match.topTraits.map((trait, i) => (
-                                                    <span
-                                                        key={i}
-                                                        className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold text-background"
-                                                        style={{ backgroundColor: accentColor }}
-                                                        title={`${trait.name} (${trait.numUnits} units)`}
-                                                    >
-                                                        {trait.name.slice(0, 3).toUpperCase()}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
+                                        </div>
 
-                                    {/* Time info */}
-                                    <div className="text-right flex-shrink-0 hidden sm:block">
-                                        {match.gameLength != null && (
-                                            <p className="text-text-secondary font-mono text-xs">{formatDuration(match.gameLength)}</p>
-                                        )}
-                                        {match.game_datetime != null && (
-                                            <p className="text-text-secondary text-[10px]">{formatTimeAgo(match.game_datetime)}</p>
-                                        )}
+                                        {/* Time info */}
+                                        <div className="text-right flex-shrink-0 hidden sm:block">
+                                            {match.gameLength != null && (
+                                                <p className="text-text-secondary font-mono text-xs">{formatDuration(match.gameLength)}</p>
+                                            )}
+                                            {match.game_datetime != null && (
+                                                <p className="text-text-secondary text-[10px]">{formatTimeAgo(match.game_datetime)}</p>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            )
+                        })}
                     </div>
                 )}
             </div>

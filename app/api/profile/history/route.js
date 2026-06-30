@@ -4,6 +4,28 @@ import { NextResponse } from "next/server"
 export async function GET(request) {
     const { searchParams } = new URL(request.url)
     const username = searchParams.get("username")
+    const accountId = searchParams.get("accountId")
+
+    // Single-account mode: a per-game view (e.g. TFT's rank-history chart)
+    // wants the history for just that one account, not averaged across all
+    // of the user's connected games — skip the username/profile lookup
+    // entirely and query rank_history directly.
+    if (accountId) {
+        const since = new Date()
+        since.setDate(since.getDate() - 60)
+
+        const { data: rows } = await supabaseAdmin
+            .from("rank_history")
+            .select("score, recorded_date")
+            .eq("account_id", accountId)
+            .gte("recorded_date", since.toISOString().slice(0, 10))
+            .order("recorded_date", { ascending: true })
+
+        if (!rows?.length) return NextResponse.json([])
+
+        return NextResponse.json(rows.map(row => ({ date: row.recorded_date, score: row.score })))
+    }
+
     if (!username) return NextResponse.json({ error: "Missing username" }, { status: 400 })
 
     // Get profile + all connected account IDs
