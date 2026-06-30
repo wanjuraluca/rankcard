@@ -16,6 +16,7 @@ const PREMIER_BANDS = [
 export default function RankBadge({ account }) {
 
     const [rankEntry, setRankEntry] = useState(null)
+    const [tftEntry, setTftEntry] = useState(null)
     const [valorantEntry, setValorantEntry] = useState(null)
     const [valorantImage, setValorantImage] = useState(null)
     const [cs2Profile, setCs2Profile] = useState(null)
@@ -27,6 +28,8 @@ export default function RankBadge({ account }) {
             const data = await response.json();
             const entry = data.rankData?.find((queue) => queue.queueType === "RANKED_SOLO_5x5");
             setRankEntry(entry ?? null)
+            const tft = data.tftData?.find((queue) => queue.queueType === "RANKED_TFT");
+            setTftEntry(tft ?? null)
             setValorantEntry(data.valorantData?.data?.current ?? null)
             const mmrHistory = data.valorantMmrHistory ?? []
             setValorantImage(mmrHistory[mmrHistory.length - 1]?.image ?? null)
@@ -40,6 +43,35 @@ export default function RankBadge({ account }) {
 
     if (loading) {
         return <p className="text-text-secondary text-xs">Loading rank...</p>
+    }
+
+    if (account.platform === "TFT") {
+        if (!tftEntry) {
+            return <p className="text-text-secondary text-sm">Unranked</p>
+        }
+
+        const winRate = Math.round((tftEntry.wins / (tftEntry.wins + tftEntry.losses)) * 100) || 0
+        const totalGames = tftEntry.wins + tftEntry.losses
+
+        return (
+            <div className="flex items-center gap-3">
+                <div className="w-[46px] h-[46px] flex-shrink-0 overflow-hidden">
+                    <img
+                        src={`https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${tftEntry.tier.toLowerCase()}.png`}
+                        alt={tftEntry.tier}
+                        className="w-full h-full object-contain scale-450 translate-y-1"
+                    />
+                </div>
+                <div>
+                    <p className="text-text-primary text-sm font-bold">{tftEntry.tier} {tftEntry.rank}</p>
+                    <p className="text-text-secondary text-[11px]">{tftEntry.leaguePoints} LP</p>
+                </div>
+                <div className="ml-auto text-right">
+                    <p className="text-positive text-xs font-semibold">{winRate}% WR</p>
+                    <p className="text-text-secondary text-[10px]">{totalGames} games</p>
+                </div>
+            </div>
+        )
     }
 
     if (account.platform === "CSGO") {
