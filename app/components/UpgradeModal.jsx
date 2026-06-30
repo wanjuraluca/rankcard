@@ -1,18 +1,38 @@
 "use client"
 import { useState } from "react"
-import { Palette, ImageIcon, LayoutGrid, Swords, Zap } from "lucide-react"
+import { Palette, ImageIcon, LayoutGrid, Swords, Zap, Users, Infinity, TrendingUp, Radio } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
 const features = [
     {
-        icon: Palette,
-        title: "Custom profile themes",
-        description: "Choose from preset colour themes or pick any colour to match your style.",
+        icon: Infinity,
+        title: "Unlimited duo requests",
+        description: "View and copy unlimited Discord tags on the Find a Duo board. Free users get 3 per day.",
+    },
+    {
+        icon: TrendingUp,
+        title: "Boosted on the board",
+        description: "Your LFG post appears at the top of the Find a Duo board and stays active for 72h instead of 24h.",
+    },
+    {
+        icon: Radio,
+        title: "Live \"In Game\" status",
+        description: "Show visitors what you're currently playing in real time on your profile.",
+    },
+    {
+        icon: Users,
+        title: "Friends list on your profile",
+        description: "Display your RankCard friends publicly so visitors can see who you play with.",
     },
     {
         icon: Swords,
         title: "Profile comparison",
         description: "Challenge anyone to a head-to-head rank comparison with a shareable link.",
+    },
+    {
+        icon: Palette,
+        title: "Custom profile themes",
+        description: "Choose from preset colour themes or pick any colour to match your style.",
     },
     {
         icon: ImageIcon,
@@ -74,7 +94,7 @@ export default function UpgradeModal({ onClose, onUpgraded }) {
                 <p className="text-text-primary text-lg font-bold mt-2">Upgrade to RankCard Pro</p>
                 <p className="text-text-secondary text-sm mt-1">Everything on your profile, taken further:</p>
 
-                <div className="flex flex-col gap-3.5 mt-5">
+                <div className="flex flex-col gap-3.5 mt-5 max-h-[55vh] overflow-y-auto pr-1">
                     {features.map((feature) => (
                         <div key={feature.title} className="flex items-start gap-3">
                             <div className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg bg-accent-tint border border-accent/40">
