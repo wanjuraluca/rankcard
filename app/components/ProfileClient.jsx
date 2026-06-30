@@ -50,6 +50,7 @@ export default function ProfileClient({ data, accounts }) {
     const [showThemeModal, setShowThemeModal] = useState(false)
     const [showCompareInput, setShowCompareInput] = useState(false)
     const [compareUsername, setCompareUsername] = useState("")
+    const [viewerIsPro, setViewerIsPro] = useState(false)
 
     async function handleCopyBadge(type) {
         const profileUrl = `${window.location.origin}/${data.username}`
@@ -88,10 +89,16 @@ export default function ProfileClient({ data, accounts }) {
     }
 
     useEffect(() => {
-        supabase.auth.getUser().then(({ data: authData }) => {
+        supabase.auth.getUser().then(async ({ data: authData }) => {
             const user = authData?.user
-            setIsOwnProfile(user?.id === data.user_id)
-            setViewerUsername(user?.user_metadata?.username ?? null)
+            const ownProfile = user?.id === data.user_id
+            setIsOwnProfile(ownProfile)
+            const username = user?.user_metadata?.username ?? null
+            setViewerUsername(username)
+            if (user && username) {
+                const { data: vp } = await supabase.from("profiles").select("is_pro").eq("user_id", user.id).maybeSingle()
+                setViewerIsPro(vp?.is_pro ?? false)
+            }
             setAuthChecked(true)
         })
     }, [])
@@ -228,7 +235,7 @@ export default function ProfileClient({ data, accounts }) {
                         <Eye size={13} className="opacity-80" />
                         {viewCount.toLocaleString()} {viewCount === 1 ? "view" : "views"}
                     </span>
-                    {showCompareInput ? (
+                    {authChecked && (showCompareInput ? (
                         <form
                             className="flex items-center gap-1"
                             onSubmit={e => {
@@ -249,12 +256,12 @@ export default function ProfileClient({ data, accounts }) {
                         </form>
                     ) : (
                         <button
-                            onClick={() => setShowCompareInput(true)}
+                            onClick={() => viewerIsPro ? setShowCompareInput(true) : setShowUpgradeModal(true)}
                             className="border border-line rounded-lg px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:border-accent/40 hover:bg-accent-tint active:scale-95 transition-all"
                         >
                             vs
                         </button>
-                    )}
+                    ))}
                     <button
                         onClick={handleShareProfile}
                         className="flex-1 sm:flex-none border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all"
