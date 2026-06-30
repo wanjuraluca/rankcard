@@ -2,6 +2,7 @@
 import { useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { platformConfig } from "@/lib/platforms"
+import { extractGameStats } from "@/lib/gameStats"
 
 const lookingForOptions = ["Duo Queue", "Flex", "Clash", "Chill", "Smurf welcome"]
 const regionOptions = ["EUW", "EUNE", "NA", "KR", "LAN"]
@@ -59,6 +60,26 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
             const durationHours = isPro ? 72 : 24
             const expiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000).toISOString()
 
+            // Pull the current rank for the game being posted about, so the
+            // board can show "Platinum II" and power the My ELO / Good match
+            // matching — same call pattern as ProfileClient's gameStats effect.
+            // Unranked / no account / fetch failure: just leave both null,
+            // never block posting on this.
+            let rankLabel = null
+            let rankScore = null
+            const matchingAccount = accounts.find(a => a.platform === game)
+            if (matchingAccount) {
+                try {
+                    const res = await fetch(`/api/summoner?platform=${matchingAccount.platform}&name=${matchingAccount.platform_username}&tag=${matchingAccount.platform_tag}&accountId=${matchingAccount.id}`)
+                    const apiData = await res.json()
+                    const stats = extractGameStats(matchingAccount.platform, apiData)
+                    rankLabel = stats?.tierLabel ?? null
+                    rankScore = stats?.rankScore ?? null
+                } catch {
+                    // ignore — rank display is a nice-to-have, not a blocker
+                }
+            }
+
             const { data: upserted, error } = await supabase
                 .from("lfg_posts")
                 .upsert(
@@ -71,6 +92,8 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
                         message: message.trim() || null,
                         is_boosted: isPro,
                         expires_at: expiresAt,
+                        rank_label: rankLabel,
+                        rank_score: rankScore,
                     },
                     { onConflict: "user_id" }
                 )
@@ -104,7 +127,7 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
     }
 
     return (
-        <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-50 p-4" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/55 flex items-start justify-center z-50 p-4 pt-[6vh] overflow-y-auto" onClick={onClose}>
             <form className="bg-surface border border-line rounded-2xl p-5 sm:p-7 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
 
                 <div className="flex justify-between items-start mb-6">
