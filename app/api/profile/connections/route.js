@@ -41,10 +41,30 @@ export async function GET(request) {
 
         const { data: users } = await supabaseAdmin
             .from("profiles")
-            .select("username, avatar_url")
+            .select("username, avatar_url, user_id")
             .in("user_id", mutualIds)
 
-        return NextResponse.json({ users: users ?? [] })
+        if (!users?.length) {
+            return NextResponse.json({ users: [] })
+        }
+
+        // Pull each friend's League puuid so the client can check live-game
+        // status — only League has a Spectator-API live-status endpoint.
+        const { data: lolAccounts } = await supabaseAdmin
+            .from("connected_accounts")
+            .select("user_id, puuid")
+            .eq("platform", "League of Legends")
+            .in("user_id", users.map(u => u.user_id))
+
+        const puuidByUserId = Object.fromEntries((lolAccounts ?? []).map(a => [a.user_id, a.puuid]))
+
+        const enriched = users.map(u => ({
+            username: u.username,
+            avatar_url: u.avatar_url,
+            lolPuuid: puuidByUserId[u.user_id] ?? null,
+        }))
+
+        return NextResponse.json({ users: enriched })
     }
 
     const column = type === "followers" ? "following_id" : "follower_id"

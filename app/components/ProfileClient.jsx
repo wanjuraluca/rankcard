@@ -63,6 +63,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
     const [viewerUserId, setViewerUserId] = useState(null)
     const [showFollowList, setShowFollowList] = useState(null) // "followers" | "following" | null
     const [friends, setFriends] = useState([])
+    const [onlineFriends, setOnlineFriends] = useState({})
 
     async function handleFollow() {
         if (!viewerUserId || followLoading) return
@@ -226,7 +227,21 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
 
         fetch(`/api/profile/connections?username=${data.username}&type=friends`)
             .then(r => r.json())
-            .then(d => setFriends(d.users ?? []))
+            .then(d => {
+                const users = d.users ?? []
+                setFriends(users)
+
+                // Check live-game status for any friend with a connected League account
+                users.filter(f => f.lolPuuid).forEach(f => {
+                    fetch(`/api/live-game?puuid=${f.lolPuuid}&platform=euw1`)
+                        .then(r => r.json())
+                        .then(live => {
+                            if (live.inGame) {
+                                setOnlineFriends(prev => ({ ...prev, [f.username]: true }))
+                            }
+                        })
+                })
+            })
     }, [authChecked, isOwnProfile, isPro])
 
     const activeGameTab = gameTabs.find(tab => tab.key === activeTab)
@@ -542,13 +557,24 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                             href={`/${friend.username}`}
                                             className="bg-surface border border-hairline rounded-2xl p-3 flex flex-col items-center gap-2 hover:border-accent/40 active:scale-[0.97] transition-all flex-shrink-0 w-24"
                                         >
-                                            <div className="w-12 h-12 rounded-lg border border-accent/40 flex items-center justify-center font-bold text-accent-soft bg-background overflow-hidden">
-                                                {friend.avatar_url
-                                                    ? <img src={friend.avatar_url} className="w-full h-full object-cover" alt="" />
-                                                    : <span>{friend.username[0]}</span>
-                                                }
+                                            <div className="relative">
+                                                <div className="w-12 h-12 rounded-lg border border-accent/40 flex items-center justify-center font-bold text-accent-soft bg-background overflow-hidden">
+                                                    {friend.avatar_url
+                                                        ? <img src={friend.avatar_url} className="w-full h-full object-cover" alt="" />
+                                                        : <span>{friend.username[0]}</span>
+                                                    }
+                                                </div>
+                                                {onlineFriends[friend.username] && (
+                                                    <span
+                                                        className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#4ade80] border-2 border-surface"
+                                                        title="In game"
+                                                    />
+                                                )}
                                             </div>
                                             <p className="text-text-primary text-xs font-semibold truncate w-full text-center">{friend.username}</p>
+                                            {onlineFriends[friend.username] && (
+                                                <p className="text-[#4ade80] text-[10px] font-semibold -mt-1.5">In Game</p>
+                                            )}
                                         </a>
                                     ))}
                                 </div>
