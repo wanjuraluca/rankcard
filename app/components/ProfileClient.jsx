@@ -52,6 +52,7 @@ export default function ProfileClient({ data, accounts }) {
     const [showCompareInput, setShowCompareInput] = useState(false)
     const [compareUsername, setCompareUsername] = useState("")
     const [viewerIsPro, setViewerIsPro] = useState(false)
+    const [seasonHigh, setSeasonHigh] = useState(data.season_high ?? null)
 
     async function handleCopyBadge(type) {
         const profileUrl = `${window.location.origin}/${data.username}`
@@ -164,6 +165,14 @@ export default function ProfileClient({ data, accounts }) {
     const avgWinRate = average(statsList.map(s => s?.winRate))
     const avgRankScore = average(statsList.map(s => s?.rankScore))
     const avgKda = average(statsList.map(s => s?.kda))
+
+    useEffect(() => {
+        if (!isOwnProfile || avgRankScore == null) return
+        const rounded = Math.round(avgRankScore)
+        if (seasonHigh != null && rounded <= seasonHigh) return
+        setSeasonHigh(rounded)
+        supabase.from("profiles").update({ season_high: rounded }).eq("username", data.username)
+    }, [avgRankScore, isOwnProfile])
 
     const activeGameTab = gameTabs.find(tab => tab.key === activeTab)
 
@@ -332,6 +341,11 @@ export default function ProfileClient({ data, accounts }) {
                                         {rankInfo && (
                                             <p className="text-[11px] font-semibold mt-1" style={{ color: rankInfo.tier.color }}>
                                                 {rankInfo.tier.name} · Top {rankInfo.topPercent.toFixed(1)}%
+                                            </p>
+                                        )}
+                                        {isPro && seasonHigh != null && (
+                                            <p className="text-text-secondary text-[10px] mt-1">
+                                                Season high: <span className="text-text-primary font-semibold">{seasonHigh.toLocaleString()}</span>
                                             </p>
                                         )}
                                     </>
