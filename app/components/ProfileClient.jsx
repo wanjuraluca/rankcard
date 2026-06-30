@@ -29,7 +29,7 @@ const gameTabs = [
     { key: "cs2", platform: "CSGO" },
 ]
 
-export default function ProfileClient({ data, accounts }) {
+export default function ProfileClient({ data, accounts, followerCount: initialFollowerCount = 0, followingCount = 0 }) {
 
     const [activeTab, setActiveTab] = useState("overall")
     const [showModal, setShowModal] = useState(false)
@@ -54,6 +54,25 @@ export default function ProfileClient({ data, accounts }) {
     const [viewerIsPro, setViewerIsPro] = useState(false)
     const [seasonHigh, setSeasonHigh] = useState(data.season_high ?? null)
     const [liveGame, setLiveGame] = useState(null)
+    const [isFollowing, setIsFollowing] = useState(false)
+    const [followerCount, setFollowerCount] = useState(initialFollowerCount)
+    const [followLoading, setFollowLoading] = useState(false)
+    const [viewerUserId, setViewerUserId] = useState(null)
+
+    async function handleFollow() {
+        if (!viewerUserId || followLoading) return
+        setFollowLoading(true)
+        if (isFollowing) {
+            await supabase.from("follows").delete().eq("follower_id", viewerUserId).eq("following_id", data.user_id)
+            setIsFollowing(false)
+            setFollowerCount(c => c - 1)
+        } else {
+            await supabase.from("follows").insert({ follower_id: viewerUserId, following_id: data.user_id })
+            setIsFollowing(true)
+            setFollowerCount(c => c + 1)
+        }
+        setFollowLoading(false)
+    }
 
     async function handleCopyBadge(type) {
         const profileUrl = `${window.location.origin}/${data.username}`
@@ -101,6 +120,16 @@ export default function ProfileClient({ data, accounts }) {
             if (user && username) {
                 const { data: vp } = await supabase.from("profiles").select("is_pro").eq("user_id", user.id).maybeSingle()
                 setViewerIsPro(vp?.is_pro ?? false)
+                setViewerUserId(user.id)
+                if (user.id !== data.user_id) {
+                    const { data: followRow } = await supabase
+                        .from("follows")
+                        .select("id")
+                        .eq("follower_id", user.id)
+                        .eq("following_id", data.user_id)
+                        .maybeSingle()
+                    setIsFollowing(!!followRow)
+                }
             }
             setAuthChecked(true)
         })
@@ -251,6 +280,14 @@ export default function ProfileClient({ data, accounts }) {
                     </div>
                     <BioEditor username={data.username} bio={data.bio} isOwnProfile={isOwnProfile} />
                     <DiscordTagEditor username={data.username} discordTag={data.discord_tag} isOwnProfile={isOwnProfile} />
+                    <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-xs text-text-secondary">
+                            <span className="text-text-primary font-semibold">{followerCount.toLocaleString()}</span> followers
+                        </span>
+                        <span className="text-xs text-text-secondary">
+                            <span className="text-text-primary font-semibold">{followingCount.toLocaleString()}</span> following
+                        </span>
+                    </div>
                     {liveGame && (
                         <div className="flex items-center gap-1.5 mt-1">
                             <span className="inline-block w-2 h-2 rounded-full bg-[#4ade80] animate-pulse" />
@@ -291,6 +328,15 @@ export default function ProfileClient({ data, accounts }) {
                             vs
                         </button>
                     ))}
+                    {authChecked && !isOwnProfile && viewerUserId && (
+                        <button
+                            onClick={handleFollow}
+                            disabled={followLoading}
+                            className={`border rounded-lg px-4 py-2 text-sm font-semibold active:scale-95 transition-all disabled:opacity-60 ${isFollowing ? "border-line text-text-secondary hover:border-negative hover:text-negative" : "border-accent bg-accent text-black hover:text-white"}`}
+                        >
+                            {isFollowing ? "Following" : "Follow"}
+                        </button>
+                    )}
                     <button
                         onClick={handleShareProfile}
                         className="flex-1 sm:flex-none border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all"

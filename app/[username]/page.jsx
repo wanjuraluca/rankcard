@@ -14,9 +14,22 @@ export default async function Profile({ params }) {
     .select("*")
     .eq("user_id", profile.user_id)
 
-  return (
-    <ProfileClient data={profile} accounts={accounts} />
-    
-)
+  const { count: followerCount } = await supabase
+    .from("follows")
+    .select("*", { count: "exact", head: true })
+    .eq("following_id", profile.user_id)
 
+  const { count: followingCount } = await supabase
+    .from("follows")
+    .select("*", { count: "exact", head: true })
+    .eq("follower_id", profile.user_id)
+
+  return (
+    <ProfileClient
+      data={profile}
+      accounts={accounts}
+      followerCount={followerCount ?? 0}
+      followingCount={followingCount ?? 0}
+    />
+  )
 }
