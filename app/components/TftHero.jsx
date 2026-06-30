@@ -207,6 +207,7 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
 }
 
 function TftModeContent({ rankEntry, matchHistory, account, activeMode, accentColor, expandedMatchId, toggleMatch }) {
+    const [hoveredPlacement, setHoveredPlacement] = useState(null)
     const totalGames = rankEntry.wins + rankEntry.losses
     const winRate = totalGames > 0 ? Math.round((rankEntry.wins / totalGames) * 100) : 0
     const avgPlacement = average(matchHistory.map(m => m.placement))
@@ -327,24 +328,36 @@ function TftModeContent({ rankEntry, matchHistory, account, activeMode, accentCo
             {/* Placement distribution */}
             <div className="mt-5">
                 <div className="flex items-center gap-2 mb-2.5">
-                    <p className="text-text-secondary text-xs uppercase tracking-widest">Placement Distribution</p>
+                    <p className="text-text-secondary text-xs uppercase tracking-widest">
+                        Placement Distribution {matchHistory.length > 0 && <span className="normal-case text-text-secondary/70">· {matchHistory.length} {matchHistory.length === 1 ? "game" : "games"}</span>}
+                    </p>
                     <div className="flex-1 h-px bg-hairline" />
                 </div>
                 <div className="bg-surface-deep rounded-xl p-4">
-                    <div className="flex items-end justify-between gap-2 h-24">
+                    <div className="flex items-end justify-between gap-2 h-24 relative">
                         {placementCounts.map(({ placement, count }) => (
                             <div
                                 key={placement}
-                                className="flex-1 flex flex-col items-center justify-end h-full group relative"
-                                title={`${placementLabel(placement)} place: ${count} ${count === 1 ? "game" : "games"}`}
+                                className="flex-1 flex flex-col items-center justify-end h-full relative"
+                                onMouseEnter={() => setHoveredPlacement(placement)}
+                                onMouseLeave={() => setHoveredPlacement(prev => (prev === placement ? null : prev))}
                             >
+                                {hoveredPlacement === placement && (
+                                    <div className="absolute bottom-full mb-1.5 z-10 bg-surface border border-line rounded-lg px-2.5 py-1.5 shadow-lg pointer-events-none whitespace-nowrap">
+                                        <p className="text-text-primary text-xs font-bold">{placementLabel(placement)} place</p>
+                                        <p className="text-text-secondary text-[11px]">
+                                            {count} {count === 1 ? "game" : "games"}
+                                            {matchHistory.length > 0 && <> · {Math.round((count / matchHistory.length) * 100)}%</>}
+                                        </p>
+                                    </div>
+                                )}
                                 <p className="text-text-secondary text-[10px] mb-1">{count > 0 ? count : ""}</p>
                                 <div
-                                    className="w-full rounded-t-md transition-[height] group-hover:opacity-80"
+                                    className="w-full rounded-t-md transition-[height,opacity]"
                                     style={{
                                         height: `${Math.max((count / maxPlacementCount) * 100, count > 0 ? 6 : 2)}%`,
                                         backgroundColor: placementColor(placement),
-                                        opacity: count > 0 ? 1 : 0.15
+                                        opacity: hoveredPlacement === placement ? 1 : (count > 0 ? 0.85 : 0.15)
                                     }}
                                 />
                             </div>
