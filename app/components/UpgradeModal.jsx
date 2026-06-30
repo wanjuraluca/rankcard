@@ -40,21 +40,28 @@ export default function UpgradeModal({ onClose, onUpgraded }) {
         setError("")
 
         const { data: sessionData } = await supabase.auth.getSession()
-        const accessToken = sessionData?.session?.access_token
+        const username = sessionData?.session?.user?.user_metadata?.username
 
-        const res = await fetch("/api/account/upgrade", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${accessToken}` },
-        })
-
-        if (!res.ok) {
-            const { error: msg } = await res.json().catch(() => ({}))
-            setError(msg || "Something went wrong. Please try again.")
+        if (!username) {
+            setError("You must be logged in to upgrade.")
             setLoading(false)
             return
         }
 
-        onUpgraded()
+        const res = await fetch("/api/stripe/checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username }),
+        })
+
+        const data = await res.json()
+        if (!res.ok || !data.url) {
+            setError(data.error || "Something went wrong. Please try again.")
+            setLoading(false)
+            return
+        }
+
+        window.location.href = data.url
     }
 
     return (
@@ -93,7 +100,7 @@ export default function UpgradeModal({ onClose, onUpgraded }) {
                     {loading ? "Upgrading..." : "Upgrade to Pro"}
                 </button>
                 <p className="text-text-secondary text-[11px] mt-3 text-center">
-                    Free during early access — no payment required yet.
+                    2,99 € / month · Cancel anytime · Secured by Stripe
                 </p>
             </div>
         </div>
