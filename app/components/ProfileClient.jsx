@@ -26,9 +26,9 @@ import { getRankTier } from "@/lib/rankScore"
 
 const gameTabs = [
     { key: "league", platform: "League of Legends" },
+    { key: "tft", platform: "TFT" },
     { key: "valorant", platform: "Valorant" },
     { key: "cs2", platform: "CSGO" },
-    { key: "tft", platform: "TFT" },
 ]
 
 export default function ProfileClient({ data, accounts, followerCount: initialFollowerCount = 0, followingCount = 0 }) {
