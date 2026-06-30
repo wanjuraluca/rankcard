@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { Palette, ImageIcon, LayoutGrid, Zap } from "lucide-react"
+import { Palette, ImageIcon, LayoutGrid, Swords, Zap } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
 const features = [
@@ -8,6 +8,11 @@ const features = [
         icon: Palette,
         title: "Custom profile themes",
         description: "Choose from preset colour themes or pick any colour to match your style.",
+    },
+    {
+        icon: Swords,
+        title: "Profile comparison",
+        description: "Challenge anyone to a head-to-head rank comparison with a shareable link.",
     },
     {
         icon: ImageIcon,

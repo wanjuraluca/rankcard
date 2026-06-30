@@ -48,6 +48,8 @@ export default function ProfileClient({ data, accounts }) {
     const [viewCount, setViewCount] = useState(data.view_count ?? 0)
     const [theme, setTheme] = useState(data.theme ?? "default")
     const [showThemeModal, setShowThemeModal] = useState(false)
+    const [showCompareInput, setShowCompareInput] = useState(false)
+    const [compareUsername, setCompareUsername] = useState("")
 
     async function handleCopyBadge(type) {
         const profileUrl = `${window.location.origin}/${data.username}`
@@ -221,11 +223,38 @@ export default function ProfileClient({ data, accounts }) {
                     </div>
                     <BioEditor username={data.username} bio={data.bio} isOwnProfile={isOwnProfile} />
                 </div>
-                <div className="flex items-center gap-2 sm:flex-shrink-0 flex-wrap sm:flex-nowrap">
+                <div className="flex items-center gap-2 sm:flex-shrink-0 flex-wrap sm:flex-nowrap relative">
                     <span className="flex items-center gap-1.5 text-xs text-text-secondary border border-hairline rounded-lg px-3 py-2" title="Total profile views">
                         <Eye size={13} className="opacity-80" />
                         {viewCount.toLocaleString()} {viewCount === 1 ? "view" : "views"}
                     </span>
+                    {showCompareInput ? (
+                        <form
+                            className="flex items-center gap-1"
+                            onSubmit={e => {
+                                e.preventDefault()
+                                const other = compareUsername.trim()
+                                if (other) window.location.href = `/compare?a=${data.username}&b=${other}`
+                            }}
+                        >
+                            <input
+                                autoFocus
+                                value={compareUsername}
+                                onChange={e => setCompareUsername(e.target.value)}
+                                placeholder="Enter username…"
+                                className="bg-surface border border-accent/40 rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none w-36"
+                            />
+                            <button type="submit" className="border border-accent/40 rounded-lg px-3 py-2 text-sm text-accent hover:bg-accent-tint transition-colors">Go</button>
+                            <button type="button" onClick={() => { setShowCompareInput(false); setCompareUsername("") }} className="text-text-secondary hover:text-text-primary px-1 text-lg leading-none">✕</button>
+                        </form>
+                    ) : (
+                        <button
+                            onClick={() => setShowCompareInput(true)}
+                            className="border border-line rounded-lg px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:border-accent/40 hover:bg-accent-tint active:scale-95 transition-all"
+                        >
+                            vs
+                        </button>
+                    )}
                     <button
                         onClick={handleShareProfile}
                         className="flex-1 sm:flex-none border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all"
