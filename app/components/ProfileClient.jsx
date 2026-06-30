@@ -469,9 +469,13 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                             className="rounded-[9px] flex items-center justify-center"
                                             style={{ width: 30, height: 34, backgroundColor: `${config?.color}24`, border: `1px solid ${config?.color}66` }}
                                         >
-                                            <svg role="img" viewBox="0 0 24 24" width="14" height="14" fill={config?.color}>
-                                                <path d={config?.icon.path} fillRule={config?.icon.fillRule ?? "nonzero"} />
-                                            </svg>
+                                            {config?.imageUrl ? (
+                                                <img src={config.imageUrl} width="14" height="14" alt={config.shortName} />
+                                            ) : (
+                                                <svg role="img" viewBox="0 0 24 24" width="14" height="14" fill={config?.color}>
+                                                    <path d={config?.icon.path} fillRule={config?.icon.fillRule ?? "nonzero"} />
+                                                </svg>
+                                            )}
                                         </div>
                                         <div>
                                             <p className="text-text-primary text-xs font-bold">{config?.shortName}</p>

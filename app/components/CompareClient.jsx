@@ -191,7 +191,9 @@ export default function CompareClient({ profileA, accountsA, profileB, accountsB
                                 return (
                                     <div key={platform} className="border-t border-line pt-4 first:border-0 first:pt-0">
                                         <div className="flex items-center justify-center gap-2 mb-3">
-                                            {config?.icon && (
+                                            {config?.imageUrl ? (
+                                                <img src={config.imageUrl} className="w-3.5 h-3.5 flex-shrink-0" alt={config.shortName} />
+                                            ) : config?.icon && (
                                                 <svg role="img" viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0 fill-current text-text-secondary">
                                                     <path d={config.icon.path} fillRule={config.icon.fillRule ?? "nonzero"} />
                                                 </svg>

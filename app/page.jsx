@@ -113,9 +113,13 @@ export default function Home() {
                 <div key={game.platform} className="rounded-xl border border-hairline bg-surface-deep p-3" style={{ borderTopWidth: 3, borderTopColor: config.color }}>
                   <div className="flex items-center gap-2 mb-2">
                     <div className="rounded-[7px] flex items-center justify-center" style={{ width: 24, height: 26, backgroundColor: `${config.color}24`, border: `1px solid ${config.color}66` }}>
-                      <svg role="img" viewBox="0 0 24 24" width="12" height="12" fill={config.color}>
-                        <path d={config.icon.path} fillRule={config.icon.fillRule ?? "nonzero"} />
-                      </svg>
+                      {config.imageUrl ? (
+                        <img src={config.imageUrl} width="12" height="12" alt={config.shortName} />
+                      ) : (
+                        <svg role="img" viewBox="0 0 24 24" width="12" height="12" fill={config.color}>
+                          <path d={config.icon.path} fillRule={config.icon.fillRule ?? "nonzero"} />
+                        </svg>
+                      )}
                     </div>
                     <span className="text-text-primary text-[11px] font-bold">{config.shortName}</span>
                   </div>
