@@ -1,6 +1,12 @@
 "use client"
-import { useState, useEffect } from "react"
-import TftRatingChart from "./TftRatingChart"
+import { useState, useEffect, useLayoutEffect, useRef } from "react"
+import TftLpHistoryChart from "./TftLpHistoryChart"
+import MatchDetailTft from "./MatchDetailTft"
+
+const RANKED_MODES = [
+    { key: "RANKED_TFT", label: "Ranked" },
+    { key: "RANKED_TFT_DOUBLE_UP", label: "Double Up" }
+]
 
 function formatTimeAgo(timestampMs) {
     const diffMs = Date.now() - timestampMs
@@ -105,9 +111,24 @@ function AugmentBadge({ augment }) {
 }
 
 export default function TftHero({ account, accentColor = "#0bc4e3" }) {
-    const [rankEntry, setRankEntry] = useState(null)
-    const [matchHistory, setMatchHistory] = useState([])
+    const [tftData, setTftData] = useState([])
+    const [allMatchHistory, setAllMatchHistory] = useState([])
     const [loading, setLoading] = useState(true)
+    const [activeMode, setActiveMode] = useState("RANKED_TFT")
+    const [expandedMatchId, setExpandedMatchId] = useState(null)
+    const scrollYBeforeToggle = useRef(null)
+
+    function toggleMatch(matchId) {
+        scrollYBeforeToggle.current = window.scrollY
+        setExpandedMatchId(prev => (prev === matchId ? null : matchId))
+    }
+
+    useLayoutEffect(() => {
+        if (scrollYBeforeToggle.current !== null) {
+            window.scrollTo(0, scrollYBeforeToggle.current)
+            scrollYBeforeToggle.current = null
+        }
+    }, [expandedMatchId])
 
     useEffect(() => {
         async function fetchRank() {
@@ -115,11 +136,17 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
                 `/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}`
             )
             const data = await response.json()
-            const entry = Array.isArray(data.tftData)
-                ? data.tftData.find(q => q.queueType === "RANKED_TFT")
-                : null
-            setRankEntry(entry ?? null)
-            setMatchHistory(data.tftMatchHistory ?? [])
+            const entries = Array.isArray(data.tftData) ? data.tftData : []
+            const history = data.tftMatchHistory ?? []
+            setTftData(entries)
+            setAllMatchHistory(history)
+
+            // Default to whichever mode has more recent games played, falling
+            // back to normal Ranked if both are equal or empty.
+            const doubleUpCount = history.filter(m => m.queueType === "RANKED_TFT_DOUBLE_UP").length
+            const rankedCount = history.filter(m => m.queueType === "RANKED_TFT").length
+            setActiveMode(doubleUpCount > rankedCount ? "RANKED_TFT_DOUBLE_UP" : "RANKED_TFT")
+
             setLoading(false)
         }
         fetchRank()
@@ -133,14 +160,53 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
         )
     }
 
-    if (!rankEntry) {
-        return (
-            <div className="bg-surface border border-line rounded-xl p-6 text-center">
-                <p className="text-text-secondary text-sm">No ranked TFT games found yet.</p>
-            </div>
-        )
-    }
+    const rankEntry = tftData.find(q => q.queueType === activeMode) ?? null
+    const matchHistory = allMatchHistory.filter(m => (m.queueType ?? "RANKED_TFT") === activeMode)
 
+    const modeTabs = RANKED_MODES.map(mode => ({
+        ...mode,
+        games: allMatchHistory.filter(m => (m.queueType ?? "RANKED_TFT") === mode.key).length,
+        hasRank: tftData.some(q => q.queueType === mode.key)
+    }))
+
+    return (
+        <div
+            className="bg-surface border border-line rounded-2xl p-4 sm:p-5 relative overflow-hidden"
+            style={{ borderTopWidth: 3, borderTopColor: accentColor }}
+        >
+            {/* Mode tabs */}
+            <div className="flex gap-2 mb-4 flex-wrap">
+                {modeTabs.map(mode => (
+                    <button
+                        key={mode.key}
+                        onClick={() => setActiveMode(mode.key)}
+                        className={`border rounded-lg px-3 py-1.5 text-xs sm:text-sm font-semibold transition-colors ${activeMode === mode.key ? "border-accent/50 bg-accent-tint text-text-primary" : "border-hairline bg-surface text-text-secondary"}`}
+                    >
+                        {mode.label}
+                    </button>
+                ))}
+            </div>
+
+            {!rankEntry ? (
+                <div className="text-center py-6">
+                    <p className="text-text-secondary text-sm">No ranked {modeTabs.find(m => m.key === activeMode)?.label} games found yet.</p>
+                </div>
+            ) : (
+                <TftModeContent
+                    rankEntry={rankEntry}
+                    matchHistory={matchHistory}
+                    account={account}
+                    activeMode={activeMode}
+                    accentColor={accentColor}
+                    expandedMatchId={expandedMatchId}
+                    toggleMatch={toggleMatch}
+                />
+            )}
+        </div>
+    )
+}
+
+function TftModeContent({ rankEntry, matchHistory, account, activeMode, accentColor, expandedMatchId, toggleMatch }) {
     const totalGames = rankEntry.wins + rankEntry.losses
     const winRate = totalGames > 0 ? Math.round((rankEntry.wins / totalGames) * 100) : 0
     const avgPlacement = average(matchHistory.map(m => m.placement))
@@ -161,10 +227,7 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
     const maxPlacementCount = Math.max(1, ...placementCounts.map(p => p.count))
 
     return (
-        <div
-            className="bg-surface border border-line rounded-2xl p-4 sm:p-5 relative overflow-hidden"
-            style={{ borderTopWidth: 3, borderTopColor: accentColor }}
-        >
+        <>
             {/* Rank hero row */}
             <div className="flex gap-3 sm:gap-5 items-center flex-wrap">
 
@@ -270,10 +333,14 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
                 <div className="bg-surface-deep rounded-xl p-4">
                     <div className="flex items-end justify-between gap-2 h-24">
                         {placementCounts.map(({ placement, count }) => (
-                            <div key={placement} className="flex-1 flex flex-col items-center justify-end h-full">
+                            <div
+                                key={placement}
+                                className="flex-1 flex flex-col items-center justify-end h-full group relative"
+                                title={`${placementLabel(placement)} place: ${count} ${count === 1 ? "game" : "games"}`}
+                            >
                                 <p className="text-text-secondary text-[10px] mb-1">{count > 0 ? count : ""}</p>
                                 <div
-                                    className="w-full rounded-t-md transition-[height]"
+                                    className="w-full rounded-t-md transition-[height] group-hover:opacity-80"
                                     style={{
                                         height: `${Math.max((count / maxPlacementCount) * 100, count > 0 ? 6 : 2)}%`,
                                         backgroundColor: placementColor(placement),
@@ -298,7 +365,13 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
                     <div className="flex-1 h-px bg-hairline" />
                 </div>
                 <div className="bg-surface-deep rounded-xl p-4">
-                    <TftRatingChart accountId={account.id} />
+                    <TftLpHistoryChart
+                        accountId={account.id}
+                        matchHistory={matchHistory}
+                        currentLeaguePoints={rankEntry.leaguePoints}
+                        accentColor={accentColor}
+                        queueType={activeMode}
+                    />
                 </div>
             </div>
 
@@ -315,64 +388,76 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
                     <div className="flex flex-col gap-1.5">
                         {matchHistory.map((match) => {
                             const sortedUnits = [...(match.allUnits ?? [])].sort((a, b) => b.tier - a.tier).slice(0, 8)
+                            const isExpanded = expandedMatchId === match.matchId
                             return (
                                 <div
                                     key={match.matchId}
-                                    className="bg-surface-deep rounded-xl p-2.5 sm:p-3"
+                                    className="bg-surface-deep rounded-xl overflow-hidden"
                                     style={{ borderLeft: `3px solid ${placementColor(match.placement)}` }}
                                 >
-                                    <div className="flex items-center gap-3 flex-wrap">
-                                        {/* Placement badge */}
-                                        <div
-                                            className="w-10 h-10 rounded-lg flex items-center justify-center font-extrabold text-base flex-shrink-0 text-background"
-                                            style={{ backgroundColor: placementColor(match.placement) }}
-                                        >
-                                            {placementLabel(match.placement)}
-                                        </div>
+                                    <button
+                                        onMouseDown={(e) => e.preventDefault()}
+                                        onClick={() => toggleMatch(match.matchId)}
+                                        className="w-full text-left p-2.5 sm:p-3 active:bg-hairline/40 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3 flex-wrap">
+                                            {/* Placement badge */}
+                                            <div
+                                                className="w-10 h-10 rounded-lg flex items-center justify-center font-extrabold text-base flex-shrink-0 text-background"
+                                                style={{ backgroundColor: placementColor(match.placement) }}
+                                            >
+                                                {placementLabel(match.placement)}
+                                            </div>
 
-                                        {/* Composition + traits + augments */}
-                                        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                                            {sortedUnits.length > 0 && (
-                                                <div className="flex gap-1.5 flex-wrap">
-                                                    {sortedUnits.map((unit, i) => (
-                                                        <UnitIcon key={i} unit={unit} />
-                                                    ))}
-                                                </div>
-                                            )}
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                {match.topTraits?.length > 0 && (
-                                                    <div className="flex gap-1">
-                                                        {match.topTraits.map((trait, i) => (
-                                                            <TraitBadge key={i} trait={trait} accentColor={accentColor} />
+                                            {/* Composition + traits + augments */}
+                                            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                                                {sortedUnits.length > 0 && (
+                                                    <div className="flex gap-1.5 flex-wrap">
+                                                        {sortedUnits.map((unit, i) => (
+                                                            <UnitIcon key={i} unit={unit} />
                                                         ))}
                                                     </div>
                                                 )}
-                                                {match.augments?.length > 0 && (
-                                                    <div className="flex gap-1">
-                                                        {match.augments.map((augment, i) => (
-                                                            <AugmentBadge key={i} augment={augment} />
-                                                        ))}
-                                                    </div>
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    {match.topTraits?.length > 0 && (
+                                                        <div className="flex gap-1">
+                                                            {match.topTraits.map((trait, i) => (
+                                                                <TraitBadge key={i} trait={trait} accentColor={accentColor} />
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    {match.augments?.length > 0 && (
+                                                        <div className="flex gap-1">
+                                                            {match.augments.map((augment, i) => (
+                                                                <AugmentBadge key={i} augment={augment} />
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Time info */}
+                                            <div className="text-right flex-shrink-0 hidden sm:block">
+                                                {match.gameLength != null && (
+                                                    <p className="text-text-secondary font-mono text-xs">{formatDuration(match.gameLength)}</p>
+                                                )}
+                                                {match.game_datetime != null && (
+                                                    <p className="text-text-secondary text-[10px]">{formatTimeAgo(match.game_datetime)}</p>
                                                 )}
                                             </div>
                                         </div>
-
-                                        {/* Time info */}
-                                        <div className="text-right flex-shrink-0 hidden sm:block">
-                                            {match.gameLength != null && (
-                                                <p className="text-text-secondary font-mono text-xs">{formatDuration(match.gameLength)}</p>
-                                            )}
-                                            {match.game_datetime != null && (
-                                                <p className="text-text-secondary text-[10px]">{formatTimeAgo(match.game_datetime)}</p>
-                                            )}
+                                    </button>
+                                    {isExpanded && (
+                                        <div className="border-t border-hairline">
+                                            <MatchDetailTft match={match} yourPuuid={account.puuid} accentColor={accentColor} />
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             )
                         })}
                     </div>
                 )}
             </div>
-        </div>
+        </>
     )
 }

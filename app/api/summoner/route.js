@@ -421,6 +421,85 @@ async function fetchTftIconMaps() {
   }
 }
 
+// Resolves which ranked queue a TFT match belongs to. Verified live against
+// the Riot API (real match data, not guessed): normal Ranked matches carry
+// info.queue_id === 1100 and info.tft_game_type === "standard", while Double
+// Up matches carry info.queue_id === 1160 and info.tft_game_type === "pairs"
+// (and participants get a partner_group_id pairing them with their teammate).
+// Falls back to the partner_group_id heuristic, then to "RANKED_TFT", so an
+// unrecognized/new queue id never crashes mode filtering — it just gets
+// bucketed into normal Ranked.
+function resolveTftQueueType(info, participants) {
+  if (info?.queue_id === 1160 || info?.tft_game_type === 'pairs') return 'RANKED_TFT_DOUBLE_UP'
+  if (info?.queue_id === 1100 || info?.tft_game_type === 'standard') return 'RANKED_TFT'
+  const hasPartnerGroups = Array.isArray(participants) && participants.some(p => p?.partner_group_id != null)
+  return hasPartnerGroups ? 'RANKED_TFT_DOUBLE_UP' : 'RANKED_TFT'
+}
+
+// Builds the same shape used for the requesting player's own row (icons,
+// sorted units/traits) so it can be reused for every participant in the full
+// 8-player scoreboard. Defensive throughout — a missing/odd field should
+// degrade to a blank icon, never throw and take the whole match down.
+function buildTftParticipantView(participant, iconMaps) {
+  const { championIconByApiName, traitIconByApiName, itemIconByApiName } = iconMaps
+
+  const topTraits = [...(participant.traits ?? [])]
+    .filter(t => t.style > 0)
+    .sort((a, b) => b.style - a.style || b.num_units - a.num_units)
+    .slice(0, 3)
+    .map(t => ({
+      name: t.name?.replace(/^TFT\d+_/, '') ?? '?',
+      style: t.style,
+      numUnits: t.num_units,
+      icon: traitIconByApiName[t.name?.toLowerCase()] ?? null
+    }))
+
+  const topUnits = [...(participant.units ?? [])]
+    .filter(u => u.itemNames?.length > 0)
+    .sort((a, b) => b.tier - a.tier || b.itemNames.length - a.itemNames.length)
+    .slice(0, 3)
+    .map(u => ({
+      name: u.character_id?.replace(/^TFT\d+_/, '') ?? '?',
+      tier: u.tier,
+      items: (u.itemNames ?? []).map(i => i.replace(/^TFT_Item_/, '')),
+      icon: championIconByApiName[u.character_id?.toLowerCase()] ?? null
+    }))
+
+  const allUnits = [...(participant.units ?? [])]
+    .sort((a, b) => b.tier - a.tier)
+    .map(u => ({
+      characterId: u.character_id,
+      name: u.character_id?.replace(/^TFT\d+_/, '') ?? '?',
+      tier: u.tier,
+      items: (u.itemNames ?? []).map(i => ({
+        name: i.replace(/^TFT_Item_/, ''),
+        icon: itemIconByApiName[i?.toLowerCase()] ?? null
+      })),
+      icon: championIconByApiName[u.character_id?.toLowerCase()] ?? null
+    }))
+
+  const augments = (participant.augments ?? []).map(a => ({
+    name: a.replace(/^TFT\d+_Augment_/, ''),
+    icon: itemIconByApiName[a?.toLowerCase()] ?? null
+  }))
+
+  return {
+    puuid: participant.puuid ?? null,
+    name: participant.riotIdGameName || null,
+    tag: participant.riotIdTagline || null,
+    placement: participant.placement,
+    augments,
+    topTraits,
+    topUnits,
+    allUnits,
+    level: participant.level ?? null,
+    damageDealt: participant.total_damage_to_players ?? null,
+    playersEliminated: participant.players_eliminated ?? null,
+    goldLeft: participant.gold_left ?? null,
+    partnerGroupId: participant.partner_group_id ?? null
+  }
+}
+
 async function fetchTftMatchHistory(puuid) {
   const idsResponse = await fetch(
     `https://europe.api.riotgames.com/tft/match/v1/matches/by-puuid/${puuid}/ids?count=10`,
@@ -429,75 +508,48 @@ async function fetchTftMatchHistory(puuid) {
   const matchIds = await idsResponse.json()
   if (!Array.isArray(matchIds)) return []
 
-  const { championIconByApiName, traitIconByApiName, itemIconByApiName } = await fetchTftIconMaps()
+  const iconMaps = await fetchTftIconMaps()
 
   const matches = await Promise.all(
     matchIds.map(async (matchId) => {
-      const res = await fetch(
-        `https://europe.api.riotgames.com/tft/match/v1/matches/${matchId}`,
-        { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
-      )
-      const match = await res.json()
-      const participant = match.info?.participants?.find(p => p.puuid === puuid)
-      if (!participant) return null
+      try {
+        const res = await fetch(
+          `https://europe.api.riotgames.com/tft/match/v1/matches/${matchId}`,
+          { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
+        )
+        const match = await res.json()
+        const participants = match.info?.participants ?? []
+        const participant = participants.find(p => p.puuid === puuid)
+        if (!participant) return null
 
-      // Top 3 traits by style (active level), then by num_units as tiebreak
-      const topTraits = [...(participant.traits ?? [])]
-        .filter(t => t.style > 0)
-        .sort((a, b) => b.style - a.style || b.num_units - a.num_units)
-        .slice(0, 3)
-        .map(t => ({
-          name: t.name.replace(/^TFT\d+_/, ''),
-          style: t.style,
-          numUnits: t.num_units,
-          icon: traitIconByApiName[t.name?.toLowerCase()] ?? null
-        }))
+        const own = buildTftParticipantView(participant, iconMaps)
+        const allParticipants = participants.map(p => {
+          try {
+            return buildTftParticipantView(p, iconMaps)
+          } catch {
+            return null
+          }
+        }).filter(Boolean)
 
-      // Top carries: units with items, sorted by tier desc then item count desc
-      const topUnits = [...(participant.units ?? [])]
-        .filter(u => u.itemNames?.length > 0)
-        .sort((a, b) => b.tier - a.tier || b.itemNames.length - a.itemNames.length)
-        .slice(0, 3)
-        .map(u => ({
-          name: u.character_id.replace(/^TFT\d+_/, ''),
-          tier: u.tier,
-          items: u.itemNames.map(i => i.replace(/^TFT_Item_/, '')),
-          icon: championIconByApiName[u.character_id?.toLowerCase()] ?? null
-        }))
-
-      // Full board composition, for the match-history card's icon row.
-      const allUnits = [...(participant.units ?? [])]
-        .sort((a, b) => b.tier - a.tier)
-        .map(u => ({
-          characterId: u.character_id,
-          name: u.character_id.replace(/^TFT\d+_/, ''),
-          tier: u.tier,
-          items: (u.itemNames ?? []).map(i => ({
-            name: i.replace(/^TFT_Item_/, ''),
-            icon: itemIconByApiName[i?.toLowerCase()] ?? null
-          })),
-          icon: championIconByApiName[u.character_id?.toLowerCase()] ?? null
-        }))
-
-      // Augments: strip internal prefix noise for readability
-      const augments = (participant.augments ?? []).map(a => ({
-        name: a.replace(/^TFT\d+_Augment_/, ''),
-        icon: itemIconByApiName[a?.toLowerCase()] ?? null
-      }))
-
-      return {
-        matchId,
-        placement: participant.placement,
-        augments,
-        topTraits,
-        topUnits,
-        allUnits,
-        level: participant.level ?? null,
-        damageDealt: participant.total_damage_to_players ?? null,
-        playersEliminated: participant.players_eliminated ?? null,
-        goldLeft: participant.gold_left ?? null,
-        gameLength: match.info?.game_length ?? null,
-        game_datetime: match.info?.game_datetime ?? null
+        return {
+          matchId,
+          queueType: resolveTftQueueType(match.info, participants),
+          placement: own.placement,
+          augments: own.augments,
+          topTraits: own.topTraits,
+          topUnits: own.topUnits,
+          allUnits: own.allUnits,
+          level: own.level,
+          damageDealt: own.damageDealt,
+          playersEliminated: own.playersEliminated,
+          goldLeft: own.goldLeft,
+          partnerGroupId: own.partnerGroupId,
+          participants: allParticipants,
+          gameLength: match.info?.game_length ?? null,
+          game_datetime: match.info?.game_datetime ?? null
+        }
+      } catch {
+        return null
       }
     })
   )
