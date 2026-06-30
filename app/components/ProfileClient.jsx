@@ -53,6 +53,7 @@ export default function ProfileClient({ data, accounts }) {
     const [compareUsername, setCompareUsername] = useState("")
     const [viewerIsPro, setViewerIsPro] = useState(false)
     const [seasonHigh, setSeasonHigh] = useState(data.season_high ?? null)
+    const [liveGame, setLiveGame] = useState(null)
 
     async function handleCopyBadge(type) {
         const profileUrl = `${window.location.origin}/${data.username}`
@@ -167,6 +168,16 @@ export default function ProfileClient({ data, accounts }) {
     const avgKda = average(statsList.map(s => s?.kda))
 
     useEffect(() => {
+        if (!isPro) return
+        const lolAccount = accountList.find(a => a.platform === "League of Legends")
+        if (!lolAccount?.puuid) return
+
+        fetch(`/api/live-game?puuid=${lolAccount.puuid}&platform=euw1`)
+            .then(r => r.json())
+            .then(d => setLiveGame(d.inGame ? d : null))
+    }, [accountList, isPro])
+
+    useEffect(() => {
         if (!isOwnProfile || avgRankScore == null) return
         const rounded = Math.round(avgRankScore)
         if (seasonHigh != null && rounded <= seasonHigh) return
@@ -240,6 +251,13 @@ export default function ProfileClient({ data, accounts }) {
                     </div>
                     <BioEditor username={data.username} bio={data.bio} isOwnProfile={isOwnProfile} />
                     <DiscordTagEditor username={data.username} discordTag={data.discord_tag} isOwnProfile={isOwnProfile} />
+                    {liveGame && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                            <span className="inline-block w-2 h-2 rounded-full bg-[#4ade80] animate-pulse" />
+                            <span className="text-[#4ade80] text-xs font-semibold">In Game</span>
+                            <span className="text-text-secondary text-xs">· League of Legends · {liveGame.queue}</span>
+                        </div>
+                    )}
                 </div>
                 <div className="flex items-center gap-2 sm:flex-shrink-0 flex-wrap sm:flex-nowrap relative">
                     <span className="flex items-center gap-1.5 text-xs text-text-secondary border border-hairline rounded-lg px-3 py-2" title="Total profile views">
