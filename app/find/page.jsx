@@ -7,7 +7,7 @@ import UpgradeModal from "@/app/components/UpgradeModal"
 import Footer from "@/app/components/Footer"
 
 const gameOptions = ["League of Legends", "TFT", "Valorant", "CSGO"]
-const regionOptions = ["EUW", "EUNE", "NA", "KR", "LAN"]
+const regionOptions = ["EUW", "EUNE", "NA", "KR"]
 const modeOptions = ["Duo Queue", "Flex", "Clash", "Chill", "Smurf welcome"]
 
 // Role chips are only meaningful for the two games that actually have lane /

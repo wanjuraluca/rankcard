@@ -5,7 +5,7 @@ import { platformConfig } from "@/lib/platforms"
 import { extractGameStats } from "@/lib/gameStats"
 
 const lookingForOptions = ["Duo Queue", "Flex", "Clash", "Chill", "Smurf welcome"]
-const regionOptions = ["EUW", "EUNE", "NA", "KR", "LAN"]
+const regionOptions = ["EUW", "EUNE", "NA", "KR"]
 
 // Role options are game-specific — League has lane roles, Valorant has agent
 // classes, TFT/CS2 have no role concept and skip this section entirely.
