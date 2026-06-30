@@ -4,8 +4,14 @@ import { supabase } from "@/lib/supabase"
 import { platformConfig } from "@/lib/platforms"
 
 const lookingForOptions = ["Duo Queue", "Flex", "Clash", "Chill", "Smurf welcome"]
-const roleOptions = ["Top", "Jungle", "Mid", "ADC", "Support", "Fill"]
 const regionOptions = ["EUW", "EUNE", "NA", "KR", "LAN"]
+
+// Role options are game-specific — League has lane roles, Valorant has agent
+// classes, TFT/CS2 have no role concept and skip this section entirely.
+const roleOptionsByGame = {
+    "League of Legends": ["Top", "Jungle", "Mid", "ADC", "Support", "Fill"],
+    Valorant: ["Duelist", "Initiator", "Controller", "Sentinel", "Flex"],
+}
 
 // Games connected on this profile that LFG posting supports
 const lfgGames = ["League of Legends", "TFT", "Valorant", "CSGO"]
@@ -21,7 +27,8 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
     const [errorMsg, setErrorMsg] = useState("")
 
     const connectedGames = accounts.map(a => a.platform).filter(p => lfgGames.includes(p))
-    const showRoles = game === "League of Legends" || game === "TFT"
+    const roleOptions = roleOptionsByGame[game] ?? null
+    const showRoles = roleOptions != null
 
     function toggle(list, setList, value) {
         setList(list.includes(value) ? list.filter(v => v !== value) : [...list, value])
@@ -121,7 +128,7 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
                                 <button
                                     key={key}
                                     type="button"
-                                    onClick={() => setGame(key)}
+                                    onClick={() => { setGame(key); setRoles([]) }}
                                     className={`border rounded-lg px-3 py-2 text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-line bg-background text-text-secondary"}`}
                                 >
                                     <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: config?.color }} />

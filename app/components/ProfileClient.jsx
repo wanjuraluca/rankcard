@@ -25,7 +25,7 @@ import RankHistoryChart from "./RankHistoryChart"
 import FollowListModal from "./FollowListModal"
 import LfgPostModal from "./LfgPostModal"
 import { getRankTier } from "@/lib/rankScore"
-import { ChevronRight } from "lucide-react"
+import { ChevronRight, Users } from "lucide-react"
 
 const gameTabs = [
     { key: "league", platform: "League of Legends" },
@@ -575,8 +575,8 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         )}
                     </div>
 
-                    {/* Find a Duo entry point — only visible to the profile owner */}
-                    {isOwnProfile && (
+                    {/* Find a Duo entry point — post/manage for the owner, browse-only link for visitors */}
+                    {isOwnProfile ? (
                         <div
                             onClick={() => setShowLfgModal(true)}
                             className="mt-3 border border-dashed border-line rounded-xl p-3 flex items-center justify-between cursor-pointer hover:border-accent/40 active:scale-[0.99] transition-all"
@@ -588,12 +588,29 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                     <span className="text-text-secondary">· expires in {lfgTimeLeft}</span>
                                 </span>
                             ) : (
-                                <span className="text-text-secondary text-sm">
-                                    🎮 Looking for a Duo? · <span className="text-text-primary font-semibold">Post on the board</span> · visible for {isPro ? "72h" : "24h"}
+                                <span className="flex items-center gap-2 text-text-secondary text-sm">
+                                    <Users size={15} className="flex-shrink-0" />
+                                    Looking for a Duo? · <span className="text-text-primary font-semibold">Post on the board</span> · visible for {isPro ? "72h" : "24h"}
                                 </span>
                             )}
                             <ChevronRight size={16} className="text-text-secondary flex-shrink-0" />
                         </div>
+                    ) : (
+                        <a
+                            href="/find"
+                            className="mt-3 border border-dashed border-line rounded-xl p-3 flex items-center justify-between hover:border-accent/40 active:scale-[0.99] transition-all"
+                        >
+                            <span className="flex items-center gap-2 text-text-secondary text-sm">
+                                <Users size={15} className="flex-shrink-0" />
+                                Browse the <span className="text-text-primary font-semibold">Find a Duo</span> board
+                            </span>
+                            <ChevronRight size={16} className="text-text-secondary flex-shrink-0" />
+                        </a>
+                    )}
+                    {isOwnProfile && (
+                        <a href="/find" className="mt-1.5 inline-block text-text-secondary text-xs hover:text-accent-soft transition-colors">
+                            Or browse the board →
+                        </a>
                     )}
 
                     {/* Friends Section — mutual follows, Pro feature for visitors */}
