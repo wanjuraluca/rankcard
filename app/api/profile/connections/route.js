@@ -48,20 +48,27 @@ export async function GET(request) {
             return NextResponse.json({ users: [] })
         }
 
-        // Pull each friend's League puuid so the client can check live-game
-        // status — only League has a Spectator-API live-status endpoint.
-        const { data: lolAccounts } = await supabaseAdmin
+        // Pull each friend's League/TFT puuid so the client can check live-game
+        // status — only League and TFT have a Spectator-API live-status
+        // endpoint (Valorant/CS2 have no public equivalent).
+        const { data: liveCapableAccounts } = await supabaseAdmin
             .from("connected_accounts")
-            .select("user_id, puuid")
-            .eq("platform", "League of Legends")
+            .select("user_id, platform, puuid")
+            .in("platform", ["League of Legends", "TFT"])
             .in("user_id", users.map(u => u.user_id))
 
-        const puuidByUserId = Object.fromEntries((lolAccounts ?? []).map(a => [a.user_id, a.puuid]))
+        const lolPuuidByUserId = {}
+        const tftPuuidByUserId = {}
+        for (const account of liveCapableAccounts ?? []) {
+            if (account.platform === "League of Legends") lolPuuidByUserId[account.user_id] = account.puuid
+            if (account.platform === "TFT") tftPuuidByUserId[account.user_id] = account.puuid
+        }
 
         const enriched = users.map(u => ({
             username: u.username,
             avatar_url: u.avatar_url,
-            lolPuuid: puuidByUserId[u.user_id] ?? null,
+            lolPuuid: lolPuuidByUserId[u.user_id] ?? null,
+            tftPuuid: tftPuuidByUserId[u.user_id] ?? null,
         }))
 
         return NextResponse.json({ users: enriched })

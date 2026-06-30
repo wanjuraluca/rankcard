@@ -231,15 +231,22 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                 const users = d.users ?? []
                 setFriends(users)
 
-                // Check live-game status for any friend with a connected League account
-                users.filter(f => f.lolPuuid).forEach(f => {
-                    fetch(`/api/live-game?puuid=${f.lolPuuid}&platform=euw1`)
-                        .then(r => r.json())
-                        .then(live => {
-                            if (live.inGame) {
-                                setOnlineFriends(prev => ({ ...prev, [f.username]: true }))
-                            }
-                        })
+                // Check live-game status for any friend with a connected League or TFT account
+                users.forEach(f => {
+                    if (f.lolPuuid) {
+                        fetch(`/api/live-game?puuid=${f.lolPuuid}&platform=euw1&game=lol`)
+                            .then(r => r.json())
+                            .then(live => {
+                                if (live.inGame) setOnlineFriends(prev => ({ ...prev, [f.username]: "League of Legends" }))
+                            })
+                    }
+                    if (f.tftPuuid) {
+                        fetch(`/api/live-game?puuid=${f.tftPuuid}&platform=euw1&game=tft`)
+                            .then(r => r.json())
+                            .then(live => {
+                                if (live.inGame) setOnlineFriends(prev => ({ ...prev, [f.username]: "TFT" }))
+                            })
+                    }
                 })
             })
     }, [authChecked, isOwnProfile, isPro])
@@ -567,13 +574,15 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                                 {onlineFriends[friend.username] && (
                                                     <span
                                                         className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#4ade80] border-2 border-surface"
-                                                        title="In game"
+                                                        title={`In game · ${onlineFriends[friend.username]}`}
                                                     />
                                                 )}
                                             </div>
                                             <p className="text-text-primary text-xs font-semibold truncate w-full text-center">{friend.username}</p>
                                             {onlineFriends[friend.username] && (
-                                                <p className="text-[#4ade80] text-[10px] font-semibold -mt-1.5">In Game</p>
+                                                <p className="text-[#4ade80] text-[10px] font-semibold -mt-1.5 truncate w-full text-center">
+                                                    {onlineFriends[friend.username] === "TFT" ? "In Game · TFT" : "In Game"}
+                                                </p>
                                             )}
                                         </a>
                                     ))}
