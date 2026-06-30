@@ -22,6 +22,7 @@ import ConfirmDialog from "./ConfirmDialog"
 import RankInfoModal from "./RankInfoModal"
 import ThemeModal from "./ThemeModal"
 import RankHistoryChart from "./RankHistoryChart"
+import FollowListModal from "./FollowListModal"
 import { getRankTier } from "@/lib/rankScore"
 
 const gameTabs = [
@@ -60,6 +61,8 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
     const [followerCount, setFollowerCount] = useState(initialFollowerCount)
     const [followLoading, setFollowLoading] = useState(false)
     const [viewerUserId, setViewerUserId] = useState(null)
+    const [showFollowList, setShowFollowList] = useState(null) // "followers" | "following" | null
+    const [friends, setFriends] = useState([])
 
     async function handleFollow() {
         if (!viewerUserId || followLoading) return
@@ -216,6 +219,16 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
         supabase.from("profiles").update({ season_high: rounded }).eq("username", data.username)
     }, [avgRankScore, isOwnProfile])
 
+    useEffect(() => {
+        // Owner sees their own friends preview regardless of Pro; visitors only when the owner is Pro
+        if (!authChecked) return
+        if (!isOwnProfile && !isPro) return
+
+        fetch(`/api/profile/connections?username=${data.username}&type=friends`)
+            .then(r => r.json())
+            .then(d => setFriends(d.users ?? []))
+    }, [authChecked, isOwnProfile, isPro])
+
     const activeGameTab = gameTabs.find(tab => tab.key === activeTab)
 
     return (
@@ -283,12 +296,20 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     <BioEditor username={data.username} bio={data.bio} isOwnProfile={isOwnProfile} />
                     <DiscordTagEditor username={data.username} discordTag={data.discord_tag} isOwnProfile={isOwnProfile} />
                     <div className="flex items-center gap-3 mt-1.5">
-                        <span className="text-xs text-text-secondary">
+                        <button
+                            type="button"
+                            onClick={() => setShowFollowList("followers")}
+                            className="text-xs text-text-secondary hover:text-text-primary transition-colors"
+                        >
                             <span className="text-text-primary font-semibold">{followerCount.toLocaleString()}</span> followers
-                        </span>
-                        <span className="text-xs text-text-secondary">
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowFollowList("following")}
+                            className="text-xs text-text-secondary hover:text-text-primary transition-colors"
+                        >
                             <span className="text-text-primary font-semibold">{followingCount.toLocaleString()}</span> following
-                        </span>
+                        </button>
                     </div>
                     {liveGame && (
                         <div className="flex items-center gap-1.5 mt-1">
@@ -497,6 +518,44 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         )}
                     </div>
 
+                    {/* Friends Section — mutual follows, Pro feature for visitors */}
+                    {(isPro || isOwnProfile) && (
+                        <>
+                            <div className="flex items-center gap-2 mt-5 mb-2.5">
+                                <p className="text-text-secondary text-xs uppercase tracking-widest">Friends</p>
+                                <div className="flex-1 h-px bg-hairline" />
+                            </div>
+                            {isOwnProfile && !isPro ? (
+                                <button
+                                    onClick={() => setShowUpgradeModal(true)}
+                                    className="text-xs text-text-secondary hover:text-text-primary transition-colors"
+                                >
+                                    Friends list is a <span className="text-accent-soft font-semibold">Pro</span> feature. Upgrade →
+                                </button>
+                            ) : friends.length === 0 ? (
+                                <p className="text-text-secondary text-sm">No mutual friends yet.</p>
+                            ) : (
+                                <div className="flex gap-3 overflow-x-auto pb-1">
+                                    {friends.map((friend) => (
+                                        <a
+                                            key={friend.username}
+                                            href={`/${friend.username}`}
+                                            className="bg-surface border border-hairline rounded-2xl p-3 flex flex-col items-center gap-2 hover:border-accent/40 active:scale-[0.97] transition-all flex-shrink-0 w-24"
+                                        >
+                                            <div className="w-12 h-12 rounded-lg border border-accent/40 flex items-center justify-center font-bold text-accent-soft bg-background overflow-hidden">
+                                                {friend.avatar_url
+                                                    ? <img src={friend.avatar_url} className="w-full h-full object-cover" alt="" />
+                                                    : <span>{friend.username[0]}</span>
+                                                }
+                                            </div>
+                                            <p className="text-text-primary text-xs font-semibold truncate w-full text-center">{friend.username}</p>
+                                        </a>
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
+
                     {/* Rank History Chart */}
                     <div className="flex items-center gap-2 mt-5 mb-2.5">
                         <p className="text-text-secondary text-xs uppercase tracking-widest">Overall LP / Rating History</p>
@@ -659,6 +718,15 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     error={removeError}
                     onCancel={() => { setRemoveTarget(null); setRemoveError("") }}
                     onConfirm={confirmRemoveAccount}
+                />
+            )}
+
+            {/* Followers / Following List Modal */}
+            {showFollowList && (
+                <FollowListModal
+                    username={data.username}
+                    type={showFollowList}
+                    onClose={() => setShowFollowList(null)}
                 />
             )}
 
