@@ -154,7 +154,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                                 className={`border rounded-lg py-3 flex flex-col items-center gap-1.5 active:scale-95 transition-transform ${isSelected ? "border-accent bg-accent/10" : "border-line bg-background"}`}
                             >
                                 <svg role="img" viewBox="0 0 24 24" width="22" height="22" fill={isSelected ? config.color : "#9a96a8"}>
-                                    <path d={config.icon.path} />
+                                    <path d={config.icon.path} fillRule={config.icon.fillRule ?? "nonzero"} />
                                 </svg>
                                 <span className={`text-[10px] ${isSelected ? "text-text-primary" : "text-text-secondary"}`}>{config.shortName}</span>
                             </button>

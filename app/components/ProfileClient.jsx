@@ -470,7 +470,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                             style={{ width: 30, height: 34, backgroundColor: `${config?.color}24`, border: `1px solid ${config?.color}66` }}
                                         >
                                             <svg role="img" viewBox="0 0 24 24" width="14" height="14" fill={config?.color}>
-                                                <path d={config?.icon.path} />
+                                                <path d={config?.icon.path} fillRule={config?.icon.fillRule ?? "nonzero"} />
                                             </svg>
                                         </div>
                                         <div>
