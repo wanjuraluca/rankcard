@@ -204,20 +204,17 @@ export default function ProfileClient({ data, accounts }) {
             <div className="bg-surface border border-line rounded-b-2xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center">
                 <div className="-mt-16 self-start relative">
                     <AvatarUpload username={data.username} avatarUrl={data.avatar_url} editable={isOwnProfile} />
-                    {isPro && (
-                        <span
-                            title="Pro member"
-                            className="absolute -bottom-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-accent text-[11px] font-bold text-black"
-                        >
-                            ★
-                        </span>
-                    )}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline gap-2">
-                        <p className="text-text-primary text-2xl font-extrabold">{data.username}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-text-primary text-2xl font-extrabold relative -top-[3px]" style={{ lineHeight: 1 }}>{data.username}</p>
+                        {isPro && (
+                            <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-full border border-accent/40 text-accent-soft bg-accent-tint">
+                                PRO
+                            </span>
+                        )}
                         {authChecked && isOwnProfile && (
-                            <span className="relative -top-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-accent/40 text-accent-soft bg-accent-tint">
+                            <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full border border-accent/40 text-accent-soft bg-accent-tint opacity-60">
                                 Your profile
                             </span>
                         )}

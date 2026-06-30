@@ -1,13 +1,13 @@
 "use client"
 import { useState } from "react"
-import { Check, ImageIcon, LayoutGrid } from "lucide-react"
+import { Palette, ImageIcon, LayoutGrid, Zap } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
 const features = [
     {
-        icon: LayoutGrid,
-        title: "Per-game export cards",
-        description: "Download a shareable card for each connected game, not just the overall one.",
+        icon: Palette,
+        title: "Custom profile themes",
+        description: "Choose from preset colour themes or pick any colour to match your style.",
     },
     {
         icon: ImageIcon,
@@ -15,7 +15,12 @@ const features = [
         description: "Upload your own banner image instead of the default gradient.",
     },
     {
-        icon: Check,
+        icon: LayoutGrid,
+        title: "Per-game export cards",
+        description: "Download a shareable rank card for each connected game individually.",
+    },
+    {
+        icon: Zap,
         title: "More on the way",
         description: "New Pro perks ship regularly — you'll get them automatically.",
     },
@@ -55,7 +60,7 @@ export default function UpgradeModal({ onClose, onUpgraded }) {
                     <button type="button" onClick={onClose} className="text-text-secondary hover:text-text-primary active:scale-90 transition-transform text-xl leading-none">✕</button>
                 </div>
                 <p className="text-text-primary text-lg font-bold mt-2">Upgrade to RankCard Pro</p>
-                <p className="text-text-secondary text-sm mt-1">Unlock these features on your profile:</p>
+                <p className="text-text-secondary text-sm mt-1">Everything on your profile, taken further:</p>
 
                 <div className="flex flex-col gap-3.5 mt-5">
                     {features.map((feature) => (
