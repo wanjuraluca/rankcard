@@ -15,6 +15,7 @@ import RankBadge from "./RankBadge"
 import RankHero from "./RankHero"
 import ValorantHero from "./ValorantHero"
 import Cs2Hero from "./Cs2Hero"
+import TftHero from "./TftHero"
 import AddGameModal from "./AddGameModal"
 import UpgradeModal from "./UpgradeModal"
 import ConfirmDialog from "./ConfirmDialog"
@@ -27,6 +28,7 @@ const gameTabs = [
     { key: "league", platform: "League of Legends" },
     { key: "valorant", platform: "Valorant" },
     { key: "cs2", platform: "CSGO" },
+    { key: "tft", platform: "TFT" },
 ]
 
 export default function ProfileClient({ data, accounts, followerCount: initialFollowerCount = 0, followingCount = 0 }) {
@@ -607,6 +609,8 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                 <RankHero account={account} accentColor={config.color} />
                             ) : activeGameTab.platform === "Valorant" ? (
                                 <ValorantHero account={account} accentColor={config.color} />
+                            ) : activeGameTab.platform === "TFT" ? (
+                                <TftHero account={account} accentColor={config.color} />
                             ) : (
                                 <Cs2Hero account={account} accentColor={config.color} />
                             )

@@ -159,6 +159,7 @@ async function fetchSummonerData(name, tag, mode) {
   const ddragonVersion = await fetchDdragonVersion()
   const valorantMatchHistory = await fetchValorantMatchHistory(valorantPuuid, valorantRegion, mode)
   const valorantMmrHistory = await fetchValorantMmrHistory(valorantPuuid, valorantRegion)
+  const tftMatchHistory = await fetchTftMatchHistory(account.puuid)
 
   return {
     puuid: account.puuid,
@@ -169,7 +170,8 @@ async function fetchSummonerData(name, tag, mode) {
     matchHistory,
     ddragonVersion,
     valorantMatchHistory,
-    valorantMmrHistory
+    valorantMmrHistory,
+    tftMatchHistory
   }
 }
 
@@ -356,6 +358,59 @@ function buildCs2Match(match, steam64Id) {
     gameStartTimestamp: match.finished_at ? new Date(match.finished_at).getTime() : null,
     players
   }
+}
+
+async function fetchTftMatchHistory(puuid) {
+  const idsResponse = await fetch(
+    `https://europe.api.riotgames.com/tft/match/v1/matches/by-puuid/${puuid}/ids?count=10`,
+    { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
+  )
+  const matchIds = await idsResponse.json()
+  if (!Array.isArray(matchIds)) return []
+
+  const matches = await Promise.all(
+    matchIds.map(async (matchId) => {
+      const res = await fetch(
+        `https://europe.api.riotgames.com/tft/match/v1/matches/${matchId}`,
+        { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
+      )
+      const match = await res.json()
+      const participant = match.info?.participants?.find(p => p.puuid === puuid)
+      if (!participant) return null
+
+      // Top 3 traits by style (active level), then by num_units as tiebreak
+      const topTraits = [...(participant.traits ?? [])]
+        .filter(t => t.style > 0)
+        .sort((a, b) => b.style - a.style || b.num_units - a.num_units)
+        .slice(0, 3)
+        .map(t => ({ name: t.name.replace(/^TFT\d+_/, ''), style: t.style, numUnits: t.num_units }))
+
+      // Top carries: units with items, sorted by tier desc then item count desc
+      const topUnits = [...(participant.units ?? [])]
+        .filter(u => u.itemNames?.length > 0)
+        .sort((a, b) => b.tier - a.tier || b.itemNames.length - a.itemNames.length)
+        .slice(0, 3)
+        .map(u => ({
+          name: u.character_id.replace(/^TFT\d+_/, ''),
+          tier: u.tier,
+          items: u.itemNames.map(i => i.replace(/^TFT_Item_/, ''))
+        }))
+
+      // Augments: strip internal prefix noise for readability
+      const augments = (participant.augments ?? []).map(a => a.replace(/^TFT\d+_Augment_/, ''))
+
+      return {
+        matchId,
+        placement: participant.placement,
+        augments,
+        topTraits,
+        topUnits,
+        gameLength: match.info?.game_length ?? null,
+        game_datetime: match.info?.game_datetime ?? null
+      }
+    })
+  )
+  return matches.filter(Boolean)
 }
 
 async function fetchDdragonVersion() {
