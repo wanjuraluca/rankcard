@@ -18,6 +18,8 @@ import AddGameModal from "./AddGameModal"
 import UpgradeModal from "./UpgradeModal"
 import ConfirmDialog from "./ConfirmDialog"
 import RankInfoModal from "./RankInfoModal"
+import ThemeModal from "./ThemeModal"
+import RankHistoryChart from "./RankHistoryChart"
 import { getRankTier } from "@/lib/rankScore"
 
 const gameTabs = [
@@ -44,6 +46,8 @@ export default function ProfileClient({ data, accounts }) {
     const [viewerUsername, setViewerUsername] = useState(null)
     const [authChecked, setAuthChecked] = useState(false)
     const [viewCount, setViewCount] = useState(data.view_count ?? 0)
+    const [theme, setTheme] = useState(data.theme ?? "default")
+    const [showThemeModal, setShowThemeModal] = useState(false)
 
     async function handleCopyBadge(type) {
         const profileUrl = `${window.location.origin}/${data.username}`
@@ -154,7 +158,15 @@ export default function ProfileClient({ data, accounts }) {
     const activeGameTab = gameTabs.find(tab => tab.key === activeTab)
 
     return (
-        <div className="bg-background min-h-screen p-3 max-w-[1000px] mx-auto">
+        <div
+            className="bg-background min-h-screen p-3 max-w-[1000px] mx-auto"
+            data-theme={!theme.startsWith("custom:") && theme !== "default" ? theme : undefined}
+            style={theme.startsWith("custom:") ? (() => {
+                const hex = theme.slice(7)
+                const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16)
+                return { "--accent": hex, "--accent-soft": hex, "--accent-tint": `rgba(${r},${g},${b},0.12)`, "--border": `rgba(${r},${g},${b},0.28)` }
+            })() : undefined}
+        >
 
             {/* Viewer context strip — only shown once auth check resolves */}
             {authChecked && !isOwnProfile && (
@@ -223,7 +235,7 @@ export default function ProfileClient({ data, accounts }) {
                     >
                         {shareCopied ? "Link copied ✓" : "Share profile ↗"}
                     </button>
-                    {isOwnProfile && <AccountMenu isPro={isPro} onUpgradeClick={() => setShowUpgradeModal(true)} />}
+                    {isOwnProfile && <AccountMenu isPro={isPro} onUpgradeClick={() => setShowUpgradeModal(true)} onThemeClick={() => setShowThemeModal(true)} />}
                 </div>
             </div>
 
@@ -364,6 +376,15 @@ export default function ProfileClient({ data, accounts }) {
                                 <p className="text-accent-soft text-xs">Add Game</p>
                             </div>
                         )}
+                    </div>
+
+                    {/* Rank History Chart */}
+                    <div className="flex items-center gap-2 mt-5 mb-2.5">
+                        <p className="text-text-secondary text-xs uppercase tracking-widest">Overall LP / Rating History</p>
+                        <div className="flex-1 h-px bg-hairline" />
+                    </div>
+                    <div className="bg-surface border border-hairline rounded-2xl p-4">
+                        <RankHistoryChart username={data.username} />
                     </div>
 
                     {/* Export Card */}
@@ -523,6 +544,15 @@ export default function ProfileClient({ data, accounts }) {
             {/* Rank Info Modal */}
             {showRankInfo && (
                 <RankInfoModal score={avgRankScore} onClose={() => setShowRankInfo(false)} />
+            )}
+
+            {/* Theme Modal */}
+            {showThemeModal && (
+                <ThemeModal
+                    currentTheme={theme}
+                    onClose={() => setShowThemeModal(false)}
+                    onSaved={(t) => setTheme(t)}
+                />
             )}
 
             <div className="mt-8">

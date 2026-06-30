@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import ConfirmDialog from "./ConfirmDialog"
 
-export default function AccountMenu({ isPro, onUpgradeClick }) {
+export default function AccountMenu({ isPro, onUpgradeClick, onThemeClick }) {
     const [open, setOpen] = useState(false)
     const [confirmingDelete, setConfirmingDelete] = useState(false)
     const [deleting, setDeleting] = useState(false)
@@ -59,6 +59,14 @@ export default function AccountMenu({ isPro, onUpgradeClick }) {
                                 className="w-full text-left rounded-lg px-3 py-2 text-sm text-accent-soft font-semibold hover:bg-accent-tint active:bg-accent-tint transition-colors"
                             >
                                 ★ Upgrade to Pro
+                            </button>
+                        )}
+                        {isPro && (
+                            <button
+                                onClick={() => { setOpen(false); onThemeClick?.() }}
+                                className="w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-background active:bg-background transition-colors"
+                            >
+                                🎨 Choose theme
                             </button>
                         )}
                         <button

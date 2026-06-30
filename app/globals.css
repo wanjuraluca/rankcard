@@ -35,6 +35,28 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Pro themes — override accent tokens only, everything else inherits */
+[data-theme="gold"] {
+  --accent: #e8c468;
+  --accent-soft: #d4a832;
+  --accent-tint: rgba(232, 196, 104, 0.12);
+  --border: rgba(232, 196, 104, 0.28);
+}
+
+[data-theme="teal"] {
+  --accent: #5fd9c3;
+  --accent-soft: #3db8a4;
+  --accent-tint: rgba(95, 217, 195, 0.12);
+  --border: rgba(95, 217, 195, 0.28);
+}
+
+[data-theme="rose"] {
+  --accent: #ff6b9d;
+  --accent-soft: #e04f82;
+  --accent-tint: rgba(255, 107, 157, 0.12);
+  --border: rgba(255, 107, 157, 0.28);
+}
+
 html {
   scrollbar-gutter: stable;
 }

@@ -1,5 +1,6 @@
 import { after } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { getLeagueScore, getValorantScore, getCs2Score } from '@/lib/rankScore'
 
 // Several components on the same profile page (Overall tab, the connected-
 // games card, the per-game tab) each independently request the same
@@ -60,6 +61,13 @@ export async function GET(request) {
           await supabaseAdmin
             .from('account_cache')
             .upsert({ account_id: accountId, data: fresh, updated_at: new Date().toISOString() })
+          const score = extractScore(fresh, platform)
+          if (score != null) {
+            await supabaseAdmin.from('rank_history').upsert(
+              { account_id: accountId, score, recorded_date: new Date().toISOString().slice(0, 10) },
+              { onConflict: 'account_id,recorded_date', ignoreDuplicates: true }
+            )
+          }
         })
       }
       return Response.json(row.data)
@@ -73,6 +81,13 @@ export async function GET(request) {
     await supabaseAdmin
       .from('account_cache')
       .upsert({ account_id: accountId, data, updated_at: new Date().toISOString() })
+    const score = extractScore(data, platform)
+    if (score != null) {
+      await supabaseAdmin.from('rank_history').upsert(
+        { account_id: accountId, score, recorded_date: new Date().toISOString().slice(0, 10) },
+        { onConflict: 'account_id,recorded_date', ignoreDuplicates: true }
+      )
+    }
   }
 
   return Response.json(data)
@@ -416,4 +431,30 @@ async function fetchMatchHistory(puuid, queueId) {
   )
 
   return matches.filter(Boolean)
+}
+
+// Pull the cross-game rank score out of whatever the API returned so we can
+// store it in rank_history without re-importing the full lib/rankScore module.
+function extractScore(data, platform) {
+  try {
+    if (platform === 'League of Legends') {
+      const solo = Array.isArray(data.rankData)
+        ? data.rankData.find(e => e.queueType === 'RANKED_SOLO_5x5')
+        : null
+      return solo ? getLeagueScore(solo.tier, solo.rank) : null
+    }
+    if (platform === 'Valorant') {
+      return data.valorantData?.currenttierpatched
+        ? getValorantScore(data.valorantData.currenttierpatched)
+        : null
+    }
+    if (platform === 'CSGO') {
+      return data.cs2Data?.premier_score != null
+        ? getCs2Score(data.cs2Data.premier_score)
+        : null
+    }
+  } catch {
+    return null
+  }
+  return null
 }
