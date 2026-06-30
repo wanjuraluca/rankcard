@@ -6,6 +6,7 @@ import BioEditor from "./BioEditor"
 import AccountMenu from "./AccountMenu"
 import Footer from "./Footer"
 import { useState, useEffect } from "react"
+import { Eye } from "lucide-react"
 import { platformConfig } from "@/lib/platforms"
 import { extractGameStats, average } from "@/lib/gameStats"
 import { supabase } from "@/lib/supabase"
@@ -16,6 +17,8 @@ import Cs2Hero from "./Cs2Hero"
 import AddGameModal from "./AddGameModal"
 import UpgradeModal from "./UpgradeModal"
 import ConfirmDialog from "./ConfirmDialog"
+import RankInfoModal from "./RankInfoModal"
+import { getRankTier } from "@/lib/rankScore"
 
 const gameTabs = [
     { key: "league", platform: "League of Legends" },
@@ -37,6 +40,10 @@ export default function ProfileClient({ data, accounts }) {
     const [badgeCopiedType, setBadgeCopiedType] = useState(null)
     const [removeTarget, setRemoveTarget] = useState(null)
     const [removeError, setRemoveError] = useState("")
+    const [showRankInfo, setShowRankInfo] = useState(false)
+    const [viewerUsername, setViewerUsername] = useState(null)
+    const [authChecked, setAuthChecked] = useState(false)
+    const [viewCount, setViewCount] = useState(data.view_count ?? 0)
 
     async function handleCopyBadge(type) {
         const profileUrl = `${window.location.origin}/${data.username}`
@@ -76,9 +83,29 @@ export default function ProfileClient({ data, accounts }) {
 
     useEffect(() => {
         supabase.auth.getUser().then(({ data: authData }) => {
-            setIsOwnProfile(authData?.user?.id === data.user_id)
+            const user = authData?.user
+            setIsOwnProfile(user?.id === data.user_id)
+            setViewerUsername(user?.user_metadata?.username ?? null)
+            setAuthChecked(true)
         })
     }, [])
+
+    useEffect(() => {
+        // Only count once per browser session per profile, never count own profile
+        const storageKey = `rc_viewed_${data.username}`
+        if (sessionStorage.getItem(storageKey)) return
+
+        // Wait for auth check so we know if this is the owner
+        if (!authChecked) return
+        if (isOwnProfile) return
+
+        sessionStorage.setItem(storageKey, "1")
+        fetch("/api/profile/view", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: data.username }),
+        }).then(() => setViewCount(c => c + 1))
+    }, [authChecked, isOwnProfile])
 
     function removeAccount(account) {
         setRemoveTarget(account)
@@ -129,6 +156,35 @@ export default function ProfileClient({ data, accounts }) {
     return (
         <div className="bg-background min-h-screen p-3 max-w-[1000px] mx-auto">
 
+            {/* Viewer context strip — only shown once auth check resolves */}
+            {authChecked && !isOwnProfile && (
+                <div className="mb-3 rounded-xl border border-line bg-surface px-4 py-2.5 flex items-center justify-between gap-4 text-sm">
+                    {viewerUsername ? (
+                        <>
+                            <span className="text-text-secondary">
+                                Signed in as <span className="text-text-primary font-semibold">{viewerUsername}</span>
+                            </span>
+                            <a
+                                href={`/${viewerUsername}`}
+                                className="text-accent-soft font-semibold hover:text-accent active:text-accent transition-colors flex-shrink-0"
+                            >
+                                ← Your profile
+                            </a>
+                        </>
+                    ) : (
+                        <>
+                            <span className="text-text-secondary">Get your own RankCard profile — free.</span>
+                            <a
+                                href="/auth"
+                                className="text-accent font-semibold hover:underline flex-shrink-0"
+                            >
+                                Sign up →
+                            </a>
+                        </>
+                    )}
+                </div>
+            )}
+
             {/* Banner */}
             <BannerUpload username={data.username} bannerUrl={data.banner_url} editable={isOwnProfile && isPro} />
 
@@ -146,10 +202,21 @@ export default function ProfileClient({ data, accounts }) {
                     )}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <p className="text-text-primary text-2xl font-extrabold">{data.username}</p>
+                    <div className="flex items-baseline gap-2">
+                        <p className="text-text-primary text-2xl font-extrabold">{data.username}</p>
+                        {authChecked && isOwnProfile && (
+                            <span className="relative -top-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-accent/40 text-accent-soft bg-accent-tint">
+                                Your profile
+                            </span>
+                        )}
+                    </div>
                     <BioEditor username={data.username} bio={data.bio} isOwnProfile={isOwnProfile} />
                 </div>
-                <div className="flex items-center gap-2 sm:flex-shrink-0">
+                <div className="flex items-center gap-2 sm:flex-shrink-0 flex-wrap sm:flex-nowrap">
+                    <span className="flex items-center gap-1.5 text-xs text-text-secondary border border-hairline rounded-lg px-3 py-2" title="Total profile views">
+                        <Eye size={13} className="opacity-80" />
+                        {viewCount.toLocaleString()} {viewCount === 1 ? "view" : "views"}
+                    </span>
                     <button
                         onClick={handleShareProfile}
                         className="flex-1 sm:flex-none border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all"
@@ -203,12 +270,27 @@ export default function ProfileClient({ data, accounts }) {
 
                     {/* Metric Cards */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        <div className="bg-surface border border-accent/40 rounded-2xl p-4">
-                            <p className="text-accent text-2xl font-extrabold">
-                                {avgRankScore != null ? Math.round(avgRankScore).toLocaleString() : "—"}
-                            </p>
-                            <p className="text-text-secondary text-xs">Rank Score</p>
-                        </div>
+                        <button
+                            onClick={() => setShowRankInfo(true)}
+                            className="bg-surface border border-accent/40 rounded-2xl p-4 text-left hover:bg-accent-tint active:bg-accent-tint active:scale-[0.97] transition-all group"
+                        >
+                            {(() => {
+                                const rankInfo = avgRankScore != null ? getRankTier(Math.round(avgRankScore)) : null
+                                return (
+                                    <>
+                                        <p className="text-accent text-2xl font-extrabold">
+                                            {avgRankScore != null ? Math.round(avgRankScore).toLocaleString() : "—"}
+                                        </p>
+                                        <p className="text-text-secondary text-xs">Rank Score</p>
+                                        {rankInfo && (
+                                            <p className="text-[11px] font-semibold mt-1" style={{ color: rankInfo.tier.color }}>
+                                                {rankInfo.tier.name} · Top {rankInfo.topPercent.toFixed(1)}%
+                                            </p>
+                                        )}
+                                    </>
+                                )
+                            })()}
+                        </button>
                         <div className="bg-surface border border-hairline rounded-2xl p-4">
                             <p className="text-text-primary text-2xl font-extrabold">
                                 {avgWinRate != null ? `${Math.round(avgWinRate)}%` : "—"}
@@ -436,6 +518,11 @@ export default function ProfileClient({ data, accounts }) {
                     onCancel={() => { setRemoveTarget(null); setRemoveError("") }}
                     onConfirm={confirmRemoveAccount}
                 />
+            )}
+
+            {/* Rank Info Modal */}
+            {showRankInfo && (
+                <RankInfoModal score={avgRankScore} onClose={() => setShowRankInfo(false)} />
             )}
 
             <div className="mt-8">
