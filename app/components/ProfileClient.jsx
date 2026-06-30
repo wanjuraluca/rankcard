@@ -23,7 +23,9 @@ import RankInfoModal from "./RankInfoModal"
 import ThemeModal from "./ThemeModal"
 import RankHistoryChart from "./RankHistoryChart"
 import FollowListModal from "./FollowListModal"
+import LfgPostModal from "./LfgPostModal"
 import { getRankTier } from "@/lib/rankScore"
+import { ChevronRight } from "lucide-react"
 
 const gameTabs = [
     { key: "league", platform: "League of Legends" },
@@ -64,6 +66,9 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
     const [showFollowList, setShowFollowList] = useState(null) // "followers" | "following" | null
     const [friends, setFriends] = useState([])
     const [onlineFriends, setOnlineFriends] = useState({})
+    const [lfgPost, setLfgPost] = useState(null)
+    const [showLfgModal, setShowLfgModal] = useState(false)
+    const [lfgTimeLeft, setLfgTimeLeft] = useState("")
 
     async function handleFollow() {
         if (!viewerUserId || followLoading) return
@@ -250,6 +255,36 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                 })
             })
     }, [authChecked, isOwnProfile, isPro])
+
+    useEffect(() => {
+        if (!isOwnProfile || !viewerUserId) return
+        supabase
+            .from("lfg_posts")
+            .select("*")
+            .eq("user_id", viewerUserId)
+            .gt("expires_at", new Date().toISOString())
+            .maybeSingle()
+            .then(({ data: post }) => setLfgPost(post ?? null))
+    }, [isOwnProfile, viewerUserId])
+
+    useEffect(() => {
+        if (!lfgPost?.expires_at) {
+            setLfgTimeLeft("")
+            return
+        }
+        function updateTimeLeft() {
+            const diffMs = new Date(lfgPost.expires_at).getTime() - Date.now()
+            if (diffMs <= 0) {
+                setLfgTimeLeft("expired")
+                return
+            }
+            const hours = Math.max(1, Math.round(diffMs / (1000 * 60 * 60)))
+            setLfgTimeLeft(`${hours}h`)
+        }
+        updateTimeLeft()
+        const interval = setInterval(updateTimeLeft, 60000)
+        return () => clearInterval(interval)
+    }, [lfgPost])
 
     const activeGameTab = gameTabs.find(tab => tab.key === activeTab)
 
@@ -540,6 +575,27 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         )}
                     </div>
 
+                    {/* Find a Duo entry point — only visible to the profile owner */}
+                    {isOwnProfile && (
+                        <div
+                            onClick={() => setShowLfgModal(true)}
+                            className="mt-3 border border-dashed border-line rounded-xl p-3 flex items-center justify-between cursor-pointer hover:border-accent/40 active:scale-[0.99] transition-all"
+                        >
+                            {lfgPost && lfgTimeLeft !== "expired" ? (
+                                <span className="flex items-center gap-2 text-sm">
+                                    <span className="w-2 h-2 rounded-full bg-[#4ade80] flex-shrink-0" />
+                                    <span className="text-text-primary font-semibold">Currently looking</span>
+                                    <span className="text-text-secondary">· expires in {lfgTimeLeft}</span>
+                                </span>
+                            ) : (
+                                <span className="text-text-secondary text-sm">
+                                    🎮 Looking for a Duo? · <span className="text-text-primary font-semibold">Post on the board</span> · visible for {isPro ? "72h" : "24h"}
+                                </span>
+                            )}
+                            <ChevronRight size={16} className="text-text-secondary flex-shrink-0" />
+                        </div>
+                    )}
+
                     {/* Friends Section — mutual follows, Pro feature for visitors */}
                     {(isPro || isOwnProfile) && (
                         <>
@@ -768,6 +824,19 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
             {/* Rank Info Modal */}
             {showRankInfo && (
                 <RankInfoModal score={avgRankScore} onClose={() => setShowRankInfo(false)} />
+            )}
+
+            {/* Find a Duo Post Modal */}
+            {showLfgModal && (
+                <LfgPostModal
+                    onClose={() => setShowLfgModal(false)}
+                    accounts={accountList}
+                    discordTag={data.discord_tag}
+                    isPro={isPro}
+                    existingPost={lfgPost && lfgTimeLeft !== "expired" ? lfgPost : null}
+                    onPosted={(post) => setLfgPost(post)}
+                    onRemoved={() => setLfgPost(null)}
+                />
             )}
 
             {/* Theme Modal */}
