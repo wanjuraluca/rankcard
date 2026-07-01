@@ -5,10 +5,24 @@ const FREE_DAILY_REVEAL_LIMIT = 3
 
 export async function POST(request) {
     try {
-        const { viewerUserId, targetPostId } = await request.json()
+        const { targetPostId } = await request.json()
 
-        if (!viewerUserId || !targetPostId) {
-            return NextResponse.json({ error: "Missing viewerUserId or targetPostId" }, { status: 400 })
+        // The viewer's identity is derived from their auth token, never from
+        // the request body — otherwise a free user could just send a random
+        // (or someone else's) id each time and sail past the daily limit, and
+        // the whole Discord-tag gate would be trivially bypassable.
+        const token = request.headers.get("Authorization")?.replace("Bearer ", "")
+        if (!token) {
+            return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+        }
+        const { data: authData } = await supabaseAdmin.auth.getUser(token)
+        const viewerUserId = authData?.user?.id
+        if (!viewerUserId) {
+            return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
+        }
+
+        if (!targetPostId) {
+            return NextResponse.json({ error: "Missing targetPostId" }, { status: 400 })
         }
 
         const { data: post } = await supabaseAdmin

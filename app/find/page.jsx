@@ -133,10 +133,15 @@ export default function FindDuoPage() {
 
         setRevealLoadingId(post.id)
         try {
+            const { data: sessionData } = await supabase.auth.getSession()
+            const token = sessionData?.session?.access_token
             const res = await fetch("/api/lfg/reveal", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ viewerUserId, targetPostId: post.id }),
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({ targetPostId: post.id }),
             })
             const data = await res.json()
             setRevealLoadingId(null)

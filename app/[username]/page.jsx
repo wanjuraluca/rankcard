@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { platformConfig } from "@/lib/platforms"
 import ProfileClient from "../components/ProfileClient"
@@ -48,7 +49,11 @@ export default async function Profile({ params }) {
     .from("profiles")
     .select("*")
     .eq("username", username)
-    .single()
+    .maybeSingle()
+
+  // Unknown username → clean 404 instead of a 500 crash on profile.user_id
+  // (also what search engines should see for a dead link, not a server error).
+  if (!profile) notFound()
 
   const { data: accounts } = await supabase
     .from("connected_accounts")
