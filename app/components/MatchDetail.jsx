@@ -210,8 +210,8 @@ function PlayerRow({
 
             <div className="w-[36px] sm:w-[46px] flex-shrink-0 text-text-secondary text-[10px] sm:text-xs hidden sm:block">{player.cs} CS</div>
 
-            <div className="w-[30px] sm:w-[40px] flex-shrink-0 text-text-secondary text-[10px] sm:text-xs hidden md:block">
-                {player.wards != null ? `${player.wards} w` : "—"}
+            <div className="w-[52px] sm:w-[68px] flex-shrink-0 text-text-secondary text-[10px] sm:text-xs hidden md:block" title="Vision score">
+                {player.visionScore != null ? `${player.visionScore} vision` : "—"}
             </div>
 
             <div className="hidden sm:flex gap-0.5 flex-wrap flex-1 justify-end">
@@ -223,8 +223,9 @@ function PlayerRow({
             {player.impactScore != null && (
                 <span
                     className="text-[10px] sm:text-xs font-bold text-accent-soft bg-accent-tint rounded-md px-1.5 py-0.5 flex-shrink-0 ml-1"
-                    title="Our own performance estimate — not an official Riot stat"
+                    title="Impact — our own performance estimate (not an official Riot stat): 40% kill participation, 40% team damage share, 20% gold-per-minute rank"
                 >
+                    <span className="text-[9px] sm:text-[10px] font-semibold text-text-secondary mr-1">Impact</span>
                     {player.impactScore}
                 </span>
             )}
@@ -323,6 +324,16 @@ export default function MatchDetail({
                     {renderTeam(teamB)}
                 </div>
             </div>
+
+            {/* Column key — the scoreboard is dense and several values (vision
+                score, our Impact estimate) aren't self-explanatory. */}
+            <p className="text-text-secondary text-[9px] sm:text-[10px] leading-relaxed border-t border-hairline pt-2">
+                <span className="font-semibold">KDA</span> kills/deaths/assists ·{" "}
+                <span className="font-semibold">DMG</span> damage to champions ·{" "}
+                <span className="font-semibold">CS</span> creep score ·{" "}
+                <span className="font-semibold">Vision</span> vision score ·{" "}
+                <span className="font-semibold text-accent-soft">Impact</span> our own performance estimate (kill participation, damage &amp; gold share)
+            </p>
         </div>
     )
 }
