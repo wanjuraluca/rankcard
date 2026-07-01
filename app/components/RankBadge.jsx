@@ -26,9 +26,12 @@ export default function RankBadge({ account }) {
         async function fetchRank() {
             const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}`);
             const data = await response.json();
-            const entry = data.rankData?.find((queue) => queue.queueType === "RANKED_SOLO_5x5");
+            // Guard with Array.isArray: on a Riot error (rate limit / bad key)
+            // the API returns an error object here, not an array — calling
+            // .find on it would throw and freeze the badge on "Loading...".
+            const entry = Array.isArray(data.rankData) ? data.rankData.find((queue) => queue.queueType === "RANKED_SOLO_5x5") : null;
             setRankEntry(entry ?? null)
-            const tft = data.tftData?.find((queue) => queue.queueType === "RANKED_TFT");
+            const tft = Array.isArray(data.tftData) ? data.tftData.find((queue) => queue.queueType === "RANKED_TFT") : null;
             setTftEntry(tft ?? null)
             setValorantEntry(data.valorantData?.data?.current ?? null)
             const mmrHistory = data.valorantMmrHistory ?? []

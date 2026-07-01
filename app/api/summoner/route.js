@@ -780,6 +780,7 @@ async function fetchMatchHistory(puuid, queueId) {
         gameDurationSeconds: match.info.gameDuration,
         gameEndTimestamp: match.info.gameEndTimestamp,
         queueId: match.info.queueId,
+        gameMode: match.info?.gameMode ?? null,
         players: allPlayers
       }
     })

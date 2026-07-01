@@ -47,9 +47,69 @@ const MODE_OPTIONS = [
 // (not used for the server-side filter, which needs one exact ID).
 const ARENA_QUEUE_IDS = ['1700', '1710', '1720', '1730', '1740', '1750']
 
-function modeLabel(queueId) {
+// Full queueId -> display name map for the match card. Broader than MODE_OPTIONS
+// (which is just the curated filter list) so rotating/limited modes still get a
+// proper label instead of showing nothing.
+const QUEUE_LABELS = {
+    '400': 'Normal Draft',
+    '420': 'Ranked Solo/Duo',
+    '430': 'Normal Blind',
+    '440': 'Ranked Flex',
+    '450': 'ARAM',
+    '480': 'Swiftplay',
+    '490': 'Quickplay',
+    '700': 'Clash',
+    '720': 'ARAM Clash',
+    '830': 'Co-op vs. AI',
+    '840': 'Co-op vs. AI',
+    '850': 'Co-op vs. AI',
+    '870': 'Co-op vs. AI',
+    '880': 'Co-op vs. AI',
+    '890': 'Co-op vs. AI',
+    '900': 'ARURF',
+    '1010': 'Snow ARURF',
+    '1020': 'One for All',
+    '1300': 'Nexus Blitz',
+    '1400': 'Ultimate Spellbook',
+    '1900': 'URF',
+    '2020': 'Tutorial',
+}
+
+// Fallback by Riot's info.gameMode string, so even a queueId we don't have
+// mapped yet (a brand-new rotation) still gets a readable name.
+const GAME_MODE_LABELS = {
+    CLASSIC: 'Normal',
+    ARAM: 'ARAM',
+    URF: 'URF',
+    CHERRY: 'Arena',
+    NEXUSBLITZ: 'Nexus Blitz',
+    ULTBOOK: 'Ultimate Spellbook',
+    ONEFORALL: 'One for All',
+    PRACTICETOOL: 'Practice Tool',
+    TUTORIAL: 'Tutorial',
+    DOOMBOTSTEEMO: 'Doom Bots',
+}
+
+function modeLabel(queueId, gameMode) {
     if (ARENA_QUEUE_IDS.includes(String(queueId))) return 'Arena'
-    return MODE_OPTIONS.find(o => o.value === String(queueId))?.label ?? null
+    const byQueue = QUEUE_LABELS[String(queueId)]
+    if (byQueue) return byQueue
+    if (gameMode) {
+        // Humanize an unmapped gameMode (e.g. "STARGUARDIAN" -> "Starguardian")
+        return GAME_MODE_LABELS[gameMode]
+            ?? gameMode.charAt(0).toUpperCase() + gameMode.slice(1).toLowerCase()
+    }
+    return null
+}
+
+// Riot's teamPosition uses internal names (UTILITY = the support role). Map
+// them to the names players actually use — same labels as the LFG role filter.
+const ROLE_LABELS = {
+    TOP: 'Top',
+    JUNGLE: 'Jungle',
+    MIDDLE: 'Mid',
+    BOTTOM: 'ADC',
+    UTILITY: 'Support',
 }
 
 // Small, self-contained icon pair used both on the collapsed match card and
@@ -166,7 +226,10 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
             const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}${modeQuery}`);
             const data = await response.json();
             if (cancelled) return
-            const entry = data.rankData?.find((queue) => queue.queueType === "RANKED_SOLO_5x5");
+            // Guard with Array.isArray: on a Riot error (rate limit / bad key)
+            // rankData is an error object, not an array — .find would throw and
+            // leave the hero stuck on "Loading rank...".
+            const entry = Array.isArray(data.rankData) ? data.rankData.find((queue) => queue.queueType === "RANKED_SOLO_5x5") : null;
             setRankEntry(entry ?? null)
             setMatchHistory(data.matchHistory ?? [])
             setDdragonVersion(data.ddragonVersion ?? null)
@@ -467,7 +530,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                                         />
                                         <div className="w-[64px] sm:w-[110px] flex-shrink-0">
                                             <p className="text-text-primary text-xs sm:text-sm font-bold truncate">{match.champion}</p>
-                                            <p className="text-text-secondary text-[10px] hidden sm:block">{match.role || "—"}</p>
+                                            <p className="text-text-secondary text-[10px] hidden sm:block">{ROLE_LABELS[match.role] ?? "—"}</p>
                                         </div>
                                         <div className="flex-1 font-mono text-xs sm:text-sm text-text-primary">
                                             {match.kills}/{match.deaths}/{match.assists}
@@ -497,8 +560,8 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                                         <div className="text-right flex-shrink-0 hidden sm:block">
                                             <p className="text-text-secondary font-mono text-xs">{formatDuration(match.gameDurationSeconds)}</p>
                                             <p className="text-text-secondary text-[10px]">{formatTimeAgo(match.gameEndTimestamp)}</p>
-                                            {modeLabel(match.queueId) && (
-                                                <p className="text-accent-soft text-[10px]">{modeLabel(match.queueId)}</p>
+                                            {modeLabel(match.queueId, match.gameMode) && (
+                                                <p className="text-accent-soft text-[10px]">{modeLabel(match.queueId, match.gameMode)}</p>
                                             )}
                                         </div>
                                     </button>
