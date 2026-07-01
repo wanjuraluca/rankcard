@@ -630,6 +630,46 @@ async function fetchDdragonVersion() {
   return Array.isArray(versions) ? versions[0] : null
 }
 
+// Duplicated from LpHistoryChart.jsx's ESTIMATED_LP_GAIN/ESTIMATED_LP_LOSS on
+// purpose (not imported) — that file is owned by a separate, parallel change.
+// Riot's API never exposes a match's actual LP delta, so this is a rough
+// estimate only, always paired with lpDeltaIsEstimate: true so the UI never
+// presents it as a real number.
+const RANKED_SOLO_QUEUE_ID = 420
+const ESTIMATED_LP_GAIN = 17
+const ESTIMATED_LP_LOSS = 15
+
+// Our own transparent 0-100 "how much did this player influence the game"
+// number — explicitly NOT a clone of u.gg's proprietary "Carry Score" (its
+// formula isn't public). Weighted blend of three simple, explainable signals:
+//   40% kill participation (kills+assists / team kills)
+//   40% share of team damage (own damage / summed damage of that player's team)
+//   20% gold-per-minute rank among all 10 players in the match (1st = 100%, 10th = 0%)
+// Each signal is already 0-1, combined with the weights above and rounded to 0-100.
+function calculateImpactScore(participant, allParticipants) {
+  const team = allParticipants.filter(p => p.teamId === participant.teamId)
+  const teamKills = team.reduce((sum, p) => sum + p.kills, 0)
+  const killParticipation = teamKills > 0
+    ? (participant.kills + participant.assists) / teamKills
+    : 0
+
+  const teamDamage = team.reduce((sum, p) => sum + p.totalDamageDealtToChampions, 0)
+  const damageShare = teamDamage > 0
+    ? participant.totalDamageDealtToChampions / teamDamage
+    : 0
+
+  const durationMinutes = Math.max(1, participant.timePlayed ?? 0) / 60
+  const goldPerMinute = (participant.goldEarned ?? 0) / durationMinutes
+  const sortedByGpm = [...allParticipants]
+    .map(p => (p.goldEarned ?? 0) / durationMinutes)
+    .sort((a, b) => a - b)
+  const gpmRankIndex = sortedByGpm.indexOf(goldPerMinute)
+  const gpmPercentile = allParticipants.length > 1 ? gpmRankIndex / (allParticipants.length - 1) : 0
+
+  const raw = killParticipation * 0.4 + damageShare * 0.4 + gpmPercentile * 0.2
+  return Math.round(Math.min(1, Math.max(0, raw)) * 100)
+}
+
 async function fetchMatchHistory(puuid, queueId) {
   const queueQuery = queueId ? `&queue=${queueId}` : ''
   const idsResponse = await fetch(
@@ -657,28 +697,49 @@ async function fetchMatchHistory(puuid, queueId) {
       const participant = match.info?.participants?.find(p => p.puuid === puuid)
       if (!participant) return null
 
-      const teamKills = match.info.participants
+      const allParticipants = match.info.participants
+
+      const teamKills = allParticipants
         .filter(p => p.teamId === participant.teamId)
         .reduce((sum, p) => sum + p.kills, 0)
 
-      const allPlayers = match.info.participants.map(p => ({
-        puuid: p.puuid,
-        summonerName: p.riotIdGameName || p.summonerName,
-        summonerTag: p.riotIdTagline || null,
-        champion: p.championName,
-        teamId: p.teamId,
-        win: p.win,
-        kills: p.kills,
-        deaths: p.deaths,
-        assists: p.assists,
-        cs: p.totalMinionsKilled + p.neutralMinionsKilled,
-        damageDealt: p.totalDamageDealtToChampions,
-        items: [p.item0, p.item1, p.item2, p.item3, p.item4, p.item5, p.item6].filter(id => id > 0)
-      }))
+      const allPlayers = allParticipants.map(p => {
+        const primaryStyle = p.perks?.styles?.[0]
+        const subStyle = p.perks?.styles?.[1]
+        return {
+          puuid: p.puuid,
+          summonerName: p.riotIdGameName || p.summonerName,
+          summonerTag: p.riotIdTagline || null,
+          champion: p.championName,
+          champLevel: p.champLevel ?? null,
+          teamId: p.teamId,
+          win: p.win,
+          kills: p.kills,
+          deaths: p.deaths,
+          assists: p.assists,
+          cs: p.totalMinionsKilled + p.neutralMinionsKilled,
+          damageDealt: p.totalDamageDealtToChampions,
+          goldEarned: p.goldEarned ?? null,
+          wards: (p.wardsPlaced ?? 0) + (p.visionWardsBoughtInGame ?? 0),
+          summonerSpells: [p.summoner1Id ?? null, p.summoner2Id ?? null],
+          primaryRuneId: primaryStyle?.selections?.[0]?.perk ?? null,
+          primaryRuneStyleId: primaryStyle?.style ?? null,
+          subRuneStyleId: subStyle?.style ?? null,
+          items: [p.item0, p.item1, p.item2, p.item3, p.item4, p.item5, p.item6].filter(id => id > 0),
+          impactScore: calculateImpactScore(p, allParticipants)
+        }
+      })
+
+      const primaryStyle = participant.perks?.styles?.[0]
+      const subStyle = participant.perks?.styles?.[1]
+      const lpDelta = match.info.queueId === RANKED_SOLO_QUEUE_ID
+        ? (participant.win ? ESTIMATED_LP_GAIN : -ESTIMATED_LP_LOSS)
+        : null
 
       return {
         matchId,
         champion: participant.championName,
+        champLevel: participant.champLevel ?? null,
         win: participant.win,
         kills: participant.kills,
         deaths: participant.deaths,
@@ -687,7 +748,17 @@ async function fetchMatchHistory(puuid, queueId) {
         role: participant.teamPosition,
         visionScore: participant.visionScore,
         damageDealt: participant.totalDamageDealtToChampions,
+        goldEarned: participant.goldEarned ?? null,
+        wards: (participant.wardsPlaced ?? 0) + (participant.visionWardsBoughtInGame ?? 0),
+        summonerSpells: [participant.summoner1Id ?? null, participant.summoner2Id ?? null],
+        primaryRuneId: primaryStyle?.selections?.[0]?.perk ?? null,
+        primaryRuneStyleId: primaryStyle?.style ?? null,
+        subRuneStyleId: subStyle?.style ?? null,
         killParticipationPct: teamKills > 0 ? Math.round(((participant.kills + participant.assists) / teamKills) * 100) : null,
+        // Estimate only — Riot's API never returns the real per-match LP delta.
+        lpDelta,
+        lpDeltaIsEstimate: lpDelta != null ? true : undefined,
+        impactScore: calculateImpactScore(participant, allParticipants),
         gameDurationSeconds: match.info.gameDuration,
         gameEndTimestamp: match.info.gameEndTimestamp,
         queueId: match.info.queueId,

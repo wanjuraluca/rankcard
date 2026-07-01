@@ -52,6 +52,55 @@ function modeLabel(queueId) {
     return MODE_OPTIONS.find(o => o.value === String(queueId))?.label ?? null
 }
 
+// Small, self-contained icon pair used both on the collapsed match card and
+// (via the same lookup maps) inside MatchDetail's scoreboard rows. Renders
+// nothing for a spell/rune it can't resolve instead of a broken <img>.
+function SummonerSpellIcons({ summonerSpells, summonerSpellIconById }) {
+    const icons = (summonerSpells ?? []).filter(id => id != null && summonerSpellIconById[id])
+    if (icons.length === 0) return null
+
+    return (
+        <div className="flex flex-col gap-0.5">
+            {icons.map((id, i) => (
+                <img
+                    key={i}
+                    src={summonerSpellIconById[id]}
+                    alt="Summoner spell"
+                    className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-[3px]"
+                    onError={(e) => { e.currentTarget.style.display = "none" }}
+                />
+            ))}
+        </div>
+    )
+}
+
+function RuneIcons({ primaryRuneId, subRuneStyleId, runeIconById, runeStyleIconById }) {
+    const primaryIcon = primaryRuneId != null ? runeIconById[primaryRuneId] : null
+    const subIcon = subRuneStyleId != null ? runeStyleIconById[subRuneStyleId] : null
+    if (!primaryIcon && !subIcon) return null
+
+    return (
+        <div className="flex flex-col gap-0.5 items-center">
+            {primaryIcon && (
+                <img
+                    src={primaryIcon}
+                    alt="Keystone"
+                    className="w-4 h-4 sm:w-[18px] sm:h-[18px] rounded-full bg-surface"
+                    onError={(e) => { e.currentTarget.style.display = "none" }}
+                />
+            )}
+            {subIcon && (
+                <img
+                    src={subIcon}
+                    alt="Rune tree"
+                    className="w-3 h-3 sm:w-3.5 sm:h-3.5 rounded-full bg-surface opacity-80"
+                    onError={(e) => { e.currentTarget.style.display = "none" }}
+                />
+            )}
+        </div>
+    )
+}
+
 function buildTopChampions(matchHistory) {
     const byChampion = {}
     for (const match of matchHistory) {
@@ -81,6 +130,9 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
     const [yourPuuid, setYourPuuid] = useState(null)
     const [expandedMatchId, setExpandedMatchId] = useState(null)
     const [itemData, setItemData] = useState(null)
+    const [summonerSpellIconById, setSummonerSpellIconById] = useState({})
+    const [runeIconById, setRuneIconById] = useState({})
+    const [runeStyleIconById, setRuneStyleIconById] = useState({})
     const [loading, setLoading] = useState(true)
     const [modeFilter, setModeFilter] = useState('')
     const [modeMenuOpen, setModeMenuOpen] = useState(false)
@@ -141,6 +193,61 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
             setItemData(json.data ?? null)
         }
         fetchItemData()
+    }, [ddragonVersion])
+
+    // Same pattern as fetchItemData above: fire once the ddragon version is
+    // known, build a lookup map keyed by the numeric IDs Riot's match API
+    // returns (summoner1Id/summoner2Id, perk IDs), so cards/scoreboard rows
+    // can resolve an icon URL with a plain object lookup.
+    useEffect(() => {
+        if (!ddragonVersion) return
+
+        async function fetchSummonerSpellData() {
+            try {
+                const response = await fetch(`https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/data/en_US/summoner.json`)
+                const json = await response.json()
+                const byId = {}
+                for (const spell of Object.values(json.data ?? {})) {
+                    if (spell?.key && spell?.image?.full) {
+                        byId[spell.key] = `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/spell/${spell.image.full}`
+                    }
+                }
+                setSummonerSpellIconById(byId)
+            } catch {
+                // Missing spell icons should never break the match cards — they
+                // just render without spell icons.
+                setSummonerSpellIconById({})
+            }
+        }
+
+        async function fetchRuneData() {
+            try {
+                const response = await fetch(`https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/data/en_US/runesReforged.json`)
+                const trees = await response.json()
+                const runeById = {}
+                const styleById = {}
+                for (const tree of Array.isArray(trees) ? trees : []) {
+                    if (tree?.id && tree?.icon) {
+                        styleById[tree.id] = `https://ddragon.leagueoflegends.com/cdn/img/${tree.icon}`
+                    }
+                    for (const slot of tree?.slots ?? []) {
+                        for (const rune of slot?.runes ?? []) {
+                            if (rune?.id && rune?.icon) {
+                                runeById[rune.id] = `https://ddragon.leagueoflegends.com/cdn/img/${rune.icon}`
+                            }
+                        }
+                    }
+                }
+                setRuneIconById(runeById)
+                setRuneStyleIconById(styleById)
+            } catch {
+                setRuneIconById({})
+                setRuneStyleIconById({})
+            }
+        }
+
+        fetchSummonerSpellData()
+        fetchRuneData()
     }, [ddragonVersion])
 
     if (loading) {
@@ -334,21 +441,53 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                                         className="w-full flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 text-left active:bg-hairline/40 transition-colors"
                                     >
                                         {championIconUrl(match.champion) && (
-                                            <img
-                                                src={championIconUrl(match.champion)}
-                                                alt={match.champion}
-                                                className="w-8 h-8 sm:w-9 sm:h-9 rounded-md object-cover bg-surface flex-shrink-0"
-                                                onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
-                                            />
+                                            <div className="relative flex-shrink-0">
+                                                <img
+                                                    src={championIconUrl(match.champion)}
+                                                    alt={match.champion}
+                                                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-md object-cover bg-surface"
+                                                    onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
+                                                />
+                                                {match.champLevel != null && (
+                                                    <span className="absolute -bottom-1 -right-1 bg-surface border border-hairline rounded-full text-text-primary text-[9px] leading-none px-[3px] py-[2px] font-bold">
+                                                        {match.champLevel}
+                                                    </span>
+                                                )}
+                                            </div>
                                         )}
+                                        <SummonerSpellIcons summonerSpells={match.summonerSpells} summonerSpellIconById={summonerSpellIconById} />
+                                        <RuneIcons
+                                            primaryRuneId={match.primaryRuneId}
+                                            subRuneStyleId={match.subRuneStyleId}
+                                            runeIconById={runeIconById}
+                                            runeStyleIconById={runeStyleIconById}
+                                        />
                                         <div className="w-[64px] sm:w-[110px] flex-shrink-0">
                                             <p className="text-text-primary text-xs sm:text-sm font-bold truncate">{match.champion}</p>
                                             <p className="text-text-secondary text-[10px] hidden sm:block">{match.role || "—"}</p>
                                         </div>
                                         <div className="flex-1 font-mono text-xs sm:text-sm text-text-primary">
                                             {match.kills}/{match.deaths}/{match.assists}
-                                            <span className="text-text-secondary text-[10px] sm:text-xs ml-1 sm:ml-2">{match.cs} CS</span>
+                                            <span className="text-text-secondary text-[10px] sm:text-xs ml-1 sm:ml-2">
+                                                {(match.cs / (match.gameDurationSeconds / 60)).toFixed(1)} CS/min
+                                            </span>
+                                            <span className="text-text-secondary text-[10px] sm:text-xs ml-1.5 hidden sm:inline">
+                                                ({match.cs} CS)
+                                            </span>
+                                            {match.visionScore != null && (
+                                                <span className="text-text-secondary text-[10px] sm:text-xs ml-1.5 hidden sm:inline">
+                                                    · {match.visionScore} vision
+                                                </span>
+                                            )}
                                         </div>
+                                        {match.lpDelta != null && (
+                                            <p
+                                                className={`text-[10px] sm:text-xs font-bold flex-shrink-0 ${match.lpDelta > 0 ? "text-positive" : "text-negative"}`}
+                                                title={match.lpDeltaIsEstimate ? "Estimated LP change — Riot doesn't expose the real per-match value" : undefined}
+                                            >
+                                                {match.lpDelta > 0 ? "▲" : "▼"} {match.lpDelta > 0 ? "+" : ""}{match.lpDelta} LP
+                                            </p>
+                                        )}
                                         <p className={`text-xs sm:text-sm font-bold flex-shrink-0 ${match.win ? "text-positive" : "text-negative"}`}>
                                             {match.win ? "Win" : "Loss"}
                                         </p>
@@ -362,7 +501,15 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                                     </button>
                                     {isExpanded && (
                                         <div className="border-t border-hairline">
-                                            <MatchDetail match={match} ddragonVersion={ddragonVersion} yourPuuid={yourPuuid} itemData={itemData} />
+                                            <MatchDetail
+                                                match={match}
+                                                ddragonVersion={ddragonVersion}
+                                                yourPuuid={yourPuuid}
+                                                itemData={itemData}
+                                                summonerSpellIconById={summonerSpellIconById}
+                                                runeIconById={runeIconById}
+                                                runeStyleIconById={runeStyleIconById}
+                                            />
                                         </div>
                                     )}
                                 </div>
