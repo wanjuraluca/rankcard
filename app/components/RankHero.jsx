@@ -156,7 +156,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
 
     return (
         <div
-            className="bg-surface border border-line rounded-2xl p-4 sm:p-5 relative overflow-hidden"
+            className="bg-surface border border-line rounded-2xl p-4 sm:p-5 relative"
             style={{ borderTopWidth: 3, borderTopColor: accentColor }}
         >
             <div className="flex gap-3 sm:gap-5 items-center flex-wrap">
