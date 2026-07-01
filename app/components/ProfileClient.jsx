@@ -423,7 +423,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     >
                         {shareCopied ? "Link copied ✓" : "Share profile ↗"}
                     </button>
-                    {isOwnProfile && <AccountMenu isPro={isPro} onUpgradeClick={() => setShowUpgradeModal(true)} onThemeClick={() => setShowThemeModal(true)} />}
+                    {isOwnProfile && <AccountMenu isPro={isPro} stripeCustomerId={data.stripe_customer_id} username={data.username} onUpgradeClick={() => setShowUpgradeModal(true)} onThemeClick={() => setShowThemeModal(true)} />}
                 </div>
             </div>
 

@@ -104,9 +104,17 @@ async function handleSubmit(e) {
     else {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("username")
+        .select("username, deletion_requested_at")
         .eq("user_id", data.user.id)
         .single()
+
+      if (profile.deletion_requested_at) {
+        await supabase
+          .from("profiles")
+          .update({ deletion_requested_at: null })
+          .eq("user_id", data.user.id)
+      }
+
       router.push("/" + profile.username)
     }
   } else {

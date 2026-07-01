@@ -3,18 +3,38 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
-import ConfirmDialog from "./ConfirmDialog"
+import DeleteAccountDialog from "./DeleteAccountDialog"
 
-export default function AccountMenu({ isPro, onUpgradeClick, onThemeClick }) {
+export default function AccountMenu({ isPro, stripeCustomerId, username, onUpgradeClick, onThemeClick }) {
     const [open, setOpen] = useState(false)
     const [confirmingDelete, setConfirmingDelete] = useState(false)
     const [deleting, setDeleting] = useState(false)
     const [deleteError, setDeleteError] = useState("")
+    const [deleteDone, setDeleteDone] = useState(false)
+    const [portalLoading, setPortalLoading] = useState(false)
     const router = useRouter()
 
     async function handleSignOut() {
         await supabase.auth.signOut()
         router.push("/auth")
+    }
+
+    async function handleManageSubscription() {
+        setOpen(false)
+        setPortalLoading(true)
+        try {
+            const res = await fetch("/api/stripe/portal", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ username }),
+            })
+            const data = await res.json()
+            if (!res.ok) throw new Error(data?.error || "Could not open subscription management.")
+            window.location.href = data.url
+        } catch (err) {
+            setPortalLoading(false)
+            alert(err.message || "Could not open subscription management.")
+        }
     }
 
     async function handleDeleteAccount() {
@@ -36,6 +56,11 @@ export default function AccountMenu({ isPro, onUpgradeClick, onThemeClick }) {
             return
         }
 
+        setDeleting(false)
+        setDeleteDone(true)
+    }
+
+    async function handleSignOutAfterDelete() {
         await supabase.auth.signOut()
         router.push("/")
     }
@@ -69,6 +94,15 @@ export default function AccountMenu({ isPro, onUpgradeClick, onThemeClick }) {
                                 🎨 Choose theme
                             </button>
                         )}
+                        {isPro && stripeCustomerId && (
+                            <button
+                                onClick={handleManageSubscription}
+                                disabled={portalLoading}
+                                className="w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-background active:bg-background transition-colors disabled:opacity-50"
+                            >
+                                {portalLoading ? "Loading..." : "Manage subscription"}
+                            </button>
+                        )}
                         <button
                             onClick={handleSignOut}
                             className="w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-background active:bg-background transition-colors"
@@ -86,15 +120,14 @@ export default function AccountMenu({ isPro, onUpgradeClick, onThemeClick }) {
             )}
 
             {confirmingDelete && (
-                <ConfirmDialog
-                    title="Delete your account?"
-                    message="This permanently removes your profile and all connected games. This cannot be undone."
-                    confirmLabel="Delete account"
-                    danger
+                <DeleteAccountDialog
+                    username={username}
                     loading={deleting}
                     error={deleteError}
+                    done={deleteDone}
                     onCancel={() => { setConfirmingDelete(false); setDeleteError("") }}
                     onConfirm={handleDeleteAccount}
+                    onSignOut={handleSignOutAfterDelete}
                 />
             )}
         </div>

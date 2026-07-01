@@ -1,5 +1,9 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin"
 
+// Doesn't delete anything immediately — schedules the account for deletion
+// in 14 days by stamping deletion_requested_at. The actual removal happens
+// in the daily cron job (app/api/cron/delete-account/route.js), which gives
+// the user a grace period to cancel by simply logging back in.
 export async function POST(request) {
     const authHeader = request.headers.get("authorization") || ""
     const accessToken = authHeader.replace("Bearer ", "")
@@ -15,12 +19,13 @@ export async function POST(request) {
 
     const userId = userData.user.id
 
-    await supabaseAdmin.from("connected_accounts").delete().eq("user_id", userId)
-    await supabaseAdmin.from("profiles").delete().eq("id", userId)
+    const { error: updateError } = await supabaseAdmin
+        .from("profiles")
+        .update({ deletion_requested_at: new Date().toISOString() })
+        .eq("user_id", userId)
 
-    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
-    if (deleteError) {
-        return Response.json({ error: deleteError.message }, { status: 500 })
+    if (updateError) {
+        return Response.json({ error: updateError.message }, { status: 500 })
     }
 
     return Response.json({ success: true })
