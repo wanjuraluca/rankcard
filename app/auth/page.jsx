@@ -18,6 +18,8 @@ export default function Login() {
   const [resetSent, setResetSent] = useState(false)
   const [signupDone, setSignupDone] = useState(false)
   const [checkingConfirmation, setCheckingConfirmation] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [resendSent, setResendSent] = useState(false)
   const router = useRouter()
 
   function friendlyError(message) {
@@ -62,6 +64,16 @@ export default function Login() {
   })
   if (error) setError(friendlyError(error.message))
   else setResetSent(true)
+}
+
+async function handleResendConfirmation() {
+  setResending(true)
+  setError("")
+  setResendSent(false)
+  const { error } = await supabase.auth.resend({ type: "signup", email })
+  setResending(false)
+  if (error) setError(friendlyError(error.message))
+  else setResendSent(true)
 }
 
 async function handleCheckConfirmation() {
@@ -151,6 +163,11 @@ async function handleSubmit(e) {
               <p className="mt-2.5 text-sm leading-relaxed text-text-secondary">
                 We sent a confirmation link to <b className="font-semibold text-white">{email}</b>. Click it to activate your account and your profile will go live.
               </p>
+              {resendSent && (
+                <div className="mt-4 rounded-lg border border-positive/40 bg-positive/10 px-3.5 py-2.5 text-sm text-positive">
+                  Confirmation email resent. Check your inbox (and spam folder).
+                </div>
+              )}
               {error && (
                 <div className="mt-4 rounded-lg border border-negative/40 bg-negative/10 px-3.5 py-2.5 text-sm text-negative">
                   {error}
@@ -164,8 +181,15 @@ async function handleSubmit(e) {
                 {checkingConfirmation ? "Checking..." : "I've confirmed my email"}
               </button>
               <button
+                onClick={handleResendConfirmation}
+                disabled={resending}
+                className="mt-3 w-full cursor-pointer rounded-lg border border-line bg-background py-3 text-[15px] font-semibold text-white transition-colors hover:border-accent disabled:opacity-60"
+              >
+                {resending ? "Resending..." : "Resend confirmation email"}
+              </button>
+              <button
                 onClick={() => { setSignupDone(false); setIsLogin(true); setError("") }}
-                className="mt-3 w-full cursor-pointer rounded-lg border border-line bg-background py-3 text-[15px] font-semibold text-white transition-colors hover:border-accent"
+                className="mt-3 w-full cursor-pointer text-sm text-text-secondary hover:text-white transition-colors"
               >
                 Back to sign in
               </button>

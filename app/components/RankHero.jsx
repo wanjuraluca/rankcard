@@ -33,7 +33,12 @@ const MODE_OPTIONS = [
     { value: '400', label: 'Normal Draft' },
     { value: '450', label: 'ARAM' },
     { value: '700', label: 'Clash' },
+    { value: '1700', label: 'Arena' },
 ]
+
+function modeLabel(queueId) {
+    return MODE_OPTIONS.find(o => o.value === String(queueId))?.label ?? null
+}
 
 function buildTopChampions(matchHistory) {
     const byChampion = {}
@@ -331,6 +336,9 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                                         <div className="text-right flex-shrink-0 hidden sm:block">
                                             <p className="text-text-secondary font-mono text-xs">{formatDuration(match.gameDurationSeconds)}</p>
                                             <p className="text-text-secondary text-[10px]">{formatTimeAgo(match.gameEndTimestamp)}</p>
+                                            {modeLabel(match.queueId) && (
+                                                <p className="text-accent-soft text-[10px]">{modeLabel(match.queueId)}</p>
+                                            )}
                                         </div>
                                     </button>
                                     {isExpanded && (
