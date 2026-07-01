@@ -2,6 +2,25 @@ import { after } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { getLeagueScore, getValorantScore, getCs2Score, getTftScore } from '@/lib/rankScore'
 
+// A background cache refresh occasionally hits a transient Riot/Henrik
+// hiccup (rate limit, brief 5xx) and gets back an empty match-history array
+// where a real one existed a moment ago. Without this guard, that empty
+// result gets written straight into account_cache and served as truth for
+// up to DB_CACHE_STALE_MS — "All Modes" would flash from 8 games to 0/2
+// until the next refresh happens to succeed. Keep the previous non-empty
+// value for any of these arrays instead of trusting a fetch that came back
+// suspiciously emptier than what we already had.
+function withStaleArrayGuard(previous, fresh) {
+  if (!previous) return fresh
+  const guarded = { ...fresh }
+  for (const key of ['matchHistory', 'valorantMatchHistory', 'tftMatchHistory']) {
+    if (Array.isArray(previous[key]) && previous[key].length > 0 && Array.isArray(guarded[key]) && guarded[key].length === 0) {
+      guarded[key] = previous[key]
+    }
+  }
+  return guarded
+}
+
 // Piggybacks on data we already fetched live (no extra Riot calls) to keep
 // lp_history/tft_lp_history fresh throughout the day, not just once via the
 // daily snapshot-lp cron — so the LP chart moves the same day you play,
@@ -102,7 +121,7 @@ export async function GET(request) {
         // Serve the stale-but-fast cached data now, refresh it in the
         // background after the response is sent so the next visit is fresh.
         after(async () => {
-          const fresh = await fetchLive()
+          const fresh = withStaleArrayGuard(row.data, await fetchLive())
           await supabaseAdmin
             .from('account_cache')
             .upsert({ account_id: accountId, data: fresh, updated_at: new Date().toISOString() })
