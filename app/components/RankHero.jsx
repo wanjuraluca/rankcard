@@ -389,6 +389,9 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                         currentLeaguePoints={rankEntry.leaguePoints}
                         accentColor={accentColor}
                         ddragonVersion={ddragonVersion}
+                        puuid={yourPuuid}
+                        tier={rankEntry.tier}
+                        rank={rankEntry.rank}
                     />
                 </div>
             </div>

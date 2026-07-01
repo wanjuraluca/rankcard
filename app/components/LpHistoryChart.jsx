@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Line } from "react-chartjs-2"
 import {
     Chart as ChartJS,
@@ -165,139 +165,149 @@ export default function LpHistoryChart({
         return () => { cancelled = true }
     }, [puuid])
 
-    if (trackedHistory === null) {
-        return <p className="text-text-secondary text-xs">Loading LP history...</p>
-    }
+    // All of this is pure derivation from props/state — wrapped in useMemo so
+    // it only recomputes when a real input changes. Without this, every
+    // render (including the ones the chart's own tooltip triggers) rebuilds
+    // `data`/`points` as brand-new objects, which makes react-chartjs-2 push
+    // a fresh update to Chart.js, which re-invokes the external tooltip
+    // callback, which calls setTooltip(), which re-renders — a feedback loop
+    // that made the chart lag/flicker under the mouse.
+    const derived = useMemo(() => {
+        // matchHistory (the short, detail-rich list already fetched by RankHero)
+        // takes priority for any match that appears in both sources, since it
+        // carries champion/full context for the tooltip. The extended timeline
+        // only fills in games further back that matchHistory doesn't cover.
+        const shortRankedMatches = matchHistory
+            .filter(m => m.queueId === RANKED_SOLO_QUEUE_ID)
+            .map(m => ({ matchId: m.matchId, win: m.win, timestamp: m.gameEndTimestamp, champion: m.champion }))
 
-    // matchHistory (the short, detail-rich list already fetched by RankHero)
-    // takes priority for any match that appears in both sources, since it
-    // carries champion/full context for the tooltip. The extended timeline
-    // only fills in games further back that matchHistory doesn't cover.
-    const shortRankedMatches = matchHistory
-        .filter(m => m.queueId === RANKED_SOLO_QUEUE_ID)
-        .map(m => ({ matchId: m.matchId, win: m.win, timestamp: m.gameEndTimestamp, champion: m.champion }))
+        const knownMatchIds = new Set(shortRankedMatches.map(m => m.matchId))
+        const extendedMatches = timelinePoints
+            .filter(p => !knownMatchIds.has(p.matchId))
+            .map(p => ({ matchId: p.matchId, win: p.win, timestamp: p.timestamp, champion: null }))
 
-    const knownMatchIds = new Set(shortRankedMatches.map(m => m.matchId))
-    const extendedMatches = timelinePoints
-        .filter(p => !knownMatchIds.has(p.matchId))
-        .map(p => ({ matchId: p.matchId, win: p.win, timestamp: p.timestamp, champion: null }))
+        const rankedMatches = [...shortRankedMatches, ...extendedMatches]
 
-    const rankedMatches = [...shortRankedMatches, ...extendedMatches]
+        const estimatedPoints = buildEstimatedPoints(rankedMatches, currentLeaguePoints)
 
-    const estimatedPoints = buildEstimatedPoints(rankedMatches, currentLeaguePoints)
+        const history = trackedHistory ?? []
+        const trackedPoints = history.map((entry, i) => ({
+            timestamp: new Date(entry.recorded_on).getTime(),
+            lp: entry.league_points,
+            delta: i === 0 ? null : entry.league_points - history[i - 1].league_points,
+            champion: null,
+            win: null,
+            matchId: null,
+            isEstimated: false
+        }))
 
-    const trackedPoints = trackedHistory.map((entry, i) => ({
-        timestamp: new Date(entry.recorded_on).getTime(),
-        lp: entry.league_points,
-        delta: i === 0 ? null : entry.league_points - trackedHistory[i - 1].league_points,
-        champion: null,
-        win: null,
-        matchId: null,
-        isEstimated: false
-    }))
+        const points = [...estimatedPoints, ...trackedPoints]
+        const estimatedCount = estimatedPoints.length
+        // Games actually covered by the win/loss-based estimate (excludes the
+        // synthetic "now" point at index 0, and excludes tracked/daily-snapshot
+        // points which aren't per-game). This is the real, honest count shown in
+        // the "Last N games" label below — never hardcoded to 100.
+        const gamesCovered = estimatedCount > 0 ? estimatedCount - 1 : 0
 
-    const points = [...estimatedPoints, ...trackedPoints]
-    const estimatedCount = estimatedPoints.length
-    // Games actually covered by the win/loss-based estimate (excludes the
-    // synthetic "now" point at index 0, and excludes tracked/daily-snapshot
-    // points which aren't per-game). This is the real, honest count shown in
-    // the "Last N games" label below — never hardcoded to 100.
-    const gamesCovered = estimatedCount > 0 ? estimatedCount - 1 : 0
+        const labels = points.map(p => formatFullDate(p.timestamp))
 
-    const labels = points.map(p => formatFullDate(p.timestamp))
+        const estimatedData = points.map((p, i) => (i < estimatedCount ? p.lp : null))
+        const trackedData = points.map((p, i) => (i >= estimatedCount - 1 ? p.lp : null))
 
-    const estimatedData = points.map((p, i) => (i < estimatedCount ? p.lp : null))
-    const trackedData = points.map((p, i) => (i >= estimatedCount - 1 ? p.lp : null))
+        // Net LP change across the whole combined series (oldest plotted point
+        // vs. the current real LP), for the "▲/▼ N LP" summary.
+        const firstPoint = points[0] ?? null
+        const lastPoint = points[points.length - 1] ?? null
+        const netLpChange = firstPoint && lastPoint ? Math.round(lastPoint.lp - firstPoint.lp) : null
 
-    // Net LP change across the whole combined series (oldest plotted point
-    // vs. the current real LP), for the "▲/▼ N LP" summary.
-    const firstPoint = points[0] ?? null
-    const lastPoint = points[points.length - 1] ?? null
-    const netLpChange = firstPoint && lastPoint ? Math.round(lastPoint.lp - firstPoint.lp) : null
+        // Tier reference lines. Prefer the precise ladder anchored on the real
+        // tier/rank (when RankHero passes it through); otherwise approximate a
+        // plausible division-sized band purely from the LP values being plotted
+        // (e.g. min/max of 0-100-ish -> draw the boundaries around that range).
+        const plottedLpValues = points.map(p => p.lp).filter(v => typeof v === "number")
+        const minLp = plottedLpValues.length ? Math.min(...plottedLpValues) : 0
+        const maxLp = plottedLpValues.length ? Math.max(...plottedLpValues) : 100
 
-    // Tier reference lines. Prefer the precise ladder anchored on the real
-    // tier/rank (when RankHero passes it through); otherwise approximate a
-    // plausible division-sized band purely from the LP values being plotted
-    // (e.g. min/max of 0-100-ish -> draw the boundaries around that range).
-    const plottedLpValues = points.map(p => p.lp).filter(v => typeof v === "number")
-    const minLp = plottedLpValues.length ? Math.min(...plottedLpValues) : 0
-    const maxLp = plottedLpValues.length ? Math.max(...plottedLpValues) : 100
-
-    let referenceLines = []
-    if (tier && TIER_LADDER.some(e => e.tier === tier.toUpperCase())) {
-        const anchor = toLadderValue(tier, rank, currentLeaguePoints)
-        if (anchor != null) {
-            // Convert every plotted LP point onto ladder units relative to the
-            // anchor, so reference lines line up with the actual chart data
-            // even though the chart itself still plots raw within-division LP.
-            const bufferLp = 60
-            const ladderMin = anchor - (currentLeaguePoints - minLp) - bufferLp
-            const ladderMax = anchor + (maxLp - currentLeaguePoints) + bufferLp
-            referenceLines = TIER_LADDER
-                .filter(e => e.floor >= ladderMin && e.floor <= ladderMax)
-                .map(e => ({ label: e.label, lpValue: e.floor - anchor + currentLeaguePoints }))
-        }
-    }
-    if (referenceLines.length === 0) {
-        // Fallback: no tier/rank prop available — approximate boundaries
-        // purely from the visible LP range using the same 100-LP-per-division
-        // convention, unanchored to a specific real tier name.
-        const bufferLp = 30
-        const from = Math.floor((minLp - bufferLp) / LP_PER_DIVISION) * LP_PER_DIVISION
-        const to = Math.ceil((maxLp + bufferLp) / LP_PER_DIVISION) * LP_PER_DIVISION
-        for (let lpValue = from; lpValue <= to; lpValue += LP_PER_DIVISION) {
-            referenceLines.push({ label: `${lpValue} LP`, lpValue })
-        }
-    }
-    // Never show more than a handful at once — keep the grid readable.
-    referenceLines = referenceLines.slice(0, 6)
-
-    const referenceDatasets = referenceLines.map(line => ({
-        label: `ref-${line.label}`,
-        data: points.map(() => line.lpValue),
-        borderColor: "#ffffff1f",
-        borderDash: [3, 5],
-        borderWidth: 1,
-        pointRadius: 0,
-        pointHoverRadius: 0,
-        fill: false,
-        order: 10
-    }))
-
-    const data = {
-        labels,
-        datasets: [
-            ...referenceDatasets,
-            {
-                label: "Estimated",
-                data: estimatedData,
-                borderColor: accentColor,
-                borderDash: [4, 4],
-                borderWidth: 2,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                pointHoverBackgroundColor: accentColor,
-                fill: false,
-                spanGaps: true,
-                order: 1
-            },
-            {
-                label: "Tracked",
-                data: trackedData,
-                borderColor: accentColor,
-                borderWidth: 2,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                pointHoverBackgroundColor: accentColor,
-                fill: true,
-                backgroundColor: `${accentColor}14`,
-                spanGaps: true,
-                order: 0
+        let referenceLines = []
+        if (tier && TIER_LADDER.some(e => e.tier === tier.toUpperCase())) {
+            const anchor = toLadderValue(tier, rank, currentLeaguePoints)
+            if (anchor != null) {
+                // Convert every plotted LP point onto ladder units relative to the
+                // anchor, so reference lines line up with the actual chart data
+                // even though the chart itself still plots raw within-division LP.
+                const bufferLp = 60
+                const ladderMin = anchor - (currentLeaguePoints - minLp) - bufferLp
+                const ladderMax = anchor + (maxLp - currentLeaguePoints) + bufferLp
+                referenceLines = TIER_LADDER
+                    .filter(e => e.floor >= ladderMin && e.floor <= ladderMax)
+                    .map(e => ({ label: e.label, lpValue: e.floor - anchor + currentLeaguePoints }))
             }
-        ]
-    }
+        }
+        if (referenceLines.length === 0) {
+            // Fallback: no tier/rank prop available — approximate boundaries
+            // purely from the visible LP range using the same 100-LP-per-division
+            // convention, unanchored to a specific real tier name.
+            const bufferLp = 30
+            const from = Math.floor((minLp - bufferLp) / LP_PER_DIVISION) * LP_PER_DIVISION
+            const to = Math.ceil((maxLp + bufferLp) / LP_PER_DIVISION) * LP_PER_DIVISION
+            for (let lpValue = from; lpValue <= to; lpValue += LP_PER_DIVISION) {
+                referenceLines.push({ label: `${lpValue} LP`, lpValue })
+            }
+        }
+        // Never show more than a handful at once — keep the grid readable.
+        referenceLines = referenceLines.slice(0, 6)
 
-    const options = {
+        const referenceDatasets = referenceLines.map(line => ({
+            label: `ref-${line.label}`,
+            data: points.map(() => line.lpValue),
+            borderColor: "#ffffff1f",
+            borderDash: [3, 5],
+            borderWidth: 1,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            fill: false,
+            order: 10
+        }))
+
+        const data = {
+            labels,
+            datasets: [
+                ...referenceDatasets,
+                {
+                    label: "Estimated",
+                    data: estimatedData,
+                    borderColor: accentColor,
+                    borderDash: [4, 4],
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    pointHoverBackgroundColor: accentColor,
+                    fill: false,
+                    spanGaps: true,
+                    order: 1
+                },
+                {
+                    label: "Tracked",
+                    data: trackedData,
+                    borderColor: accentColor,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    pointHoverBackgroundColor: accentColor,
+                    fill: true,
+                    backgroundColor: `${accentColor}14`,
+                    spanGaps: true,
+                    order: 0
+                }
+            ]
+        }
+
+        return { points, labels, data, gamesCovered, trackedPointsCount: trackedPoints.length, netLpChange, referenceLines, minLp, maxLp }
+    }, [matchHistory, timelinePoints, trackedHistory, currentLeaguePoints, tier, rank, accentColor])
+
+    const { points, labels, data, gamesCovered, trackedPointsCount, netLpChange, referenceLines, minLp, maxLp } = derived
+
+    const options = useMemo(() => ({
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false },
@@ -308,7 +318,7 @@ export default function LpHistoryChart({
                 external: (context) => {
                     const tooltipModel = context.tooltip
                     if (!tooltipModel || tooltipModel.opacity === 0 || !tooltipModel.dataPoints?.length) {
-                        setTooltip(null)
+                        setTooltip(prev => (prev === null ? prev : null))
                         return
                     }
                     // Reference-line datasets are drawn first and can also
@@ -318,15 +328,23 @@ export default function LpHistoryChart({
                     const dataIndex = (realDataPoint ?? tooltipModel.dataPoints[0]).dataIndex
                     const point = points[dataIndex]
                     if (!point) {
-                        setTooltip(null)
+                        setTooltip(prev => (prev === null ? prev : null))
                         return
                     }
-                    setTooltip({
-                        x: tooltipModel.caretX,
-                        y: tooltipModel.caretY,
-                        align: tooltipModel.caretX > context.chart.width / 2 ? "right" : "left",
-                        label: labels[dataIndex],
-                        point
+                    setTooltip(prev => {
+                        const next = {
+                            x: tooltipModel.caretX,
+                            y: tooltipModel.caretY,
+                            align: tooltipModel.caretX > context.chart.width / 2 ? "right" : "left",
+                            label: labels[dataIndex],
+                            point
+                        }
+                        // Same position + same point => same content. Bail out
+                        // with the previous object so React doesn't re-render
+                        // (and re-trigger the chart update loop) on every
+                        // animation frame while the mouse sits still.
+                        if (prev && prev.x === next.x && prev.y === next.y && prev.point === next.point) return prev
+                        return next
                     })
                 }
             }
@@ -335,6 +353,10 @@ export default function LpHistoryChart({
             x: { display: false },
             y: { display: false }
         }
+    }), [points, labels])
+
+    if (trackedHistory === null) {
+        return <p className="text-text-secondary text-xs">Loading LP history...</p>
     }
 
     const championIconUrl = (championName) =>
@@ -344,7 +366,7 @@ export default function LpHistoryChart({
         <div className="w-full">
             <div className="flex items-baseline justify-between mb-1.5">
                 <p className="text-text-secondary text-xs">
-                    Last {gamesCovered || trackedPoints.length} game{(gamesCovered || trackedPoints.length) === 1 ? "" : "s"}
+                    Last {gamesCovered || trackedPointsCount} game{(gamesCovered || trackedPointsCount) === 1 ? "" : "s"}
                 </p>
                 {netLpChange != null && (
                     <p className={`text-xs font-bold ${netLpChange >= 0 ? "text-positive" : "text-negative"}`}>
@@ -411,11 +433,11 @@ export default function LpHistoryChart({
                 </div>
             </div>
             <div className="flex justify-between text-text-secondary text-[9px] mt-1">
-                <span>{gamesCovered || trackedPoints.length} games ago</span>
+                <span>{gamesCovered || trackedPointsCount} games ago</span>
                 <span>Last game</span>
             </div>
             <p className="text-text-secondary text-[10px] mt-1.5">
-                {trackedPoints.length < 2
+                {trackedPointsCount < 2
                     ? "Dashed = estimated from recent match results. Hover for details. We're now tracking your real LP daily."
                     : "Dashed = estimated, solid = tracked daily since you connected this account. Hover for details."}
             </p>
