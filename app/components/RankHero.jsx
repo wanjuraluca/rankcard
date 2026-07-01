@@ -530,7 +530,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                                         />
                                         <div className="w-[64px] sm:w-[110px] flex-shrink-0">
                                             <p className="text-text-primary text-xs sm:text-sm font-bold truncate">{match.champion}</p>
-                                            <p className="text-text-secondary text-[10px] hidden sm:block">{ROLE_LABELS[match.role] ?? "—"}</p>
+                                            <p className="text-text-secondary text-[10px] uppercase hidden sm:block">{ROLE_LABELS[match.role] ?? "—"}</p>
                                         </div>
                                         <div className="flex-1 font-mono text-xs sm:text-sm text-text-primary">
                                             {match.kills}/{match.deaths}/{match.assists}
