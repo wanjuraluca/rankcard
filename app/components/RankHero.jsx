@@ -410,7 +410,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                             <span className="text-[9px]">▾</span>
                         </button>
                         {modeMenuOpen && (
-                            <div className="absolute right-0 top-full mt-1 z-10 bg-surface border border-line rounded-lg py-1 w-36 shadow-lg">
+                            <div className="absolute right-0 top-full mt-1 z-50 bg-surface border border-line rounded-lg py-1 w-36 shadow-lg">
                                 {MODE_OPTIONS.map(option => (
                                     <button
                                         key={option.value}

@@ -212,7 +212,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
 
                 {/* Error message */}
                 {errorMsg && (
-                    <p className="text-red-400 text-sm mb-4">{errorMsg}</p>
+                    <p className="text-negative text-sm mb-4">{errorMsg}</p>
                 )}
 
                 {/* Buttons */}
