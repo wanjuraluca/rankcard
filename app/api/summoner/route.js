@@ -2,6 +2,51 @@ import { after } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { getLeagueScore, getValorantScore, getCs2Score, getTftScore } from '@/lib/rankScore'
 
+// Piggybacks on data we already fetched live (no extra Riot calls) to keep
+// lp_history/tft_lp_history fresh throughout the day, not just once via the
+// daily snapshot-lp cron — so the LP chart moves the same day you play,
+// not just tomorrow. Same upsert shape as app/api/cron/snapshot-lp/route.js,
+// just triggered opportunistically on profile views instead of on a timer.
+async function snapshotLpHistoryLive(platform, accountId, data) {
+  try {
+    const recordedOn = new Date().toISOString().slice(0, 10)
+    if (platform === 'League of Legends') {
+      const soloDuo = Array.isArray(data.rankData)
+        ? data.rankData.find(e => e.queueType === 'RANKED_SOLO_5x5')
+        : null
+      if (!soloDuo) return
+      await supabaseAdmin.from('lp_history').upsert({
+        connected_account_id: accountId,
+        tier: soloDuo.tier,
+        rank: soloDuo.rank,
+        league_points: soloDuo.leaguePoints,
+        wins: soloDuo.wins,
+        losses: soloDuo.losses,
+        recorded_on: recordedOn
+      }, { onConflict: 'connected_account_id,recorded_on' })
+    }
+    if (platform === 'TFT') {
+      const entries = Array.isArray(data.tftData)
+        ? data.tftData.filter(e => e.queueType === 'RANKED_TFT' || e.queueType === 'RANKED_TFT_DOUBLE_UP')
+        : []
+      await Promise.all(entries.map(entry =>
+        supabaseAdmin.from('tft_lp_history').upsert({
+          connected_account_id: accountId,
+          queue_type: entry.queueType,
+          tier: entry.tier,
+          rank: entry.rank,
+          league_points: entry.leaguePoints,
+          wins: entry.wins,
+          losses: entry.losses,
+          recorded_on: recordedOn
+        }, { onConflict: 'connected_account_id,queue_type,recorded_on' })
+      ))
+    }
+  } catch {
+    // Best-effort — never let LP-history snapshotting break the profile fetch.
+  }
+}
+
 // Several components on the same profile page (Overall tab, the connected-
 // games card, the per-game tab) each independently request the same
 // account, multiplying calls to Henrik's rate-limited Valorant API. This
@@ -65,9 +110,10 @@ export async function GET(request) {
           if (score != null) {
             await supabaseAdmin.from('rank_history').upsert(
               { account_id: accountId, score, recorded_date: new Date().toISOString().slice(0, 10) },
-              { onConflict: 'account_id,recorded_date', ignoreDuplicates: true }
+              { onConflict: 'account_id,recorded_date' }
             )
           }
+          await snapshotLpHistoryLive(platform, accountId, fresh)
         })
       }
       return Response.json(row.data)
@@ -85,9 +131,10 @@ export async function GET(request) {
     if (score != null) {
       await supabaseAdmin.from('rank_history').upsert(
         { account_id: accountId, score, recorded_date: new Date().toISOString().slice(0, 10) },
-        { onConflict: 'account_id,recorded_date', ignoreDuplicates: true }
+        { onConflict: 'account_id,recorded_date' }
       )
     }
+    await snapshotLpHistoryLive(platform, accountId, data)
   }
 
   return Response.json(data)
