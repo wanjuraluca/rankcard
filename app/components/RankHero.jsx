@@ -26,6 +26,13 @@ function average(values) {
 
 // value = Riot's numeric queue ID (queues.json), passed straight through to
 // the match-ids endpoint's `queue` filter.
+//
+// Arena isn't a permanent queue — Riot brings it back for limited rotations
+// and has reused a *different* queueId each time (1700, 1710, ... 1750 as of
+// the current rotation). The filter option below only targets the latest
+// known ID, so it may need bumping again next time Arena returns. Card
+// labels (modeLabel below) recognize the whole known family so old match
+// history still displays correctly even if this drifts.
 const MODE_OPTIONS = [
     { value: '', label: 'All Modes' },
     { value: '420', label: 'Ranked Solo/Duo' },
@@ -33,10 +40,15 @@ const MODE_OPTIONS = [
     { value: '400', label: 'Normal Draft' },
     { value: '450', label: 'ARAM' },
     { value: '700', label: 'Clash' },
-    { value: '1700', label: 'Arena' },
+    { value: '1750', label: 'Arena' },
 ]
 
+// All Arena queueIds seen across rotations, for display-label matching only
+// (not used for the server-side filter, which needs one exact ID).
+const ARENA_QUEUE_IDS = ['1700', '1710', '1720', '1730', '1740', '1750']
+
 function modeLabel(queueId) {
+    if (ARENA_QUEUE_IDS.includes(String(queueId))) return 'Arena'
     return MODE_OPTIONS.find(o => o.value === String(queueId))?.label ?? null
 }
 
