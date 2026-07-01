@@ -104,10 +104,16 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
     }, [expandedMatchId])
 
     useEffect(() => {
+        // Switching filters fast enough can let an older, slower response
+        // resolve after a newer one — this flag makes a stale response a
+        // no-op instead of clobbering the state with the wrong mode's data.
+        let cancelled = false
+
         async function fetchRank() {
             const modeQuery = modeFilter ? `&mode=${modeFilter}` : ''
             const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}${modeQuery}`);
             const data = await response.json();
+            if (cancelled) return
             const entry = data.rankData?.find((queue) => queue.queueType === "RANKED_SOLO_5x5");
             setRankEntry(entry ?? null)
             setMatchHistory(data.matchHistory ?? [])
@@ -118,6 +124,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
         }
 
         fetchRank();
+        return () => { cancelled = true }
     }, [modeFilter])
 
     function selectMode(value) {

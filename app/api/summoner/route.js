@@ -140,26 +140,48 @@ export async function GET(request) {
   return Response.json(data)
 }
 
+// Mode-filtered requests only come from the League match-history dropdown
+// (RankHero.jsx) — they only need rankData + the filtered matchHistory, not
+// Valorant/TFT data that's completely unaffected by a League queue filter.
+// Skipping those calls turns a ~10-request waterfall into 2-3 fast ones.
+async function fetchLeagueOnlyData(name, tag, mode) {
+  const response = await fetch(
+    `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${name}/${tag}`,
+    { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
+  )
+  const account = await response.json()
+
+  const [rankRes, matchHistory, ddragonVersion] = await Promise.all([
+    fetch(
+      `https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/${account.puuid}`,
+      { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
+    ),
+    fetchMatchHistory(account.puuid, mode),
+    fetchDdragonVersion(),
+  ])
+  const rankData = await rankRes.json()
+
+  return { puuid: account.puuid, rankData, matchHistory, ddragonVersion }
+}
+
 // CS2 has no Riot account, so it skips the entire Riot/Henrik flow below and
 // uses Steam + Leetify instead. See fetchCs2Data.
 async function fetchSummonerData(name, tag, mode) {
-  const response = await fetch(
-    `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${name}/${tag}`,
-    {
-      headers: {
-        'X-Riot-Token': process.env.RIOT_API_KEY
-      }
-    }
-  )
+  if (mode) return fetchLeagueOnlyData(name, tag, mode)
 
-  const valAccountData = await fetch(
-    `https://api.henrikdev.xyz/valorant/v2/account/${name}/${tag}`,
-    {
-      headers: {
-        'Authorization': process.env.VAL_API_KEY
-      }
-    }
-  )
+  // Stage 1: the two independent identity lookups run in parallel — nothing
+  // downstream needs both at once, so there's no reason to wait on them
+  // sequentially.
+  const [response, valAccountData] = await Promise.all([
+    fetch(
+      `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${name}/${tag}`,
+      { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
+    ),
+    fetch(
+      `https://api.henrikdev.xyz/valorant/v2/account/${name}/${tag}`,
+      { headers: { 'Authorization': process.env.VAL_API_KEY } }
+    ),
+  ])
 
   const account = await response.json()
   const valorantAccountData = await valAccountData.json()
@@ -172,41 +194,40 @@ async function fetchSummonerData(name, tag, mode) {
   // endpoints only recognize their own puuid, so use that, not Riot's.
   const valorantPuuid = valorantAccountData?.data?.puuid ?? account.puuid
 
-  const respone2 = await fetch(
-    `https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/${account.puuid}`,
-    {
-      headers: {
-        'X-Riot-Token': process.env.RIOT_API_KEY
-      }
-    }
-  )
+  // Stage 2: everything here only depends on Stage 1's results, not on each
+  // other — fire them all at once instead of one giant sequential waterfall.
+  const [
+    rankRes,
+    valorantRes,
+    tftRes,
+    matchHistory,
+    ddragonVersion,
+    valorantMatchHistory,
+    valorantMmrHistory,
+    tftMatchHistory,
+  ] = await Promise.all([
+    fetch(
+      `https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/${account.puuid}`,
+      { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
+    ),
+    fetch(
+      `https://api.henrikdev.xyz/valorant/v3/by-puuid/mmr/${valorantRegion}/pc/${valorantPuuid}`,
+      { headers: { 'Authorization': process.env.VAL_API_KEY } }
+    ),
+    fetch(
+      `https://euw1.api.riotgames.com/tft/league/v1/by-puuid/${account.puuid}`,
+      { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
+    ),
+    fetchMatchHistory(account.puuid, mode),
+    fetchDdragonVersion(),
+    fetchValorantMatchHistory(valorantPuuid, valorantRegion, mode),
+    fetchValorantMmrHistory(valorantPuuid, valorantRegion),
+    fetchTftMatchHistory(account.puuid),
+  ])
 
-  const respone4 = await fetch(
-    `https://api.henrikdev.xyz/valorant/v3/by-puuid/mmr/${valorantRegion}/pc/${valorantPuuid}`,
-    {
-      headers: {
-        'Authorization': process.env.VAL_API_KEY
-      }
-    }
-  )
-
-  const response3 = await fetch(
-    `https://euw1.api.riotgames.com/tft/league/v1/by-puuid/${account.puuid}`,
-    {
-      headers: {
-        'X-Riot-Token': process.env.RIOT_API_KEY
-      }
-    }
-  )
-
-  const rankData = await respone2.json()
-  const valorantData = await respone4.json()
-  const tftData = await response3.json()
-  const matchHistory = await fetchMatchHistory(account.puuid, mode)
-  const ddragonVersion = await fetchDdragonVersion()
-  const valorantMatchHistory = await fetchValorantMatchHistory(valorantPuuid, valorantRegion, mode)
-  const valorantMmrHistory = await fetchValorantMmrHistory(valorantPuuid, valorantRegion)
-  const tftMatchHistory = await fetchTftMatchHistory(account.puuid)
+  const rankData = await rankRes.json()
+  const valorantData = await valorantRes.json()
+  const tftData = await tftRes.json()
 
   return {
     puuid: account.puuid,
