@@ -377,6 +377,8 @@ function TftModeContent({ rankEntry, matchHistory, account, activeMode, accentCo
                         currentLeaguePoints={rankEntry.leaguePoints}
                         accentColor={accentColor}
                         queueType={activeMode}
+                        tier={rankEntry.tier}
+                        rank={rankEntry.rank}
                     />
                 </div>
             </div>

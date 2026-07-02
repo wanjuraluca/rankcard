@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Line } from "react-chartjs-2"
 import {
     Chart as ChartJS,
@@ -28,22 +28,39 @@ const ESTIMATED_LP_BY_PLACEMENT = {
     8: -8
 }
 
-// Same dashed guide-line grid as the League LP chart. Picks a "nice" step so
-// ~5-6 evenly spaced reference lines span the whole value range (never
-// negative — LP has a floor of 0). `buffer` adds a little headroom past the
-// data so the line isn't glued to the top/bottom.
-function buildReferenceGrid(minV, maxV, unit, buffer) {
-    const lo = Math.max(0, minV - buffer)
-    const hi = maxV + buffer
-    const range = Math.max(hi - lo, 1)
-    const rough = range / 5
-    const magnitude = Math.pow(10, Math.floor(Math.log10(rough)))
-    const step = [1, 2, 2.5, 5, 10].map(m => m * magnitude).find(s => s >= rough) ?? 10 * magnitude
-    const axisMin = Math.floor(lo / step) * step
-    const axisMax = Math.ceil(hi / step) * step
-    const lines = []
-    for (let v = axisMin; v <= axisMax + step * 0.001; v += step) lines.push({ label: `${Math.round(v)} ${unit}`, value: v })
-    return { lines, axisMin, axisMax }
+// TFT uses the exact same tier ladder as League (Iron..Challenger, divisions
+// IV-I, apex tiers divisionless), so the LP history reference grid can label
+// real rank boundaries (e.g. "G IV") the same way the League chart does.
+const TIER_ORDER = ["IRON", "BRONZE", "SILVER", "GOLD", "PLATINUM", "EMERALD", "DIAMOND", "MASTER", "GRANDMASTER", "CHALLENGER"]
+const DIVISIONS = ["IV", "III", "II", "I"]
+const APEX_TIERS = ["MASTER", "GRANDMASTER", "CHALLENGER"]
+const TIER_SHORT_LABEL = { IRON: "I", BRONZE: "B", SILVER: "S", GOLD: "G", PLATINUM: "P", EMERALD: "E", DIAMOND: "D" }
+const LP_PER_DIVISION = 100
+
+function buildTierLadder() {
+    const ladder = []
+    let cursor = 0
+    for (const tier of TIER_ORDER) {
+        if (APEX_TIERS.includes(tier)) {
+            ladder.push({ tier, rank: null, floor: cursor, label: tier === "MASTER" ? "M" : tier === "GRANDMASTER" ? "GM" : "C" })
+            cursor += LP_PER_DIVISION * 4
+            continue
+        }
+        for (const rank of DIVISIONS) {
+            ladder.push({ tier, rank, floor: cursor, label: `${TIER_SHORT_LABEL[tier]}${rank}` })
+            cursor += LP_PER_DIVISION
+        }
+    }
+    return ladder
+}
+
+const TIER_LADDER = buildTierLadder()
+
+function toLadderValue(tier, rank, leaguePoints) {
+    if (!tier) return null
+    const entry = TIER_LADDER.find(e => e.tier === tier.toUpperCase() && (APEX_TIERS.includes(tier.toUpperCase()) || e.rank === rank))
+    if (!entry) return null
+    return entry.floor + (leaguePoints ?? 0)
 }
 
 function buildEstimatedPoints(matchHistory, currentLeaguePoints) {
@@ -73,7 +90,7 @@ function formatFullDate(timestamp) {
     return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
 }
 
-export default function TftLpHistoryChart({ accountId, matchHistory, currentLeaguePoints, accentColor = "#0bc4e3", queueType = "RANKED_TFT" }) {
+export default function TftLpHistoryChart({ accountId, matchHistory, currentLeaguePoints, accentColor = "#0bc4e3", queueType = "RANKED_TFT", tier = null, rank = null }) {
 
     const [trackedHistory, setTrackedHistory] = useState(null)
     const [tooltip, setTooltip] = useState(null)
@@ -93,130 +110,169 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
         fetchHistory()
     }, [accountId, queueType])
 
-    if (trackedHistory === null) {
+    // Memoized so a tooltip-triggered re-render doesn't rebuild `data` into a
+    // fresh object, which would make react-chartjs-2 push another chart update
+    // -> re-fire the external tooltip -> setState -> loop (same guard as the
+    // League LP chart).
+    const derived = useMemo(() => {
+        if (trackedHistory === null) return null
+
+        const estimatedPoints = buildEstimatedPoints(matchHistory, currentLeaguePoints)
+
+        const trackedPoints = trackedHistory.map((entry, i) => ({
+            timestamp: new Date(entry.recorded_on).getTime(),
+            lp: entry.league_points,
+            delta: i === 0 ? null : entry.league_points - trackedHistory[i - 1].league_points,
+            placement: null,
+            topTrait: null,
+            isEstimated: false
+        }))
+
+        const points = [...estimatedPoints, ...trackedPoints]
+        const estimatedCount = estimatedPoints.length
+        const gamesCovered = estimatedCount > 0 ? estimatedCount - 1 : 0
+
+        const labels = points.map(p => formatFullDate(p.timestamp))
+        const estimatedData = points.map((p, i) => (i < estimatedCount ? p.lp : null))
+        const trackedData = points.map((p, i) => (i >= estimatedCount - 1 ? p.lp : null))
+
+        const plottedLp = points.map(p => p.lp).filter(v => typeof v === "number")
+        const minLp = plottedLp.length ? Math.min(...plottedLp) : 0
+        const maxLp = plottedLp.length ? Math.max(...plottedLp) : 100
+
+        const firstPoint = points[0] ?? null
+        const lastPoint = points[points.length - 1] ?? null
+        const netLpChange = firstPoint && lastPoint ? Math.round(lastPoint.lp - firstPoint.lp) : null
+
+        // Reference lines: prefer the real tier ladder anchored on the current
+        // tier/rank so the guides read as rank boundaries (G IV, G III, ...);
+        // otherwise fall back to plain LP guide values from the visible range.
+        let referenceLines = []
+        if (tier && TIER_LADDER.some(e => e.tier === tier.toUpperCase())) {
+            const anchor = toLadderValue(tier, rank, currentLeaguePoints)
+            if (anchor != null) {
+                const bufferLp = 60
+                const ladderMin = anchor - (currentLeaguePoints - minLp) - bufferLp
+                const ladderMax = anchor + (maxLp - currentLeaguePoints) + bufferLp
+                referenceLines = TIER_LADDER
+                    .filter(e => e.floor >= ladderMin && e.floor <= ladderMax)
+                    .map(e => ({ label: e.label, lpValue: e.floor - anchor + currentLeaguePoints }))
+            }
+        }
+        if (referenceLines.length === 0) {
+            const bufferLp = 30
+            const from = Math.floor((minLp - bufferLp) / LP_PER_DIVISION) * LP_PER_DIVISION
+            const to = Math.ceil((maxLp + bufferLp) / LP_PER_DIVISION) * LP_PER_DIVISION
+            for (let lpValue = from; lpValue <= to; lpValue += LP_PER_DIVISION) {
+                referenceLines.push({ label: `${lpValue} LP`, lpValue })
+            }
+        }
+        referenceLines = referenceLines.slice(0, 6)
+
+        const referenceDatasets = referenceLines.map(line => ({
+            label: `ref-${line.label}`,
+            data: points.map(() => line.lpValue),
+            borderColor: "#ffffff1f",
+            borderDash: [3, 5],
+            borderWidth: 1,
+            pointRadius: 0,
+            pointHoverRadius: 0,
+            fill: false,
+            order: 10
+        }))
+
+        const data = {
+            labels,
+            datasets: [
+                ...referenceDatasets,
+                {
+                    label: "Estimated",
+                    data: estimatedData,
+                    borderColor: accentColor,
+                    borderDash: [4, 4],
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    pointHoverBackgroundColor: accentColor,
+                    fill: false,
+                    spanGaps: true,
+                    order: 1
+                },
+                {
+                    label: "Tracked",
+                    data: trackedData,
+                    borderColor: accentColor,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    pointHoverBackgroundColor: accentColor,
+                    fill: true,
+                    backgroundColor: `${accentColor}14`,
+                    spanGaps: true,
+                    order: 0
+                }
+            ]
+        }
+
+        return { points, labels, data, referenceLines, minLp, maxLp, gamesCovered, trackedCount: trackedPoints.length, netLpChange }
+    }, [trackedHistory, matchHistory, currentLeaguePoints, accentColor, tier, rank])
+
+    const options = useMemo(() => {
+        if (!derived) return null
+        return {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    enabled: false,
+                    external: (context) => {
+                        const tooltipModel = context.tooltip
+                        if (!tooltipModel || tooltipModel.opacity === 0 || !tooltipModel.dataPoints?.length) {
+                            setTooltip(prev => (prev === null ? prev : null))
+                            return
+                        }
+                        const realDataPoint = tooltipModel.dataPoints.find(dp => dp.dataset.label === "Estimated" || dp.dataset.label === "Tracked")
+                        const dataIndex = (realDataPoint ?? tooltipModel.dataPoints[0]).dataIndex
+                        const point = derived.points[dataIndex]
+                        if (!point) {
+                            setTooltip(prev => (prev === null ? prev : null))
+                            return
+                        }
+                        setTooltip(prev => {
+                            const next = {
+                                x: tooltipModel.caretX,
+                                y: tooltipModel.caretY,
+                                align: tooltipModel.caretX > context.chart.width / 2 ? "right" : "left",
+                                label: derived.labels[dataIndex],
+                                point
+                            }
+                            if (prev && prev.x === next.x && prev.y === next.y && prev.point === next.point) return prev
+                            return next
+                        })
+                    }
+                }
+            },
+            scales: {
+                x: { display: false },
+                y: { display: false }
+            }
+        }
+    }, [derived])
+
+    if (trackedHistory === null || !derived) {
         return <p className="text-text-secondary text-xs">Loading LP history...</p>
     }
 
-    const estimatedPoints = buildEstimatedPoints(matchHistory, currentLeaguePoints)
-
-    const trackedPoints = trackedHistory.map((entry, i) => ({
-        timestamp: new Date(entry.recorded_on).getTime(),
-        lp: entry.league_points,
-        delta: i === 0 ? null : entry.league_points - trackedHistory[i - 1].league_points,
-        placement: null,
-        topTrait: null,
-        isEstimated: false
-    }))
-
-    const points = [...estimatedPoints, ...trackedPoints]
-    const estimatedCount = estimatedPoints.length
-    // Games actually covered by the placement-based estimate (excludes the
-    // synthetic "now" point at index 0), for the honest "Last N games" label.
-    const gamesCovered = estimatedCount > 0 ? estimatedCount - 1 : 0
-
-    const labels = points.map(p => formatFullDate(p.timestamp))
-
-    const estimatedData = points.map((p, i) => (i < estimatedCount ? p.lp : null))
-    const trackedData = points.map((p, i) => (i >= estimatedCount - 1 ? p.lp : null))
-
-    const lpValues = points.map(p => p.lp).filter(v => typeof v === "number")
-    const minV = lpValues.length ? Math.min(...lpValues) : 0
-    const maxV = lpValues.length ? Math.max(...lpValues) : 100
-    const { lines: referenceLines, axisMin, axisMax } = buildReferenceGrid(minV, maxV, "LP", 30)
-
-    const firstPoint = points[0] ?? null
-    const lastPoint = points[points.length - 1] ?? null
-    const netLpChange = firstPoint && lastPoint ? Math.round(lastPoint.lp - firstPoint.lp) : null
-
-    const referenceDatasets = referenceLines.map(line => ({
-        label: `ref-${line.label}`,
-        data: points.map(() => line.value),
-        borderColor: "#ffffff1f",
-        borderDash: [3, 5],
-        borderWidth: 1,
-        pointRadius: 0,
-        pointHoverRadius: 0,
-        fill: false,
-        order: 10
-    }))
-
-    const data = {
-        labels,
-        datasets: [
-            ...referenceDatasets,
-            {
-                label: "Estimated",
-                data: estimatedData,
-                borderColor: accentColor,
-                borderDash: [4, 4],
-                borderWidth: 2,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                pointHoverBackgroundColor: accentColor,
-                fill: false,
-                spanGaps: true,
-                order: 1
-            },
-            {
-                label: "Tracked",
-                data: trackedData,
-                borderColor: accentColor,
-                borderWidth: 2,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                pointHoverBackgroundColor: accentColor,
-                fill: true,
-                backgroundColor: `${accentColor}14`,
-                spanGaps: true,
-                order: 0
-            }
-        ]
-    }
-
-    const options = {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: "index", intersect: false },
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                enabled: false,
-                external: (context) => {
-                    const tooltipModel = context.tooltip
-                    if (!tooltipModel || tooltipModel.opacity === 0 || !tooltipModel.dataPoints?.length) {
-                        setTooltip(null)
-                        return
-                    }
-                    // Reference-line datasets report a point at this index too —
-                    // pick the real LP series entry instead.
-                    const realDataPoint = tooltipModel.dataPoints.find(dp => dp.dataset.label === "Estimated" || dp.dataset.label === "Tracked")
-                    const dataIndex = (realDataPoint ?? tooltipModel.dataPoints[0]).dataIndex
-                    const point = points[dataIndex]
-                    if (!point) {
-                        setTooltip(null)
-                        return
-                    }
-                    setTooltip({
-                        x: tooltipModel.caretX,
-                        y: tooltipModel.caretY,
-                        align: tooltipModel.caretX > context.chart.width / 2 ? "right" : "left",
-                        label: labels[dataIndex],
-                        point
-                    })
-                }
-            }
-        },
-        scales: {
-            x: { display: false },
-            y: { display: false, min: axisMin, max: axisMax }
-        }
-    }
+    const { referenceLines, minLp, maxLp, gamesCovered, trackedCount, netLpChange, data } = derived
+    const gameLabelCount = gamesCovered || trackedCount
 
     return (
         <div className="w-full">
             <div className="flex items-baseline justify-between mb-1.5">
                 <p className="text-text-secondary text-xs">
-                    Last {gamesCovered || trackedPoints.length} game{(gamesCovered || trackedPoints.length) === 1 ? "" : "s"}
+                    Last {gameLabelCount} game{gameLabelCount === 1 ? "" : "s"}
                 </p>
                 {netLpChange != null && (
                     <p className={`text-xs font-bold ${netLpChange >= 0 ? "text-positive" : "text-negative"}`}>
@@ -228,8 +284,9 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
                 {referenceLines.length > 0 && (
                     <div className="relative w-7 flex-shrink-0 h-full">
                         {referenceLines.map((line) => {
-                            const range = axisMax - axisMin || 1
-                            const topPct = 100 - ((line.value - axisMin) / range) * 100
+                            const range = maxLp - minLp || 1
+                            const clamped = Math.min(Math.max(line.lpValue, minLp), maxLp)
+                            const topPct = 100 - ((clamped - minLp) / range) * 100
                             return (
                                 <span
                                     key={line.label}
@@ -286,11 +343,11 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
                 </div>
             </div>
             <div className="flex justify-between text-text-secondary text-[9px] mt-1">
-                <span>{gamesCovered || trackedPoints.length} game{(gamesCovered || trackedPoints.length) === 1 ? "" : "s"} ago</span>
+                <span>{gameLabelCount} game{gameLabelCount === 1 ? "" : "s"} ago</span>
                 <span>Last game</span>
             </div>
             <p className="text-text-secondary text-[10px] mt-1.5">
-                {trackedPoints.length < 2
+                {trackedCount < 2
                     ? "Dashed = estimated from recent placements. Hover for details. We're now tracking your real LP daily."
                     : "Dashed = estimated, solid = tracked daily since you connected this account. Hover for details."}
             </p>
