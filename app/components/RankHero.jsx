@@ -112,6 +112,12 @@ const ROLE_LABELS = {
     UTILITY: 'Support',
 }
 
+function ordinal(n) {
+    const s = ['th', 'st', 'nd', 'rd']
+    const v = n % 100
+    return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
 // Small, self-contained icon pair used both on the collapsed match card and
 // (via the same lookup maps) inside MatchDetail's scoreboard rows. Renders
 // nothing for a spell/rune it can't resolve instead of a broken <img>.
@@ -495,6 +501,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                     <div className="flex flex-col gap-1.5">
                         {matchHistory.map((match) => {
                             const isExpanded = expandedMatchId === match.matchId
+                            const isArena = match.gameMode === "CHERRY"
                             return (
                                 <div
                                     key={match.matchId}
@@ -534,16 +541,21 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                                         </div>
                                         <div className="flex-1 font-mono text-xs sm:text-sm text-text-primary">
                                             {match.kills}/{match.deaths}/{match.assists}
-                                            <span className="text-text-secondary text-[10px] sm:text-xs ml-1 sm:ml-2">
-                                                {(match.cs / (match.gameDurationSeconds / 60)).toFixed(1)} CS/min
-                                            </span>
-                                            <span className="text-text-secondary text-[10px] sm:text-xs ml-1.5 hidden sm:inline">
-                                                ({match.cs} CS)
-                                            </span>
-                                            {match.visionScore != null && (
-                                                <span className="text-text-secondary text-[10px] sm:text-xs ml-1.5 hidden sm:inline">
-                                                    · {match.visionScore} vision
-                                                </span>
+                                            {/* CS and vision don't exist in Arena, so skip them there. */}
+                                            {!isArena && (
+                                                <>
+                                                    <span className="text-text-secondary text-[10px] sm:text-xs ml-1 sm:ml-2">
+                                                        {(match.cs / (match.gameDurationSeconds / 60)).toFixed(1)} CS/min
+                                                    </span>
+                                                    <span className="text-text-secondary text-[10px] sm:text-xs ml-1.5 hidden sm:inline">
+                                                        ({match.cs} CS)
+                                                    </span>
+                                                    {match.visionScore != null && (
+                                                        <span className="text-text-secondary text-[10px] sm:text-xs ml-1.5 hidden sm:inline">
+                                                            · {match.visionScore} vision
+                                                        </span>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                         {match.lpDelta != null && (
@@ -554,8 +566,10 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                                                 {match.lpDelta > 0 ? "▲" : "▼"} {match.lpDelta > 0 ? "+" : ""}{match.lpDelta} LP
                                             </p>
                                         )}
-                                        <p className={`text-xs sm:text-sm font-bold flex-shrink-0 ${match.win ? "text-positive" : "text-negative"}`}>
-                                            {match.win ? "Win" : "Loss"}
+                                        <p className={`text-xs sm:text-sm font-bold flex-shrink-0 ${isArena ? (match.placement === 1 ? "text-positive" : "text-text-secondary") : (match.win ? "text-positive" : "text-negative")}`}>
+                                            {isArena
+                                                ? (match.placement != null ? ordinal(match.placement) : "—")
+                                                : (match.win ? "Win" : "Loss")}
                                         </p>
                                         <div className="text-right flex-shrink-0 hidden sm:block">
                                             <p className="text-text-secondary font-mono text-xs">{formatDuration(match.gameDurationSeconds)}</p>
