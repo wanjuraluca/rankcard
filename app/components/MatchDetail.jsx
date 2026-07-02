@@ -233,6 +233,56 @@ function PlayerRow({
     )
 }
 
+function ordinal(n) {
+    const s = ["th", "st", "nd", "rd"]
+    const v = n % 100
+    return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
+// Arena (CHERRY) row — no lanes, CS, vision, runes or Solo/Duo rank apply, so
+// it's a stripped-down row: champion, name, KDA and damage only.
+function ArenaPlayerRow({ player, ddragonVersion, isYou, maxDamage }) {
+    const kda = ((player.kills + player.assists) / Math.max(player.deaths, 1)).toFixed(1)
+    const damagePct = maxDamage > 0 ? Math.round((player.damageDealt / maxDamage) * 100) : 0
+
+    return (
+        <div className={`flex items-center gap-2 py-1.5 px-2 rounded-lg ${isYou ? "bg-accent-tint" : ""}`}>
+            <div className="relative flex-shrink-0">
+                <img
+                    src={championIconUrl(player.champion, ddragonVersion)}
+                    alt={player.champion}
+                    className="w-6 h-6 sm:w-7 sm:h-7 rounded-md object-cover bg-surface"
+                    onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
+                />
+                {player.champLevel != null && (
+                    <span className="absolute -bottom-1 -right-1 bg-surface border border-hairline rounded-full text-text-primary text-[8px] leading-none px-[3px] py-[2px] font-bold">
+                        {player.champLevel}
+                    </span>
+                )}
+            </div>
+
+            <div className="flex-1 min-w-0">
+                <p className={`text-[11px] sm:text-xs font-bold truncate ${isYou ? "text-accent-soft" : "text-text-primary"}`}>
+                    {player.summonerName}{player.summonerTag ? `#${player.summonerTag}` : ""}
+                </p>
+                <p className="text-text-secondary text-[10px] truncate">{player.champion}</p>
+            </div>
+
+            <div className="w-[64px] sm:w-[80px] flex-shrink-0 font-mono text-[11px] sm:text-xs text-text-primary">
+                {player.kills}/{player.deaths}/{player.assists}
+                <span className="text-text-secondary text-[10px] block">{kda} KDA</span>
+            </div>
+
+            <div className="w-[70px] sm:w-[90px] flex-shrink-0">
+                <span className="text-text-primary text-[10px] sm:text-xs font-mono">{player.damageDealt?.toLocaleString()}</span>
+                <div className="h-1 bg-hairline rounded-full mt-0.5 overflow-hidden">
+                    <div className="h-1 rounded-full bg-negative/70" style={{ width: `${damagePct}%` }} />
+                </div>
+            </div>
+        </div>
+    )
+}
+
 export default function MatchDetail({
     match,
     ddragonVersion,
@@ -255,7 +305,9 @@ export default function MatchDetail({
         const puuids = (match.players ?? []).map(p => p.puuid).filter(Boolean)
 
         async function fetchRanks() {
-            if (puuids.length === 0) {
+            // Arena groups by placement, not rank — skip the (batched but still
+            // costly for 18 players) Solo/Duo rank lookup entirely.
+            if (match.gameMode === 'CHERRY' || puuids.length === 0) {
                 if (!cancelled) setRanksLoaded(true)
                 return
             }
@@ -282,6 +334,48 @@ export default function MatchDetail({
 
     if (!match.players || match.players.length === 0) {
         return <p className="text-text-secondary text-xs px-2 py-2">No detailed scoreboard available for this match.</p>
+    }
+
+    // Arena (CHERRY): teamId is only 100/200, so the standard two-team split is
+    // meaningless here — group by subteam and order by final placement instead.
+    if (match.gameMode === "CHERRY") {
+        const bySubteam = {}
+        for (const p of match.players) {
+            const key = p.subteamId ?? "?"
+            ;(bySubteam[key] ??= []).push(p)
+        }
+        const teams = Object.values(bySubteam)
+            .map(members => ({ members, placement: Math.min(...members.map(m => m.placement ?? 99)) }))
+            .sort((a, b) => a.placement - b.placement)
+        const arenaMaxDamage = Math.max(...match.players.map(p => p.damageDealt ?? 0), 1)
+
+        return (
+            <div className="px-2 py-2 flex flex-col gap-2.5">
+                {teams.map(team => (
+                    <div key={`${team.placement}-${team.members[0].puuid}`}>
+                        <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${team.placement === 1 ? "text-positive" : "text-text-secondary"}`}>
+                            {team.placement <= 6 ? `${ordinal(team.placement)} place` : "Placement N/A"}
+                        </p>
+                        <div className="flex flex-col gap-0.5">
+                            {team.members.map(player => (
+                                <ArenaPlayerRow
+                                    key={player.puuid}
+                                    player={player}
+                                    ddragonVersion={ddragonVersion}
+                                    isYou={player.puuid === yourPuuid}
+                                    maxDamage={arenaMaxDamage}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                ))}
+                <p className="text-text-secondary text-[9px] sm:text-[10px] leading-relaxed border-t border-hairline pt-2">
+                    Arena — teams of {teams[0]?.members.length ?? 3}, ranked by final placement ·{" "}
+                    <span className="font-semibold">KDA</span> kills/deaths/assists ·{" "}
+                    <span className="font-semibold">DMG</span> damage to champions
+                </p>
+            </div>
+        )
     }
 
     const teamA = match.players.filter(p => p.teamId === match.players[0].teamId)

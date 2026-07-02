@@ -740,6 +740,9 @@ async function fetchMatchHistory(puuid, queueId) {
           damageDealt: p.totalDamageDealtToChampions,
           goldEarned: p.goldEarned ?? null,
           visionScore: p.visionScore ?? null,
+          // Arena (CHERRY) only: 6 subteams of 3, ranked by final placement.
+          subteamId: p.playerSubteamId ?? null,
+          placement: p.placement ?? null,
           summonerSpells: [p.summoner1Id ?? null, p.summoner2Id ?? null],
           primaryRuneId: primaryStyle?.selections?.[0]?.perk ?? null,
           primaryRuneStyleId: primaryStyle?.style ?? null,
@@ -781,6 +784,7 @@ async function fetchMatchHistory(puuid, queueId) {
         gameEndTimestamp: match.info.gameEndTimestamp,
         queueId: match.info.queueId,
         gameMode: match.info?.gameMode ?? null,
+        placement: participant.placement ?? null,
         players: allPlayers
       }
     })
