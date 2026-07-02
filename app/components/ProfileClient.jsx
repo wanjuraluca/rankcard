@@ -351,7 +351,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         )}
                     </div>
                     <BioEditor username={data.username} bio={data.bio} isOwnProfile={isOwnProfile} />
-                    <DiscordTagEditor username={data.username} discordTag={data.discord_tag} isOwnProfile={isOwnProfile} />
+                    <DiscordTagEditor username={data.username} discordTag={data.discord_tag} discordUserId={data.discord_user_id} isOwnProfile={isOwnProfile} />
                     <div className="flex items-center gap-3 mt-1.5">
                         <button
                             type="button"

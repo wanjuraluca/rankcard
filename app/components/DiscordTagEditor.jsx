@@ -1,13 +1,41 @@
 "use client"
 import { useState, useRef, useEffect } from "react"
-import { Pencil } from "lucide-react"
+import { Pencil, Check } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
-export default function DiscordTagEditor({ username, discordTag, isOwnProfile }) {
+export default function DiscordTagEditor({ username, discordTag, discordUserId, isOwnProfile }) {
     const [value, setValue] = useState(discordTag ?? "")
     const [editing, setEditing] = useState(false)
     const [error, setError] = useState("")
+    const [connecting, setConnecting] = useState(false)
     const inputRef = useRef(null)
+
+    // A verified link exists once we've stored the Discord user id via OAuth.
+    const isVerified = Boolean(discordUserId)
+
+    // Kicks off the "Connect Discord" OAuth flow: ask our API for the authorize
+    // URL (it signs our user id into the state), then send the browser there.
+    async function connectDiscord() {
+        setError("")
+        setConnecting(true)
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) {
+            setError("Please log in first.")
+            setConnecting(false)
+            return
+        }
+        const res = await fetch("/api/discord/connect", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        const { url } = await res.json()
+        if (url) {
+            window.location.href = url
+        } else {
+            setError("Couldn't start Discord connect.")
+            setConnecting(false)
+        }
+    }
 
     useEffect(() => {
         if (editing) inputRef.current?.focus()
@@ -66,14 +94,27 @@ export default function DiscordTagEditor({ username, discordTag, isOwnProfile })
                 <span className="text-[#7289da] text-xs font-mono">
                     {value || (isOwnProfile ? "Add Discord tag" : "")}
                 </span>
-                {isOwnProfile && (
-                    <button
-                        onClick={() => setEditing(true)}
-                        className="text-text-secondary hover:text-[#7289da] active:text-[#7289da] transition-colors"
-                        aria-label="Edit Discord tag"
-                    >
-                        <Pencil size={12} />
-                    </button>
+                {isVerified ? (
+                    <span className="inline-flex items-center gap-0.5 text-positive text-[10px] font-semibold" title="Verified via Discord">
+                        <Check size={11} /> Verified
+                    </span>
+                ) : isOwnProfile && (
+                    <>
+                        <button
+                            onClick={() => setEditing(true)}
+                            className="text-text-secondary hover:text-[#7289da] active:text-[#7289da] transition-colors"
+                            aria-label="Edit Discord tag"
+                        >
+                            <Pencil size={12} />
+                        </button>
+                        <button
+                            onClick={connectDiscord}
+                            disabled={connecting}
+                            className="text-[10px] font-semibold text-[#7289da] hover:underline disabled:opacity-50 ml-1"
+                        >
+                            {connecting ? "Connecting…" : "Connect"}
+                        </button>
+                    </>
                 )}
             </div>
             {error && <p className="text-negative text-[11px] mt-1">{error}</p>}
