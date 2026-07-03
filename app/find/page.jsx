@@ -363,7 +363,7 @@ function PostCard({ post, isOwn = false, authChecked, revealedTag, copied, revea
                     }
                 </div>
                 {isOnline && (
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#4ade80] border-2 border-surface" title="In game" />
+                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-positive border-2 border-surface" title="In game" />
                 )}
             </a>
             <div className="flex-1 min-w-0">
@@ -377,7 +377,7 @@ function PostCard({ post, isOwn = false, authChecked, revealedTag, copied, revea
                         </span>
                     )}
                     {isGoodMatch && (
-                        <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#4ade80]/40 text-[#4ade80] bg-[#4ade80]/10">
+                        <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border border-positive/40 text-positive bg-positive/10">
                             Good match
                         </span>
                     )}
@@ -405,7 +405,7 @@ function PostCard({ post, isOwn = false, authChecked, revealedTag, copied, revea
                         </span>
                     )}
                     {post.region && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#4ade80]/40 text-[#4ade80] bg-[#4ade80]/10">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-positive/40 text-positive bg-positive/10">
                             {post.region}
                         </span>
                     )}

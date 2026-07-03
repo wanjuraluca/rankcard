@@ -43,7 +43,7 @@ export default function AvatarUpload( {username, avatarUrl, editable} ) {
 
     return (
     <div className={`relative w-24 h-24 rounded-lg border-4 border-accent flex items-center justify-center font-bold group ${editable ? "cursor-pointer" : ""}`}>
-        <div className="relative w-full h-full bg-[#0a0a0f] rounded-lg flex items-center justify-center text-[#b16cff]" onClick={handleClickInput}>
+        <div className="relative w-full h-full bg-[#0a0a0f] rounded-lg flex items-center justify-center text-accent" onClick={handleClickInput}>
             {editable && (
                 <input ref={fileInput} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
             )}

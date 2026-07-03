@@ -370,8 +370,8 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     </div>
                     {liveGame && (
                         <div className="flex items-center gap-1.5 mt-1">
-                            <span className="inline-block w-2 h-2 rounded-full bg-[#4ade80] animate-pulse" />
-                            <span className="text-[#4ade80] text-xs font-semibold">In Game</span>
+                            <span className="inline-block w-2 h-2 rounded-full bg-positive animate-pulse" />
+                            <span className="text-positive text-xs font-semibold">In Game</span>
                             <span className="text-text-secondary text-xs">· League of Legends · {liveGame.queue}</span>
                         </div>
                     )}
@@ -583,7 +583,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         >
                             {lfgPost && lfgTimeLeft !== "expired" ? (
                                 <span className="flex items-center gap-2 text-sm">
-                                    <span className="w-2 h-2 rounded-full bg-[#4ade80] flex-shrink-0" />
+                                    <span className="w-2 h-2 rounded-full bg-positive flex-shrink-0" />
                                     <span className="text-text-primary font-semibold">Currently looking</span>
                                     <span className="text-text-secondary">· expires in {lfgTimeLeft}</span>
                                 </span>
@@ -646,14 +646,14 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                                 </div>
                                                 {onlineFriends[friend.username] && (
                                                     <span
-                                                        className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[#4ade80] border-2 border-surface"
+                                                        className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-positive border-2 border-surface"
                                                         title={`In game · ${onlineFriends[friend.username]}`}
                                                     />
                                                 )}
                                             </div>
                                             <p className="text-text-primary text-xs font-semibold truncate w-full text-center">{friend.username}</p>
                                             {onlineFriends[friend.username] && (
-                                                <p className="text-[#4ade80] text-[10px] font-semibold -mt-1.5 truncate w-full text-center">
+                                                <p className="text-positive text-[10px] font-semibold -mt-1.5 truncate w-full text-center">
                                                     {onlineFriends[friend.username] === "TFT" ? "In Game · TFT" : "In Game"}
                                                 </p>
                                             )}
