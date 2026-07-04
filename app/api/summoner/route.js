@@ -452,22 +452,29 @@ function buildCs2Match(match, steam64Id) {
 // pages instead. Actively maintained public instance, no API key needed:
 // https://overfast-api.tekrop.fr (30 req/s per IP). BattleTag's "#" becomes
 // "-" in the URL. Unlike League/Valorant, there's no match-history endpoint —
-// only current competitive ranks per role (tank/damage/support) + Open Queue.
+// only current competitive ranks per role (tank/damage/support) + Open Queue,
+// plus lifetime career stat totals (fetched separately below).
 async function fetchOverwatchData(name, tag) {
   const battleTag = `${name}-${tag}`
   const response = await fetch(`https://overfast-api.tekrop.fr/players/${encodeURIComponent(battleTag)}/summary`)
   if (!response.ok) {
-    return { puuid: null, owRanks: null, owUsername: null, owAvatar: null, owTitle: null }
+    return { puuid: null, owRanks: null, owUsername: null, owAvatar: null, owTitle: null, owStats: null }
   }
 
   const summary = await response.json()
   // Console competitive is tracked separately and rarely used by our players —
   // fall back to it only if the account has no PC ranks at all.
   const platformRanks = summary?.competitive?.pc ?? summary?.competitive?.console ?? null
+  const platform = summary?.competitive?.pc ? 'pc' : 'console'
 
   function mapRole(role) {
     return role ? { division: role.division, tier: role.tier, rankIcon: role.rank_icon } : null
   }
+
+  const [competitiveStats, quickplayStats] = await Promise.all([
+    fetchOverwatchCareerStats(battleTag, 'competitive', platform),
+    fetchOverwatchCareerStats(battleTag, 'quickplay', platform),
+  ])
 
   return {
     puuid: battleTag, // reused generically as "platform external ID" like CS2's SteamID64
@@ -480,7 +487,22 @@ async function fetchOverwatchData(name, tag) {
       support: mapRole(platformRanks.support),
       open: mapRole(platformRanks.open),
     } : null,
+    owStats: { competitive: competitiveStats, quickplay: quickplayStats },
   }
+}
+
+// Lifetime career stat totals — grouped by category (combat/game/assists/average/
+// best/match_awards/miscellaneous), all-heroes aggregate only (not per-hero).
+// NOTE: Blizzard's own data has no Open Queue vs Role Queue split — "competitive"
+// is a single combined bucket for both queue types, only quickplay/competitive
+// and platform (pc/console) can be filtered.
+async function fetchOverwatchCareerStats(battleTag, gamemode, platform) {
+  const response = await fetch(
+    `https://overfast-api.tekrop.fr/players/${encodeURIComponent(battleTag)}/stats/career?gamemode=${gamemode}&platform=${platform}&hero=all-heroes`
+  )
+  if (!response.ok) return null
+  const json = await response.json()
+  return json?.['all-heroes'] ?? null
 }
 
 // Community Dragon's TFT data dump (champions/traits/items for the current

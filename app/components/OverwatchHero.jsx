@@ -6,10 +6,58 @@ import { getOverwatchScore } from "@/lib/rankScore"
 const ROLE_LABELS = { tank: "Tank", damage: "Damage", support: "Support", open: "Open Queue" }
 const ROLES = ["tank", "damage", "support", "open"]
 
+function formatNumber(value) {
+    return value == null ? "—" : Math.round(value).toLocaleString()
+}
+
+// Career stats report time in seconds — most values here run into the
+// hundreds/thousands of hours, so "Xh Ym" reads better than raw seconds.
+function formatDuration(seconds) {
+    if (seconds == null) return "—"
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.round((seconds % 3600) / 60)
+    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+}
+
+// The handful of stats worth a big, prominent tile — the rest go in the
+// smaller "everything else" grid below. Field names come straight from
+// OverFast's career stats categories (combat/game/assists/match_awards).
+const KEY_STATS = [
+    { key: "eliminations", label: "Eliminations", get: (d) => d.combat?.eliminations, format: formatNumber },
+    { key: "hero_damage_done", label: "Hero Damage Done", get: (d) => d.combat?.hero_damage_done, format: formatNumber },
+    { key: "objective_time", label: "Objective Time", get: (d) => d.combat?.objective_time, format: formatDuration },
+    { key: "games_won", label: "Games Won", get: (d) => d.game?.games_won, format: formatNumber },
+]
+
+const SECONDARY_STATS = [
+    { label: "Deaths", get: (d) => d.combat?.deaths },
+    { label: "Assists", get: (d) => d.assists?.assists },
+    { label: "Final Blows", get: (d) => d.combat?.final_blows },
+    { label: "Objective Kills", get: (d) => d.combat?.objective_kills },
+    { label: "Solo Kills", get: (d) => d.combat?.solo_kills },
+    { label: "Multikills", get: (d) => d.combat?.multikills },
+    { label: "Offensive Assists", get: (d) => d.assists?.offensive_assists },
+    { label: "Defensive Assists", get: (d) => d.assists?.defensive_assists },
+    { label: "Recon Assists", get: (d) => d.assists?.recon_assists },
+    { label: "Melee Final Blows", get: (d) => d.combat?.melee_final_blows },
+    { label: "Environmental Kills", get: (d) => d.combat?.environmental_kills },
+    { label: "Healing Done", get: (d) => d.assists?.healing_done },
+    { label: "Cards", get: (d) => d.match_awards?.cards },
+    { label: "Time Played", get: (d) => d.game?.time_played, format: formatDuration },
+    { label: "Games Played", get: (d) => d.game?.games_played },
+]
+
+const GAMEMODE_TABS = [
+    { key: "competitive", label: "Competitive" },
+    { key: "quickplay", label: "Quickplay" },
+]
+
 export default function OverwatchHero({ account, accentColor = "#f99e1a" }) {
 
     const [ranks, setRanks] = useState(null)
     const [title, setTitle] = useState(null)
+    const [stats, setStats] = useState(null)
+    const [gamemode, setGamemode] = useState("competitive")
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -18,6 +66,7 @@ export default function OverwatchHero({ account, accentColor = "#f99e1a" }) {
             const data = await response.json()
             setRanks(data.owRanks ?? null)
             setTitle(data.owTitle ?? null)
+            setStats(data.owStats ?? null)
             setLoading(false)
         }
 
@@ -36,6 +85,11 @@ export default function OverwatchHero({ account, accentColor = "#f99e1a" }) {
             </div>
         )
     }
+
+    const activeStats = stats?.[gamemode] ?? null
+    const gamesPlayed = activeStats?.game?.games_played
+    const gamesWon = activeStats?.game?.games_won
+    const winRate = gamesPlayed > 0 ? Math.round((gamesWon / gamesPlayed) * 100) : null
 
     return (
         <div
@@ -77,6 +131,70 @@ export default function OverwatchHero({ account, accentColor = "#f99e1a" }) {
             <p className="text-text-secondary text-[11px] mt-4">
                 Rank Score uses your highest role — there's no single "main" rank in Overwatch.
             </p>
+
+            {/* Gamemode tabs — Blizzard's own data has no Open Queue vs Role Queue
+                split for career stats, only Competitive vs Quickplay. */}
+            <div className="flex gap-2 mt-5">
+                {GAMEMODE_TABS.map((tab) => (
+                    <button
+                        key={tab.key}
+                        onClick={() => setGamemode(tab.key)}
+                        className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold border transition-colors ${
+                            gamemode === tab.key
+                                ? "border-accent/50 bg-accent-tint text-text-primary"
+                                : "border-hairline bg-background text-text-secondary"
+                        }`}
+                        style={gamemode === tab.key ? { borderColor: `${accentColor}80`, backgroundColor: `${accentColor}1f` } : undefined}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {!activeStats ? (
+                <p className="text-text-secondary text-sm mt-4">No {gamemode} stats found for this account.</p>
+            ) : (
+                <>
+                    {/* Key stats */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+                        {KEY_STATS.map((stat) => (
+                            <div key={stat.key} className="bg-surface-deep rounded-lg p-3">
+                                <p className="text-text-primary font-extrabold text-xl">{stat.format(stat.get(activeStats))}</p>
+                                <p className="text-text-secondary text-xs">{stat.label}</p>
+                            </div>
+                        ))}
+                    </div>
+
+                    {gamesPlayed != null && (
+                        <p className="text-text-secondary text-xs mt-2.5">
+                            {formatNumber(gamesPlayed)} games played
+                            {winRate != null && <> · <span className="text-positive font-semibold">{winRate}% WR</span></>}
+                        </p>
+                    )}
+
+                    {/* Secondary stats */}
+                    <div className="mt-5">
+                        <div className="flex items-center gap-2 mb-2.5">
+                            <p className="text-text-muted text-[11px] uppercase tracking-widest">More Stats</p>
+                            <div className="flex-1 h-px bg-hairline" />
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                            {SECONDARY_STATS.map((stat) => {
+                                const value = stat.get(activeStats)
+                                if (value == null) return null
+                                return (
+                                    <div key={stat.label} className="bg-surface-deep rounded-lg p-2.5">
+                                        <p className="text-text-primary font-bold text-sm">
+                                            {(stat.format ?? formatNumber)(value)}
+                                        </p>
+                                        <p className="text-text-secondary text-[11px]">{stat.label}</p>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     )
 }
