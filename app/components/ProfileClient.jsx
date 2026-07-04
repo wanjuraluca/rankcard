@@ -207,7 +207,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
     }
 
     useEffect(() => {
-        const scoredAccounts = accountList.filter(a => a.platform === "League of Legends" || a.platform === "Valorant" || a.platform === "CSGO" || a.platform === "TFT")
+        const scoredAccounts = accountList.filter(a => a.platform === "League of Legends" || a.platform === "Valorant" || a.platform === "CSGO" || a.platform === "TFT" || a.platform === "Overwatch" || a.platform === "Marvel Rivals")
 
         scoredAccounts.forEach(async (account) => {
             const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}`)
