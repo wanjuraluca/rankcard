@@ -204,7 +204,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                                 <input
                                     type="text"
                                     value={tag}
-                                    onChange={(e) => setTag(e.target.value)}
+                                    onChange={(e) => setTag(e.target.value.replace(/^#/, ""))}
                                     placeholder="# Tag"
                                     className="flex-1 bg-background border border-hairline rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent outline-none"
                                 />
