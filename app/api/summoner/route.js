@@ -491,18 +491,66 @@ async function fetchOverwatchData(name, tag) {
   }
 }
 
+// Hero portraits/names/roles for the "Top Heroes" list — rarely changes, so
+// cache in-memory for a day rather than refetching on every request (same
+// pattern as fetchTftIconMaps below).
+const OW_HEROES_CACHE_TTL_MS = 24 * 60 * 60 * 1000
+let owHeroesCache = null
+let owHeroesCacheTimestamp = 0
+
+async function fetchOverwatchHeroesMap() {
+  if (owHeroesCache && Date.now() - owHeroesCacheTimestamp < OW_HEROES_CACHE_TTL_MS) {
+    return owHeroesCache
+  }
+  try {
+    const response = await fetch('https://overfast-api.tekrop.fr/heroes')
+    if (!response.ok) return owHeroesCache ?? {}
+    const heroes = await response.json()
+    const map = {}
+    for (const hero of Array.isArray(heroes) ? heroes : []) {
+      if (hero?.key) map[hero.key] = { name: hero.name, portrait: hero.portrait, role: hero.role }
+    }
+    owHeroesCache = map
+    owHeroesCacheTimestamp = Date.now()
+    return map
+  } catch {
+    return owHeroesCache ?? {}
+  }
+}
+
 // Lifetime career stat totals — grouped by category (combat/game/assists/average/
-// best/match_awards/miscellaneous), all-heroes aggregate only (not per-hero).
+// best/match_awards/miscellaneous). Requesting without a `hero` filter returns
+// per-hero breakdowns too (keyed by hero slug), which we use to build a
+// "Top Heroes by playtime" list alongside the all-heroes totals.
 // NOTE: Blizzard's own data has no Open Queue vs Role Queue split — "competitive"
 // is a single combined bucket for both queue types, only quickplay/competitive
 // and platform (pc/console) can be filtered.
 async function fetchOverwatchCareerStats(battleTag, gamemode, platform) {
   const response = await fetch(
-    `https://overfast-api.tekrop.fr/players/${encodeURIComponent(battleTag)}/stats/career?gamemode=${gamemode}&platform=${platform}&hero=all-heroes`
+    `https://overfast-api.tekrop.fr/players/${encodeURIComponent(battleTag)}/stats/career?gamemode=${gamemode}&platform=${platform}`
   )
   if (!response.ok) return null
   const json = await response.json()
-  return json?.['all-heroes'] ?? null
+  const allHeroes = json?.['all-heroes'] ?? null
+  if (!allHeroes) return null
+
+  const heroesMap = await fetchOverwatchHeroesMap()
+  const topHeroes = Object.entries(json)
+    .filter(([key, stats]) => key !== 'all-heroes' && stats?.game?.time_played > 0)
+    .sort((a, b) => (b[1].game?.time_played ?? 0) - (a[1].game?.time_played ?? 0))
+    .slice(0, 6)
+    .map(([key, stats]) => ({
+      key,
+      name: heroesMap[key]?.name ?? key,
+      portrait: heroesMap[key]?.portrait ?? null,
+      role: heroesMap[key]?.role ?? null,
+      timePlayed: stats.game?.time_played ?? 0,
+      gamesPlayed: stats.game?.games_played ?? 0,
+      winPercentage: stats.game?.win_percentage ?? null,
+      eliminations: stats.combat?.eliminations ?? null,
+    }))
+
+  return { ...allHeroes, topHeroes }
 }
 
 // Community Dragon's TFT data dump (champions/traits/items for the current

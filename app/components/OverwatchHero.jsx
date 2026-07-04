@@ -172,6 +172,37 @@ export default function OverwatchHero({ account, accentColor = "#f99e1a" }) {
                         </p>
                     )}
 
+                    {/* Top heroes by playtime */}
+                    {activeStats.topHeroes?.length > 0 && (
+                        <div className="mt-5">
+                            <div className="flex items-center gap-2 mb-2.5">
+                                <p className="text-text-muted text-[11px] uppercase tracking-widest">Top Heroes</p>
+                                <div className="flex-1 h-px bg-hairline" />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                {activeStats.topHeroes.map((hero) => (
+                                    <div key={hero.key} className="bg-surface-deep rounded-lg p-2.5 flex items-center gap-3">
+                                        {hero.portrait ? (
+                                            <img src={hero.portrait} alt={hero.name} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                                        ) : (
+                                            <div className="w-9 h-9 rounded-full bg-background flex-shrink-0" />
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-text-primary text-sm font-bold truncate">{hero.name}</p>
+                                            <p className="text-text-secondary text-[11px]">
+                                                {formatDuration(hero.timePlayed)} · {hero.gamesPlayed} games
+                                                {hero.eliminations != null && <> · {formatNumber(hero.eliminations)} elims</>}
+                                            </p>
+                                        </div>
+                                        {hero.winPercentage != null && (
+                                            <p className="text-positive text-xs font-semibold flex-shrink-0">{hero.winPercentage}% WR</p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Secondary stats */}
                     <div className="mt-5">
                         <div className="flex items-center gap-2 mb-2.5">
