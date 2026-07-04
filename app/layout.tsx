@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     default: "RankCard — All your ranks. One profile.",
     template: "%s — RankCard",
   },
-  description: "Connect League, Valorant, TFT and CS2 into one clean, shareable profile with real ranks and deep stats.",
+  description: "Connect League, TFT, Valorant, CS2 and Overwatch into one clean, shareable profile with real ranks and deep stats.",
   icons: {
     icon: "/Icons/LogoSmall.png?v=2",
   },
@@ -28,12 +28,12 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "RankCard",
     title: "RankCard — All your ranks. One profile.",
-    description: "Connect League, Valorant, TFT and CS2 into one clean, shareable profile with real ranks and deep stats.",
+    description: "Connect League, TFT, Valorant, CS2 and Overwatch into one clean, shareable profile with real ranks and deep stats.",
   },
   twitter: {
     card: "summary_large_image",
     title: "RankCard — All your ranks. One profile.",
-    description: "Connect League, Valorant, TFT and CS2 into one clean, shareable profile with real ranks and deep stats.",
+    description: "Connect League, TFT, Valorant, CS2 and Overwatch into one clean, shareable profile with real ranks and deep stats.",
   },
   robots: {
     index: true,
