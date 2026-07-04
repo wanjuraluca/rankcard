@@ -1,6 +1,6 @@
 import { after } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { getLeagueScore, getValorantScore, getCs2Score, getTftScore, getOverwatchScore } from '@/lib/rankScore'
+import { getLeagueScore, getValorantScore, getCs2Score, getTftScore, getOverwatchScore, getMarvelRivalsScore } from '@/lib/rankScore'
 
 // A background cache refresh occasionally hits a transient Riot/Henrik
 // hiccup (rate limit, brief 5xx) and gets back an empty match-history array
@@ -93,6 +93,16 @@ export async function GET(request) {
   // targets one game — Valorant's is a mode slug (e.g. "competitive"),
   // League's is a numeric Riot queue ID (e.g. 420 for Ranked Solo/Duo).
   const mode = searchParams.get('mode') || null
+  // On-demand single-match detail fetch (Marvel Rivals only) — the account-level
+  // match_history response has no team/opponent data, so the Hero component
+  // lazily requests the full scoreboard only when a match row is expanded,
+  // same UX as Valorant/League's expand-to-see-scoreboard but fetched live
+  // instead of pre-embedded, since Marvel Rivals' match-history endpoint
+  // doesn't include other players.
+  const matchId = searchParams.get('matchId')
+  if (platform === 'Marvel Rivals' && matchId) {
+    return Response.json(await fetchMarvelRivalsMatchDetail(matchId))
+  }
 
   const cacheKey = `${platform}:${name}:${tag}:${mode}`.toLowerCase()
   const cached = requestCache.get(cacheKey)
@@ -103,6 +113,7 @@ export async function GET(request) {
   async function fetchLive() {
     if (platform === 'CSGO') return await fetchCs2Data(name)
     if (platform === 'Overwatch') return await fetchOverwatchData(name, tag)
+    if (platform === 'Marvel Rivals') return await fetchMarvelRivalsData(name)
     return await fetchSummonerData(name, tag, mode)
   }
 
@@ -553,6 +564,142 @@ async function fetchOverwatchCareerStats(battleTag, gamemode, platform) {
   return { ...allHeroes, topHeroes }
 }
 
+// Marvel Rivals has no official stats API — marvelrivalsapi.com is an
+// unofficial third party that scrapes the game's own backend, hence the
+// disclaimer on their site that it "was not explicitly made usable ... and
+// thus may be subject to change at any time". Requires an API key (unlike
+// OverFast) on every request. Players are identified by plain username, no
+// discriminator tag. Gives real match history (unlike Overwatch/OverFast),
+// so win rate/KDA/top heroes can all be computed from it directly.
+async function fetchMarvelRivalsData(name) {
+  const response = await fetch(`https://marvelrivalsapi.com/api/v1/player/${encodeURIComponent(name)}`, {
+    headers: { 'x-api-key': process.env.MARVEL_RIVALS_API_KEY }
+  })
+  if (!response.ok) {
+    return { puuid: null, mrRank: null, mrStats: null, mrMatchHistory: null }
+  }
+
+  const json = await response.json()
+  if (json?.error) {
+    return { puuid: null, mrRank: null, mrStats: null, mrMatchHistory: null }
+  }
+
+  const matchHistory = Array.isArray(json?.match_history) ? json.match_history.map(m => {
+    const perf = m.player_performance
+    return {
+      matchId: m.match_uid,
+      hero: perf?.hero_name ?? null,
+      heroIcon: perf?.hero_type ?? null,
+      kills: perf?.kills ?? 0,
+      deaths: perf?.deaths ?? 0,
+      assists: perf?.assists ?? 0,
+      win: perf?.is_win?.is_win ?? false,
+      durationSeconds: m.duration ?? null,
+      gameStartTimestamp: m.match_time_stamp ? m.match_time_stamp * 1000 : null,
+    }
+  }) : []
+
+  const roleStats = await fetchMarvelRivalsRoleStats(name)
+
+  return {
+    puuid: String(json?.uid ?? name), // reused generically as "platform external ID", like CS2's SteamID64
+    mrUsername: json?.player?.name ?? json?.name ?? null,
+    mrIcon: json?.player?.icon?.player_icon ?? null,
+    mrRank: json?.player?.rank ?? null, // { rank: "Gold III", image, color }
+    mrOverallStats: json?.overall_stats ?? null,
+    mrMatchHistory: matchHistory,
+    mrRoleStats: roleStats,
+  }
+}
+
+// Full both-teams scoreboard for a single match — the account-level
+// match_history endpoint above only returns the requested player's own
+// performance, so a match's other 11 players are only available through
+// this dedicated per-match endpoint. Fetched on-demand (see the `matchId`
+// branch in GET) rather than for every match in history, to stay well
+// under the free tier's daily quota.
+async function fetchMarvelRivalsMatchDetail(matchUid) {
+  const response = await fetch(`https://marvelrivalsapi.com/api/v1/match/${encodeURIComponent(matchUid)}`, {
+    headers: { 'x-api-key': process.env.MARVEL_RIVALS_API_KEY }
+  })
+  if (!response.ok) return { players: null }
+  const json = await response.json()
+  const details = json?.match_details
+  if (!details || json?.error) return { players: null }
+
+  const players = Array.isArray(details.match_players) ? details.match_players.map(p => {
+    // A player's per-match accuracy isn't reported directly — only per-hero
+    // "session_hit_rate" on the heroes they played that match. We take the
+    // rate from whichever hero they played the most (their `cur_hero_id`).
+    const heroSession = Array.isArray(p.player_heroes)
+      ? p.player_heroes.find(h => h.hero_id === p.cur_hero_id) ?? p.player_heroes[0]
+      : null
+    return {
+      uid: p.player_uid,
+      name: p.nick_name,
+      side: p.camp, // 0 or 1 — the two teams
+      hero: p.cur_hero_id,
+      heroIcon: p.cur_hero_icon,
+      win: p.is_win === 1,
+      kills: p.kills ?? 0,
+      deaths: p.deaths ?? 0,
+      assists: p.assists ?? 0,
+      finalHits: p.final_hits ?? 0,
+      soloKills: p.solo_kill ?? 0,
+      damage: Math.round(p.total_hero_damage ?? 0),
+      healing: Math.round(p.total_hero_heal ?? 0),
+      damageTaken: Math.round(p.total_damage_taken ?? 0),
+      accuracy: heroSession?.session_hit_rate != null ? Math.round(heroSession.session_hit_rate * 100) : null,
+      scoreChange: p.dynamic_fields?.add_score ?? null,
+      // Raw score at match time — not a tier/division label. The API doesn't
+      // return per-player rank names in match data, and this raw number can't
+      // be reliably converted into one (see MatchDetailMarvelRivals.jsx).
+      rankScore: p.dynamic_fields?.new_score ?? null,
+    }
+  }) : null
+
+  return {
+    mvpUid: details.mvp_uid ?? null,
+    svpUid: details.svp_uid ?? null,
+    gameMode: details.game_mode?.game_mode_name ?? null,
+    players,
+  }
+}
+
+// Role win rates (Vanguard/Duelist/Strategist) — only exposed via the v2
+// endpoint, which the docs themselves warn is "not always reliable" when
+// queried by username. Best-effort: any failure here just means the role
+// win-rate section doesn't render, same fallback pattern as everything else
+// in this file when a third-party API hiccups.
+async function fetchMarvelRivalsRoleStats(name) {
+  try {
+    const response = await fetch(`https://marvelrivalsapi.com/api/v2/player/${encodeURIComponent(name)}`, {
+      headers: { 'x-api-key': process.env.MARVEL_RIVALS_API_KEY }
+    })
+    if (!response.ok) return null
+    const json = await response.json()
+    if (json?.error) return null
+
+    function mapRole(role) {
+      if (!role) return null
+      return {
+        matches: role.matches_played ?? 0,
+        wins: role.matches_won ?? 0,
+        winRate: role.win_percentage?.win_rate_raw ?? null,
+        kda: role.kda_ratio?.raw ?? null,
+      }
+    }
+
+    return {
+      vanguard: mapRole(json.vanguard),
+      duelist: mapRole(json.duelist),
+      strategist: mapRole(json.strategist),
+    }
+  } catch {
+    return null
+  }
+}
+
 // Community Dragon's TFT data dump (champions/traits/items for the current
 // set) doesn't have a versioned/stable URL like Data Dragon does — it's
 // always "latest", and the schema has shifted before across sets. We cache
@@ -925,6 +1072,9 @@ function extractScore(data, platform) {
     }
     if (platform === 'Overwatch') {
       return getOverwatchScore(data.owRanks)?.score ?? null
+    }
+    if (platform === 'Marvel Rivals') {
+      return data.mrRank?.rank ? getMarvelRivalsScore(data.mrRank.rank) : null
     }
   } catch {
     return null

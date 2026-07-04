@@ -18,6 +18,7 @@ import RankHero from "./RankHero"
 import ValorantHero from "./ValorantHero"
 import Cs2Hero from "./Cs2Hero"
 import OverwatchHero from "./OverwatchHero"
+import MarvelRivalsHero from "./MarvelRivalsHero"
 import TftHero from "./TftHero"
 import AddGameModal from "./AddGameModal"
 import UpgradeModal from "./UpgradeModal"
@@ -34,6 +35,7 @@ const gameTabs = [
     { key: "valorant", platform: "Valorant" },
     { key: "cs2", platform: "CSGO" },
     { key: "overwatch", platform: "Overwatch" },
+    { key: "marvelrivals", platform: "Marvel Rivals" },
 ]
 
 export default function ProfileClient({ data, accounts, followerCount: initialFollowerCount = 0, followingCount = 0 }) {
@@ -677,6 +679,8 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                 <TftHero account={account} accentColor={config.color} />
                             ) : activeGameTab.platform === "Overwatch" ? (
                                 <OverwatchHero account={account} accentColor={config.color} />
+                            ) : activeGameTab.platform === "Marvel Rivals" ? (
+                                <MarvelRivalsHero account={account} accentColor={config.color} />
                             ) : (
                                 <Cs2Hero account={account} accentColor={config.color} />
                             )

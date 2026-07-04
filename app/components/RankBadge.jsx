@@ -23,6 +23,8 @@ export default function RankBadge({ account }) {
     const [valorantImage, setValorantImage] = useState(null)
     const [cs2Profile, setCs2Profile] = useState(null)
     const [owRanks, setOwRanks] = useState(null)
+    const [mrRank, setMrRank] = useState(null)
+    const [mrOverallStats, setMrOverallStats] = useState(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -41,6 +43,8 @@ export default function RankBadge({ account }) {
             setValorantImage(mmrHistory[mmrHistory.length - 1]?.image ?? null)
             setCs2Profile(data.cs2Profile ?? null)
             setOwRanks(data.owRanks ?? null)
+            setMrRank(data.mrRank ?? null)
+            setMrOverallStats(data.mrOverallStats ?? null)
             setLoading(false)
         }
 
@@ -121,6 +125,28 @@ export default function RankBadge({ account }) {
                 <div>
                     <p className="text-text-primary text-sm font-bold capitalize">{bestRank.division} {bestRank.tier}</p>
                     <p className="text-text-secondary text-[11px] capitalize">{best.role === "open" ? "Open Queue" : best.role}</p>
+                </div>
+            </div>
+        )
+    }
+
+    if (account.platform === "Marvel Rivals") {
+        if (!mrRank?.rank) {
+            return <p className="text-text-secondary text-sm">Unranked</p>
+        }
+        const ranked = mrOverallStats?.ranked
+        const winRate = ranked?.total_matches > 0 ? Math.round((ranked.total_wins / ranked.total_matches) * 100) : null
+
+        return (
+            <div className="flex items-center gap-3">
+                <div className="w-[46px] h-[46px] flex-shrink-0 overflow-hidden flex items-center justify-center">
+                    {mrRank.image && (
+                        <img src={`https://marvelrivalsapi.com/rivals${mrRank.image}`} alt={mrRank.rank} className="w-full h-full object-contain" />
+                    )}
+                </div>
+                <div>
+                    <p className="text-text-primary text-sm font-bold">{mrRank.rank}</p>
+                    {winRate != null && <p className="text-text-secondary text-[11px]">{winRate}% WR</p>}
                 </div>
             </div>
         )

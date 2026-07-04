@@ -53,7 +53,7 @@ async function getShowcaseProfile() {
 }
 
 const steps = [
-  { number: "01", icon: Link2, title: "Connect your accounts", body: "Link League, TFT, Valorant, CS2 and Overwatch in seconds." },
+  { number: "01", icon: Link2, title: "Connect your accounts", body: "Link League, TFT, Valorant, CS2, Overwatch and Marvel Rivals in seconds." },
   { number: "02", icon: Trophy, title: "See your true rank", body: "One overall score across every game you play." },
   { number: "03", icon: Share2, title: "Share one link", body: "A public profile you can drop anywhere." },
 ]
@@ -69,7 +69,7 @@ const faqs = [
   { q: "Where do the ranks come from?", a: "Directly from the official Riot Games API. We never let you type in or edit a rank — it's pulled straight from the same source the games themselves use." },
   { q: "How often does my card update?", a: "Automatically, in the background. Whenever you play a ranked game, your rank and stats sync without you having to do anything." },
   { q: "Can I remove a connected account?", a: "Any time, from your profile. Removing an account immediately removes its stats from your public card too." },
-  { q: "Which games are supported?", a: "League of Legends, TFT, Valorant, CS2 and Overwatch today, with more competitive games planned." },
+  { q: "Which games are supported?", a: "League of Legends, TFT, Valorant, CS2, Overwatch and Marvel Rivals today, with more competitive games planned." },
 ]
 
 export default async function Home() {
@@ -95,7 +95,7 @@ export default async function Home() {
         <h1 className="text-4xl sm:text-6xl text-white font-bold mt-4 leading-tight">
           All your ranks. <span className="block text-4xl sm:text-6xl font-bold text-accent">One profile.</span>
         </h1>
-        <p className="text-text-secondary max-w-lg pt-5 sm:pt-7 text-sm sm:text-base px-2">Connect League, TFT, Valorant, CS2 and Overwatch — RankCard pulls your real ranks into one clean, shareable profile and gives you deep insights into your overall performance.</p>
+        <p className="text-text-secondary max-w-lg pt-5 sm:pt-7 text-sm sm:text-base px-2">Connect League, TFT, Valorant, CS2, Overwatch and Marvel Rivals — RankCard pulls your real ranks into one clean, shareable profile and gives you deep insights into your overall performance.</p>
         <div className="items-center flex flex-col sm:flex-row gap-3 sm:gap-4 pt-8 sm:pt-10 pb-12 sm:pb-16 w-full sm:w-auto px-4 sm:px-0">
           <a className="pointer-events-auto w-full sm:w-auto text-center shadow-[0_0_30px_rgba(177,108,255,0.5)] bg-accent text-black font-bold px-5 py-3 rounded-lg hover:text-white active:scale-95 transition-all duration-150" href="/auth">Create your profile</a>
           <a className="pointer-events-auto w-full sm:w-auto text-center border-hairline border-2 text-white font-bold px-5 py-3 rounded-lg hover:bg-accent hover:text-black hover:border-accent active:scale-95 transition-all duration-150" href="/DinDjarin">View live example</a>

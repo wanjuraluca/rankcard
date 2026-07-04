@@ -77,6 +77,19 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                 puuid = data.puuid
             }
 
+            // 3a. For plain-username games (no discriminator tag): validate via the API
+            if (selectedConfig.inputType === "username") {
+                const res = await fetch(`/api/summoner?platform=${selectedGame}&name=${encodeURIComponent(username)}`)
+                const data = await res.json()
+
+                if (!data.puuid) {
+                    setErrorMsg("Account not found. Check the username.")
+                    setLoading(false)
+                    return
+                }
+                puuid = data.puuid
+            }
+
             // 3b. For Steam games: validate the account + resolve the SteamID64
             // (vanity names like "winter" aren't usable directly by Leetify/Steam's API)
             let steamInput = username
@@ -202,6 +215,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                             {selectedGame === "Valorant" && "e.g. TenZ#NA1"}
                             {selectedGame === "CSGO" && "e.g. steamcommunity.com/id/s1mple or just \"s1mple\""}
                             {selectedGame === "Overwatch" && "e.g. TeKrop#2217 (your BattleTag)"}
+                            {selectedGame === "Marvel Rivals" && "e.g. Sypeh (your in-game username)"}
                         </p>
                         {selectedGame === "CSGO" && (
                             <p className="text-text-secondary text-xs mb-6 -mt-4">
