@@ -14,7 +14,7 @@ export default function OverwatchHero({ account, accentColor = "#f99e1a" }) {
 
     useEffect(() => {
         async function fetchStats() {
-            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}`)
+            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}&puuid=${encodeURIComponent(account.puuid)}`)
             const data = await response.json()
             setRanks(data.owRanks ?? null)
             setTitle(data.owTitle ?? null)

@@ -1,4 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <path fill="#f99e1a" d="M12 1 22 6v6.5C22 18 17.5 22 12 23 6.5 22 2 18 2 12.5V6L12 1Z"/>
-  <text x="12" y="15.5" text-anchor="middle" font-family="Arial, sans-serif" font-size="8" font-weight="900" fill="#141118">OW</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <circle cx="48" cy="48" r="44" fill="none" stroke="#58595d" stroke-width="8"/>
+  <path d="M22.76 11.96 A44 44 0 0 1 73.24 11.96" fill="none" stroke="#f99e1a" stroke-width="8"/>
+  <circle cx="48" cy="48" r="40" fill="#ffffff"/>
+  <path fill="#58595d" d="M48,32 C40,42 32,50 30,62 C36,70 42,76 48,80 C46,68 46,50 48,32 Z"/>
+  <path fill="#58595d" d="M48,32 C56,42 64,50 66,62 C60,70 54,76 48,80 C50,68 50,50 48,32 Z"/>
+  <path fill="#58595d" d="M42,78 L54,78 L48,90 Z"/>
 </svg>
