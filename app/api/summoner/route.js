@@ -1,6 +1,6 @@
 import { after } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { getLeagueScore, getValorantScore, getCs2Score, getTftScore } from '@/lib/rankScore'
+import { getLeagueScore, getValorantScore, getCs2Score, getTftScore, getOverwatchScore } from '@/lib/rankScore'
 
 // A background cache refresh occasionally hits a transient Riot/Henrik
 // hiccup (rate limit, brief 5xx) and gets back an empty match-history array
@@ -101,9 +101,9 @@ export async function GET(request) {
   }
 
   async function fetchLive() {
-    return platform === 'CSGO'
-      ? await fetchCs2Data(name)
-      : await fetchSummonerData(name, tag, mode)
+    if (platform === 'CSGO') return await fetchCs2Data(name)
+    if (platform === 'Overwatch') return await fetchOverwatchData(name, tag)
+    return await fetchSummonerData(name, tag, mode)
   }
 
   // Only the unfiltered request is DB-cached.
@@ -444,6 +444,42 @@ function buildCs2Match(match, steam64Id) {
     leetifyRating: me.leetify_rating ?? null,
     gameStartTimestamp: match.finished_at ? new Date(match.finished_at).getTime() : null,
     players
+  }
+}
+
+// Overwatch has no official rank/match API — OverFast API
+// (https://github.com/TeKrop/overfast-api) scrapes Blizzard's public career
+// pages instead. Actively maintained public instance, no API key needed:
+// https://overfast-api.tekrop.fr (30 req/s per IP). BattleTag's "#" becomes
+// "-" in the URL. Unlike League/Valorant, there's no match-history endpoint —
+// only current competitive ranks per role (tank/damage/support) + Open Queue.
+async function fetchOverwatchData(name, tag) {
+  const battleTag = `${name}-${tag}`
+  const response = await fetch(`https://overfast-api.tekrop.fr/players/${encodeURIComponent(battleTag)}/summary`)
+  if (!response.ok) {
+    return { puuid: null, owRanks: null, owUsername: null, owAvatar: null, owTitle: null }
+  }
+
+  const summary = await response.json()
+  // Console competitive is tracked separately and rarely used by our players —
+  // fall back to it only if the account has no PC ranks at all.
+  const platformRanks = summary?.competitive?.pc ?? summary?.competitive?.console ?? null
+
+  function mapRole(role) {
+    return role ? { division: role.division, tier: role.tier, rankIcon: role.rank_icon } : null
+  }
+
+  return {
+    puuid: battleTag, // reused generically as "platform external ID" like CS2's SteamID64
+    owUsername: summary?.username ?? null,
+    owAvatar: summary?.avatar ?? null,
+    owTitle: summary?.title ?? null,
+    owRanks: platformRanks ? {
+      tank: mapRole(platformRanks.tank),
+      damage: mapRole(platformRanks.damage),
+      support: mapRole(platformRanks.support),
+      open: mapRole(platformRanks.open),
+    } : null,
   }
 }
 
@@ -816,6 +852,9 @@ function extractScore(data, platform) {
     if (platform === 'TFT') {
       const entry = Array.isArray(data.tftData) ? data.tftData.find(e => e.queueType === 'RANKED_TFT') : null
       return entry ? getTftScore(entry.tier, entry.rank) : null
+    }
+    if (platform === 'Overwatch') {
+      return getOverwatchScore(data.owRanks)?.score ?? null
     }
   } catch {
     return null

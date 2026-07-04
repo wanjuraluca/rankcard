@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 import { RankBadgeSkeleton } from "./Skeleton"
+import { getOverwatchScore } from "@/lib/rankScore"
 
 // Mirrors Cs2Hero's PREMIER_BANDS — kept duplicated rather than shared since
 // this is just a display color, not scoring logic (see lib/rankScore.js).
@@ -21,6 +22,7 @@ export default function RankBadge({ account }) {
     const [valorantEntry, setValorantEntry] = useState(null)
     const [valorantImage, setValorantImage] = useState(null)
     const [cs2Profile, setCs2Profile] = useState(null)
+    const [owRanks, setOwRanks] = useState(null)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -38,6 +40,7 @@ export default function RankBadge({ account }) {
             const mmrHistory = data.valorantMmrHistory ?? []
             setValorantImage(mmrHistory[mmrHistory.length - 1]?.image ?? null)
             setCs2Profile(data.cs2Profile ?? null)
+            setOwRanks(data.owRanks ?? null)
             setLoading(false)
         }
 
@@ -96,6 +99,28 @@ export default function RankBadge({ account }) {
                 <div>
                     <p className="text-text-primary text-sm font-bold">{band.name}</p>
                     <p className="text-text-secondary text-[11px]">{premierRating.toLocaleString()} Premier</p>
+                </div>
+            </div>
+        )
+    }
+
+    if (account.platform === "Overwatch") {
+        const best = getOverwatchScore(owRanks)
+        if (!best) {
+            return <p className="text-text-secondary text-sm">Unranked</p>
+        }
+        const bestRank = owRanks[best.role]
+
+        return (
+            <div className="flex items-center gap-3">
+                <div className="w-[46px] h-[46px] flex-shrink-0 overflow-hidden flex items-center justify-center">
+                    {bestRank.rankIcon && (
+                        <img src={bestRank.rankIcon} alt={bestRank.division} className="w-full h-full object-contain" />
+                    )}
+                </div>
+                <div>
+                    <p className="text-text-primary text-sm font-bold capitalize">{bestRank.division} {bestRank.tier}</p>
+                    <p className="text-text-secondary text-[11px] capitalize">{best.role === "open" ? "Open Queue" : best.role}</p>
                 </div>
             </div>
         )

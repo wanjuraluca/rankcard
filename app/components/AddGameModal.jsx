@@ -201,11 +201,17 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                             {selectedGame === "League of Legends" && "e.g. Hide on bush#KR1 (Faker's Riot ID)"}
                             {selectedGame === "Valorant" && "e.g. TenZ#NA1"}
                             {selectedGame === "CSGO" && "e.g. steamcommunity.com/id/s1mple or just \"s1mple\""}
+                            {selectedGame === "Overwatch" && "e.g. TeKrop#2217 (your BattleTag)"}
                         </p>
                         {selectedGame === "CSGO" && (
                             <p className="text-text-secondary text-xs mb-6 -mt-4">
                                 Note: CS2 has no official rank API, so stats only load if your Steam account is linked to{" "}
                                 <a href="https://leetify.com" target="_blank" rel="noreferrer" className="text-accent-soft underline">Leetify</a> (free, just sign in with Steam).
+                            </p>
+                        )}
+                        {selectedGame === "Overwatch" && (
+                            <p className="text-text-secondary text-xs mb-6 -mt-4">
+                                Note: your career profile must be set to public in Overwatch's privacy settings, or your ranks won't be visible here.
                             </p>
                         )}
                     </>
