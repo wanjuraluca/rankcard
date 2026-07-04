@@ -204,7 +204,7 @@ export default async function Home() {
                   <div className="flex items-center gap-2 mb-2">
                     <div className="rounded-lg flex items-center justify-center" style={{ width: 24, height: 26, backgroundColor: `${config.color}24`, border: `1px solid ${config.color}66` }}>
                       {config.imageUrl ? (
-                        <img src={config.imageUrl} width="12" height="12" alt={config.shortName} />
+                        <img src={config.imageUrl} width="12" height="12" style={{ transform: `scale(${config.logoScale ?? 1})` }} alt={config.shortName} />
                       ) : (
                         <svg role="img" viewBox="0 0 24 24" width="12" height="12" fill={config.color}>
                           <path d={config.icon.path} fillRule={config.icon.fillRule ?? "nonzero"} />
