@@ -10,7 +10,7 @@
   --accent-tint: rgba(177, 108, 255, 0.12);
   --text-primary: #f4f3f7;
   --text-secondary: #8a8a9a;
-  --border: rgba(177, 108, 255, 0.25);
+  --text-muted: #5c5c6c;
   --hairline: rgba(255, 255, 255, 0.08);
   --positive: #4ade80;
   --negative: #f87171;
@@ -24,11 +24,11 @@
   --color-accent: var(--accent);
   --color-accent-soft: var(--accent-soft);
   --color-accent-tint: var(--accent-tint);
-  --color-line: var(--border);
   --color-hairline: var(--hairline);
   --color-acnt: var(--accent);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
   --color-positive: var(--positive);
   --color-negative: var(--negative);
   --font-sans: var(--font-geist-sans);
@@ -40,21 +40,18 @@
   --accent: #e8c468;
   --accent-soft: #d4a832;
   --accent-tint: rgba(232, 196, 104, 0.12);
-  --border: rgba(232, 196, 104, 0.28);
 }
 
 [data-theme="teal"] {
   --accent: #5fd9c3;
   --accent-soft: #3db8a4;
   --accent-tint: rgba(95, 217, 195, 0.12);
-  --border: rgba(95, 217, 195, 0.28);
 }
 
 [data-theme="rose"] {
   --accent: #ff6b9d;
   --accent-soft: #e04f82;
   --accent-tint: rgba(255, 107, 157, 0.12);
-  --border: rgba(255, 107, 157, 0.28);
 }
 
 html {

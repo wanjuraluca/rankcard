@@ -93,7 +93,7 @@ export default function Datenschutz() {
                 <h2>9. Retention & deletion</h2>
                 <p>
                     We store your data for as long as your account exists. You can delete your account and
-                    all associated data yourself, at any time, from your account settings ("⋯" menu on your
+                    all associated data yourself, at any time, from your account settings (the account menu on your
                     profile → "Delete account"). This permanently removes your profile, all connected game
                     accounts, and your login.
                 </p>

@@ -12,14 +12,14 @@ export default function RankInfoModal({ score, onClose }) {
             onClick={onClose}
         >
             <div
-                className="bg-surface border border-line rounded-2xl w-full max-w-md overflow-hidden"
+                className="bg-surface border border-hairline rounded-2xl w-full max-w-md overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="p-6 pb-4 border-b border-line">
+                <div className="p-6 pb-4 border-b border-hairline">
                     <div className="flex items-start justify-between gap-4">
                         <div>
-                            <p className="text-text-secondary text-xs uppercase tracking-widest mb-1">Your RankCard Tier</p>
+                            <p className="text-text-muted text-xs uppercase tracking-widest mb-1">Your RankCard Tier</p>
                             {info ? (
                                 <>
                                     <p className="text-3xl font-extrabold" style={{ color: info.tier.color }}>
@@ -71,7 +71,7 @@ export default function RankInfoModal({ score, onClose }) {
 
                 {/* Tier Ladder */}
                 <div className="p-4">
-                    <p className="text-text-secondary text-xs uppercase tracking-widest mb-3">Tier Ladder</p>
+                    <p className="text-text-muted text-xs uppercase tracking-widest mb-3">Tier Ladder</p>
                     <div className="space-y-1.5">
                         {[...RANK_TIERS].reverse().map((tier, i) => {
                             const isCurrent = info?.tier.name === tier.name
@@ -79,7 +79,7 @@ export default function RankInfoModal({ score, onClose }) {
                             return (
                                 <div
                                     key={tier.name}
-                                    className={`flex items-center gap-3 rounded-xl px-3 py-2 transition-colors ${isCurrent ? "border" : ""}`}
+                                    className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${isCurrent ? "border" : ""}`}
                                     style={isCurrent ? { backgroundColor: `${tier.color}15`, borderColor: `${tier.color}60` } : {}}
                                 >
                                     <div
@@ -102,7 +102,7 @@ export default function RankInfoModal({ score, onClose }) {
 
                 {/* Footer explanation */}
                 <div className="px-4 pb-5">
-                    <p className="text-text-secondary text-[11px] leading-relaxed border-t border-line pt-4">
+                    <p className="text-text-secondary text-[11px] leading-relaxed border-t border-hairline pt-4">
                         Your <span className="text-text-primary">Rank Score</span> is a cross-game percentile — each connected game's rank is converted into "top X% of players worldwide", then mapped to a 0–{MAX_SCORE.toLocaleString()} scale. The overall score is the average across all your games, so a Challenger in League and a Radiant in Valorant land near each other, even though the tier names are different.
                     </p>
                 </div>
@@ -110,7 +110,7 @@ export default function RankInfoModal({ score, onClose }) {
                 <div className="px-4 pb-4">
                     <button
                         onClick={onClose}
-                        className="w-full border border-line rounded-xl py-2.5 text-sm text-text-secondary hover:text-text-primary hover:border-accent/30 active:scale-[0.98] transition-all"
+                        className="w-full border border-hairline rounded-lg py-2.5 text-sm text-text-secondary hover:text-text-primary hover:border-accent/30 active:scale-[0.98] transition-all"
                     >
                         Close
                     </button>

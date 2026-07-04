@@ -7,11 +7,11 @@ function PlayerRow({ player, isYou }) {
                 <img
                     src={player.agentIcon}
                     alt={player.agent}
-                    className="w-6 h-6 sm:w-7 sm:h-7 rounded-md object-cover bg-surface flex-shrink-0"
+                    className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg object-cover bg-surface flex-shrink-0"
                     onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
                 />
             ) : (
-                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-surface flex-shrink-0" />
+                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-surface flex-shrink-0" />
             )}
             <div className="w-[84px] sm:w-[120px] flex-shrink-0 min-w-0">
                 <p className={`text-[11px] sm:text-xs font-bold truncate ${isYou ? "text-accent-soft" : "text-text-primary"}`}>

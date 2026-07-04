@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
+import { RankBadgeSkeleton } from "./Skeleton"
 
 // Mirrors Cs2Hero's PREMIER_BANDS — kept duplicated rather than shared since
 // this is just a display color, not scoring logic (see lib/rankScore.js).
@@ -45,7 +46,7 @@ export default function RankBadge({ account }) {
     }, [])
 
     if (loading) {
-        return <p className="text-text-secondary text-xs">Loading rank...</p>
+        return <RankBadgeSkeleton />
     }
 
     if (account.platform === "TFT") {

@@ -3,7 +3,7 @@ function PlayerRow({ player, isYou }) {
 
     return (
         <div className={`flex items-center gap-1.5 sm:gap-2 py-1.5 px-2 rounded-lg ${isYou ? "bg-accent-tint" : ""}`}>
-            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-md bg-surface flex-shrink-0 flex items-center justify-center text-text-secondary text-xs font-bold">
+            <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-surface flex-shrink-0 flex items-center justify-center text-text-secondary text-xs font-bold">
                 {player.name?.[0]?.toUpperCase()}
             </div>
             <div className="w-[96px] sm:w-[140px] flex-shrink-0 min-w-0">

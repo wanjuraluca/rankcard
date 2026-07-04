@@ -59,7 +59,7 @@ function ItemIcon({ itemId, ddragonVersion, itemData }) {
             {item && tooltipStyle && (
                 <div
                     style={{ left: tooltipStyle.left, bottom: tooltipStyle.bottom }}
-                    className="hidden group-hover:block fixed z-50 w-56 bg-surface border border-line rounded-lg p-2.5 shadow-lg pointer-events-none"
+                    className="hidden group-hover:block fixed z-50 w-56 bg-surface border border-hairline rounded-lg p-2.5 shadow-lg pointer-events-none"
                 >
                     <p className="text-text-primary text-xs font-bold mb-1">{item.name}</p>
                     {item.gold?.total > 0 && (
@@ -164,7 +164,7 @@ function PlayerRow({
                 <img
                     src={championIconUrl(player.champion, ddragonVersion)}
                     alt={player.champion}
-                    className="w-6 h-6 sm:w-7 sm:h-7 rounded-md object-cover bg-surface"
+                    className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg object-cover bg-surface"
                     onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
                 />
                 {player.champLevel != null && (
@@ -222,7 +222,7 @@ function PlayerRow({
 
             {player.impactScore != null && (
                 <span
-                    className="text-[10px] sm:text-xs font-bold text-accent-soft bg-accent-tint rounded-md px-1.5 py-0.5 flex-shrink-0 ml-1"
+                    className="text-[10px] sm:text-xs font-bold text-accent-soft bg-accent-tint rounded-lg px-1.5 py-0.5 flex-shrink-0 ml-1"
                     title="Impact — our own performance estimate (not an official Riot stat): 40% kill participation, 40% team damage share, 20% gold-per-minute rank"
                 >
                     <span className="text-[9px] sm:text-[10px] font-semibold text-text-secondary mr-1">Impact</span>
@@ -251,7 +251,7 @@ function ArenaPlayerRow({ player, ddragonVersion, isYou, maxDamage }) {
                 <img
                     src={championIconUrl(player.champion, ddragonVersion)}
                     alt={player.champion}
-                    className="w-6 h-6 sm:w-7 sm:h-7 rounded-md object-cover bg-surface"
+                    className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg object-cover bg-surface"
                     onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
                 />
                 {player.champLevel != null && (

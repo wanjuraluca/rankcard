@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { MoreHorizontal, Star, Palette } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import DeleteAccountDialog from "./DeleteAccountDialog"
 
@@ -69,43 +70,44 @@ export default function AccountMenu({ isPro, stripeCustomerId, username, onUpgra
         <div className="relative">
             <button
                 onClick={() => setOpen(!open)}
-                className="border border-hairline rounded-lg px-3 py-2 text-sm text-text-secondary hover:border-accent/40 hover:text-text-primary active:border-accent/40 active:text-text-primary active:scale-95 transition-all"
+                title="More options"
+                className="border border-hairline rounded-lg p-2 text-text-secondary hover:border-accent/40 hover:text-text-primary active:border-accent/40 active:text-text-primary active:scale-95 transition-all"
             >
-                ⋯
+                <MoreHorizontal size={15} />
             </button>
 
             {open && (
                 <>
                     <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-                    <div className="absolute right-0 top-full mt-2 z-20 w-48 rounded-xl border border-line bg-surface p-1.5 shadow-2xl">
+                    <div className="absolute right-0 top-full mt-2 z-20 w-48 rounded-lg border border-hairline bg-surface p-1.5 shadow-2xl">
                         {!isPro && (
                             <button
                                 onClick={() => { setOpen(false); onUpgradeClick() }}
-                                className="w-full text-left rounded-lg px-3 py-2 text-sm text-accent-soft font-semibold hover:bg-accent-tint active:bg-accent-tint transition-colors"
+                                className="w-full text-left rounded-lg px-3 py-2 text-sm text-accent-soft font-semibold hover:bg-accent-tint active:bg-accent-tint transition-colors flex items-center gap-2"
                             >
-                                ★ Upgrade to Pro
+                                <Star size={14} /> Upgrade to Pro
                             </button>
                         )}
                         {isPro && (
                             <button
                                 onClick={() => { setOpen(false); onThemeClick?.() }}
-                                className="w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-background active:bg-background transition-colors"
+                                className="w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-surface-hover active:bg-surface-hover transition-colors flex items-center gap-2"
                             >
-                                🎨 Choose theme
+                                <Palette size={14} /> Choose theme
                             </button>
                         )}
                         {isPro && stripeCustomerId && (
                             <button
                                 onClick={handleManageSubscription}
                                 disabled={portalLoading}
-                                className="w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-background active:bg-background transition-colors disabled:opacity-50"
+                                className="w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-surface-hover active:bg-surface-hover transition-colors disabled:opacity-50"
                             >
                                 {portalLoading ? "Loading..." : "Manage subscription"}
                             </button>
                         )}
                         <button
                             onClick={handleSignOut}
-                            className="w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-background active:bg-background transition-colors"
+                            className="w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-surface-hover active:bg-surface-hover transition-colors"
                         >
                             Sign out
                         </button>

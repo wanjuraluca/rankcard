@@ -397,7 +397,7 @@ export default function LpHistoryChart({
                     <Line data={data} options={options} />
                     {tooltip && (
                         <div
-                            className="absolute z-10 bg-surface border border-line rounded-lg px-2.5 py-2 pointer-events-none shadow-lg flex items-center gap-2"
+                            className="absolute z-10 bg-surface border border-hairline rounded-lg px-2.5 py-2 pointer-events-none shadow-lg flex items-center gap-2"
                             style={{
                                 top: Math.max(tooltip.y - 50, 0),
                                 left: tooltip.align === "right" ? undefined : tooltip.x + 10,
@@ -408,7 +408,7 @@ export default function LpHistoryChart({
                                 <img
                                     src={championIconUrl(tooltip.point.champion)}
                                     alt={tooltip.point.champion}
-                                    className="w-8 h-8 rounded-md object-cover bg-surface-deep flex-shrink-0"
+                                    className="w-8 h-8 rounded-lg object-cover bg-surface-deep flex-shrink-0"
                                     onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
                                 />
                             )}

@@ -4,8 +4,12 @@ import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Particles from "@tsparticles/react"
 import Footer from "../components/Footer"
+import { Check, X } from "lucide-react"
+import { platformConfig } from "@/lib/platforms"
+import { extractGameStats } from "@/lib/gameStats"
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/
+const SHOWCASE_USERNAME = "DinDjarin"
 
 export default function Login() {
   const [email, setEmail] = useState("")
@@ -20,7 +24,39 @@ export default function Login() {
   const [checkingConfirmation, setCheckingConfirmation] = useState(false)
   const [resending, setResending] = useState(false)
   const [resendSent, setResendSent] = useState(false)
+  const [showcase, setShowcase] = useState(null)
   const router = useRouter()
+
+  useEffect(() => {
+    async function loadShowcase() {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("user_id, username, avatar_url")
+        .eq("username", SHOWCASE_USERNAME)
+        .maybeSingle()
+      if (!profile) return
+
+      const { data: accounts } = await supabase
+        .from("connected_accounts")
+        .select("id, platform")
+        .eq("user_id", profile.user_id)
+
+      const games = await Promise.all(
+        (accounts ?? []).map(async (account) => {
+          const { data: cache } = await supabase
+            .from("account_cache")
+            .select("data")
+            .eq("account_id", account.id)
+            .maybeSingle()
+          const stats = extractGameStats(account.platform, cache?.data ?? {})
+          return { platform: account.platform, stats }
+        })
+      )
+
+      setShowcase({ profile, games: games.filter(g => g.stats) })
+    }
+    loadShowcase()
+  }, [])
 
   function friendlyError(message) {
     if (message === "Invalid login credentials") return "Incorrect email or password."
@@ -153,7 +189,7 @@ async function handleSubmit(e) {
       <div className="relative z-10 flex w-full max-w-[392px] flex-col gap-4">
 
         {/* ===== auth card ===== */}
-        <div className="relative rounded-3xl border border-line bg-surface p-8 shadow-2xl">
+        <div className="relative rounded-2xl border border-hairline bg-surface p-8 shadow-2xl">
           {/* glowing top hairline */}
           <div className="absolute left-6 right-6 top-0 h-px bg-gradient-to-r from-transparent via-accent to-transparent opacity-70" />
 
@@ -184,14 +220,14 @@ async function handleSubmit(e) {
               <button
                 onClick={handleCheckConfirmation}
                 disabled={checkingConfirmation}
-                className="mt-6 w-full cursor-pointer rounded-lg bg-accent py-3 text-[15px] font-bold text-black shadow-[0_0_30px_rgba(177,108,255,0.5)] transition-all hover:text-white active:text-white active:scale-95 duration-150 hover:shadow-[0_0_40px_rgba(177,108,255,0.5)] disabled:opacity-60"
+                className="mt-6 w-full cursor-pointer rounded-lg bg-accent py-3 text-[15px] font-bold text-black shadow-[0_0_30px_rgba(177,108,255,0.5)] transition-all hover:text-white active:scale-95 duration-150 hover:shadow-[0_0_40px_rgba(177,108,255,0.5)] disabled:opacity-60"
               >
                 {checkingConfirmation ? "Checking..." : "I've confirmed my email"}
               </button>
               <button
                 onClick={handleResendConfirmation}
                 disabled={resending}
-                className="mt-3 w-full cursor-pointer rounded-lg border border-line bg-background py-3 text-[15px] font-semibold text-white transition-colors hover:border-accent disabled:opacity-60"
+                className="mt-3 w-full cursor-pointer rounded-lg border border-hairline bg-background py-3 text-[15px] font-semibold text-white transition-colors hover:border-accent disabled:opacity-60"
               >
                 {resending ? "Resending..." : "Resend confirmation email"}
               </button>
@@ -205,11 +241,11 @@ async function handleSubmit(e) {
           ) : (
           <>
           {/* toggle */}
-          <div className="flex rounded-xl border border-line bg-background p-1">
+          <div className="flex rounded-lg border border-hairline bg-background p-1">
             <button
               onClick={() => { setIsLogin(true); setError(""); setResetSent(false) }}
               className={`flex-1 cursor-pointer rounded-lg py-2 text-sm font-semibold transition-colors ${
-                isLogin ? "border border-line bg-surface text-white" : "text-text-secondary"
+                isLogin ? "border border-hairline bg-surface text-white" : "text-text-secondary"
               }`}
             >
               Sign in
@@ -217,7 +253,7 @@ async function handleSubmit(e) {
             <button
               onClick={() => { setIsLogin(false); setError(""); setResetSent(false) }}
               className={`flex-1 cursor-pointer rounded-lg py-2 text-sm font-semibold transition-colors ${
-                !isLogin ? "border border-line bg-surface text-white" : "text-text-secondary"
+                !isLogin ? "border border-hairline bg-surface text-white" : "text-text-secondary"
               }`}
             >
               Create account
@@ -249,15 +285,15 @@ async function handleSubmit(e) {
                         ? "border-negative/50 focus:border-negative"
                         : usernameStatus === "available"
                         ? "border-positive/50 focus:border-positive"
-                        : "border-line focus:border-accent"
+                        : "border-hairline focus:border-accent"
                     }`}
                   />
                   <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-sm">
                     {usernameStatus === "checking" && (
-                      <span className="block h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-accent" />
+                      <span className="block h-3.5 w-3.5 animate-spin rounded-full border-2 border-hairline border-t-accent" />
                     )}
-                    {usernameStatus === "available" && <span className="text-positive">✓</span>}
-                    {(usernameStatus === "taken" || usernameStatus === "invalid") && <span className="text-negative">✕</span>}
+                    {usernameStatus === "available" && <Check size={15} className="text-positive" />}
+                    {(usernameStatus === "taken" || usernameStatus === "invalid") && <X size={15} className="text-negative" />}
                   </span>
                 </div>
                 {usernameStatus === "taken" && (
@@ -282,7 +318,7 @@ async function handleSubmit(e) {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full rounded-lg border border-line bg-background px-3.5 py-3 text-[15px] text-white placeholder:text-[#56565f] focus:border-accent focus:shadow-[0_0_0_3px_rgba(177,108,255,0.16)] focus:outline-none"
+                className="w-full rounded-lg border border-hairline bg-background px-3.5 py-3 text-[15px] text-white placeholder:text-[#56565f] focus:border-accent focus:shadow-[0_0_0_3px_rgba(177,108,255,0.16)] focus:outline-none"
               />
             </div>
 
@@ -294,7 +330,7 @@ async function handleSubmit(e) {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-lg border border-line bg-background px-3.5 py-3 text-[15px] text-white placeholder:text-[#56565f] focus:border-accent focus:shadow-[0_0_0_3px_rgba(177,108,255,0.16)] focus:outline-none"
+                  className="w-full rounded-lg border border-hairline bg-background px-3.5 py-3 text-[15px] text-white placeholder:text-[#56565f] focus:border-accent focus:shadow-[0_0_0_3px_rgba(177,108,255,0.16)] focus:outline-none"
                 />
                 <button
                   type="button"
@@ -330,14 +366,14 @@ async function handleSubmit(e) {
             <button
               type="submit"
               disabled={!isLogin && usernameStatus !== "available"}
-              className="mt-1 w-full cursor-pointer rounded-lg bg-accent py-3 text-[15px] font-bold text-black shadow-[0_0_30px_rgba(177,108,255,0.5)] transition-all hover:text-white active:text-white active:scale-95 duration-150 hover:shadow-[0_0_40px_rgba(177,108,255,0.5)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:active:scale-100"
+              className="mt-1 w-full cursor-pointer rounded-lg bg-accent py-3 text-[15px] font-bold text-black shadow-[0_0_30px_rgba(177,108,255,0.5)] transition-all hover:text-white active:scale-95 duration-150 hover:shadow-[0_0_40px_rgba(177,108,255,0.5)] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:active:scale-100"
             >
               {isLogin ? "Sign in" : "Create profile"}
             </button>
           </form>
 
           {!isLogin && (
-            <div className="mt-4 rounded-lg border border-line bg-background p-3 text-xs leading-relaxed text-text-secondary">
+            <div className="mt-4 rounded-lg border border-hairline bg-background p-3 text-xs leading-relaxed text-text-secondary">
               We'll send a confirmation link to verify your email before your profile goes live.
             </div>
           )}
@@ -355,34 +391,46 @@ async function handleSubmit(e) {
           )}
         </div>
 
-        {/* ===== profile preview (secondary) ===== */}
+        {/* ===== real example profile (secondary) — honestly framed as someone else's live card, not "your" preview ===== */}
         <div className="text-center font-mono text-[11px] tracking-wide text-text-secondary">
-          a preview of your public profile
+          this is a real, live RankCard profile
         </div>
-        <div className="rounded-2xl border border-line bg-surface p-4">
+        <a
+          href={`/${showcase?.profile.username ?? "DinDjarin"}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block rounded-2xl border border-hairline bg-surface p-4 hover:border-accent/40 transition-colors"
+        >
           <div className="flex items-center gap-3">
-            <div className="grid h-[42px] w-[42px] place-items-center rounded-full border border-accent/30 bg-gradient-to-br from-[#2a2440] to-[#161320] text-[17px] font-bold text-accent">
-              L
-            </div>
+            {showcase?.profile.avatar_url ? (
+              <img src={showcase.profile.avatar_url} alt={showcase.profile.username} className="h-[42px] w-[42px] rounded-full border border-accent/30 object-cover" />
+            ) : (
+              <div className="grid h-[42px] w-[42px] place-items-center rounded-full border border-accent/30 bg-gradient-to-br from-[#2a2440] to-[#161320] text-[17px] font-bold text-accent">
+                {(showcase?.profile.username ?? "D")[0].toUpperCase()}
+              </div>
+            )}
             <div>
-              <div className="text-[15px] font-semibold text-white">user</div>
-              <div className="font-mono text-[11.5px] text-text-secondary">rankcard.gg/user</div>
+              <div className="text-[15px] font-semibold text-white">{showcase?.profile.username ?? "DinDjarin"}</div>
+              <div className="font-mono text-[11.5px] text-text-secondary">rankcard.gg/{showcase?.profile.username ?? "DinDjarin"}</div>
             </div>
           </div>
           <div className="mt-3 flex flex-col gap-2">
-            {[
-              { game: "League of Legends", tier: "Diamond II", color: "#c89b3c" },
-              { game: "Valorant", tier: "Immortal 1", color: "#ff4655" },
-              { game: "CS2", tier: "15.2k Elo", color: "#5b8def" },
-            ].map(r => (
-              <div key={r.game} className="flex items-center gap-2.5 rounded-lg border border-line bg-background px-3 py-2 text-[13px]">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: r.color }} />
-                <span className="text-text-secondary">{r.game}</span>
-                <span className="ml-auto font-mono text-xs font-semibold" style={{ color: r.color }}>{r.tier}</span>
-              </div>
-            ))}
+            {(showcase?.games ?? []).map(({ platform, stats }) => {
+              const config = platformConfig[platform]
+              if (!config) return null
+              return (
+                <div key={platform} className="flex items-center gap-2.5 rounded-lg border border-hairline bg-background px-3 py-2 text-[13px]">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: config.color }} />
+                  <span className="text-text-secondary">{config.name}</span>
+                  <span className="ml-auto font-mono text-xs font-semibold" style={{ color: config.color }}>{stats.tierLabel ?? "Unranked"}</span>
+                </div>
+              )
+            })}
           </div>
-        </div>
+          <div className="mt-3 text-center text-xs font-semibold text-accent-soft">
+            View this live profile →
+          </div>
+        </a>
       </div>
 
       <Footer />

@@ -49,7 +49,7 @@ export default function BioEditor({ username, bio, isOwnProfile }) {
                 onKeyDown={handleKeyDown}
                 placeholder="Add a bio..."
                 maxLength={120}
-                className="text-text-secondary font-mono text-sm mt-1 bg-surface-deep border border-accent/40 rounded-md px-2 py-1 w-full max-w-sm outline-none"
+                className="text-text-secondary font-mono text-sm mt-1 bg-surface-deep border border-accent/40 rounded-lg px-2 py-1 w-full max-w-sm outline-none"
             />
         )
     }

@@ -2,6 +2,7 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react"
 import LpHistoryChart from "./LpHistoryChart"
 import MatchDetail from "./MatchDetail"
+import { HeroSkeleton } from "./Skeleton"
 
 function formatDuration(seconds) {
     const minutes = Math.floor(seconds / 60)
@@ -320,16 +321,12 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
     }, [ddragonVersion])
 
     if (loading) {
-        return (
-            <div className="bg-surface border border-line rounded-xl p-6">
-                <p className="text-text-secondary text-sm">Loading rank...</p>
-            </div>
-        );
+        return <HeroSkeleton accentColor={accentColor} />
     }
 
     if (!rankEntry) {
         return (
-            <div className="bg-surface border border-line rounded-xl p-6 text-center">
+            <div className="bg-surface border border-hairline rounded-2xl p-6 text-center">
                 <p className="text-text-secondary text-sm">No ranked Solo/Duo games found yet.</p>
             </div>
         );
@@ -351,7 +348,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
 
     return (
         <div
-            className="bg-surface border border-line rounded-2xl p-4 sm:p-5 relative"
+            className="bg-surface border border-hairline rounded-2xl p-4 sm:p-5 relative"
             style={{ borderTopWidth: 3, borderTopColor: accentColor }}
         >
             <div className="flex gap-3 sm:gap-5 items-center flex-wrap">
@@ -388,7 +385,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                 {/* Recent form */}
                 {matchHistory.length > 0 && (
                     <div className="text-right">
-                        <p className="text-text-secondary text-[10px] uppercase tracking-widest mb-1.5">Recent Form</p>
+                        <p className="text-text-muted text-[10px] uppercase tracking-widest mb-1.5">Recent Form</p>
                         <div className="flex gap-1 justify-end">
                             {matchHistory.map((match) => (
                                 <span
@@ -405,19 +402,19 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
 
             {/* Stat tiles */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5">
-                <div className="bg-surface-deep rounded-xl p-3">
+                <div className="bg-surface-deep rounded-lg p-3">
                     <p className="text-text-primary font-extrabold text-xl">{avgCsPerMin ? avgCsPerMin.toFixed(1) : "—"}</p>
                     <p className="text-text-secondary text-xs">CS / min</p>
                 </div>
-                <div className="bg-surface-deep rounded-xl p-3">
+                <div className="bg-surface-deep rounded-lg p-3">
                     <p className="text-text-primary font-extrabold text-xl">{avgVision ? Math.round(avgVision) : "—"}</p>
                     <p className="text-text-secondary text-xs">Vision / game</p>
                 </div>
-                <div className="bg-surface-deep rounded-xl p-3">
+                <div className="bg-surface-deep rounded-lg p-3">
                     <p className="text-text-primary font-extrabold text-xl">{avgKillParticipation ? `${Math.round(avgKillParticipation)}%` : "—"}</p>
                     <p className="text-text-secondary text-xs">Kill part.</p>
                 </div>
-                <div className="bg-surface-deep rounded-xl p-3">
+                <div className="bg-surface-deep rounded-lg p-3">
                     <p className="text-text-primary font-extrabold text-xl">{avgDamage ? `${(avgDamage / 1000).toFixed(1)}k` : "—"}</p>
                     <p className="text-text-secondary text-xs">Avg. dmg</p>
                 </div>
@@ -425,8 +422,8 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
 
             {/* Top Champions + LP graph */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-5">
-                <div className="bg-surface-deep rounded-xl p-4">
-                    <p className="text-text-secondary text-[11px] uppercase tracking-widest mb-3">Top Champions</p>
+                <div className="bg-surface-deep rounded-lg p-4">
+                    <p className="text-text-muted text-[11px] uppercase tracking-widest mb-3">Top Champions</p>
                     <div className="flex flex-col gap-2.5">
                         {topChampions.length === 0 && (
                             <p className="text-text-secondary text-sm">No recent ranked games yet.</p>
@@ -437,7 +434,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                                     <img
                                         src={championIconUrl(champ.champion)}
                                         alt={champ.champion}
-                                        className="w-9 h-9 rounded-md object-cover bg-surface flex-shrink-0"
+                                        className="w-9 h-9 rounded-lg object-cover bg-surface flex-shrink-0"
                                         onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
                                     />
                                 )}
@@ -450,8 +447,8 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                         ))}
                     </div>
                 </div>
-                <div className="bg-surface-deep rounded-xl p-4">
-                    <p className="text-text-secondary text-[11px] uppercase tracking-widest mb-3">LP History</p>
+                <div className="bg-surface-deep rounded-lg p-4">
+                    <p className="text-text-muted text-[11px] uppercase tracking-widest mb-3">LP History</p>
                     <LpHistoryChart
                         accountId={account.id}
                         matchHistory={matchHistory}
@@ -468,7 +465,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
             {/* Match history */}
             <div className="mt-5">
                 <div className="flex items-center gap-2 mb-2.5">
-                    <p className="text-text-secondary text-xs uppercase tracking-widest">Match History</p>
+                    <p className="text-text-muted text-xs uppercase tracking-widest">Match History</p>
                     <div className="flex-1 h-px bg-hairline" />
                     <div className="relative">
                         <button
@@ -479,7 +476,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                             <span className="text-[9px]">▾</span>
                         </button>
                         {modeMenuOpen && (
-                            <div className="absolute right-0 top-full mt-1 z-50 bg-surface border border-line rounded-lg py-1 w-36 shadow-lg">
+                            <div className="absolute right-0 top-full mt-1 z-50 bg-surface border border-hairline rounded-lg py-1 w-36 shadow-lg">
                                 {MODE_OPTIONS.map(option => (
                                     <button
                                         key={option.value}
@@ -505,7 +502,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                             return (
                                 <div
                                     key={match.matchId}
-                                    className="bg-surface-deep rounded-xl overflow-hidden"
+                                    className="bg-surface-deep rounded-lg overflow-hidden"
                                     style={{ borderLeft: `3px solid ${match.win ? "#4ade80" : "#f87171"}` }}
                                 >
                                     <button
@@ -518,7 +515,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                                                 <img
                                                     src={championIconUrl(match.champion)}
                                                     alt={match.champion}
-                                                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-md object-cover bg-surface"
+                                                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg object-cover bg-surface"
                                                     onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
                                                 />
                                                 {match.champLevel != null && (

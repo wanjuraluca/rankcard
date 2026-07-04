@@ -14,7 +14,7 @@ export default function DeleteAccountDialog({ username, loading, error, done, on
     if (done) {
         return (
             <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-50 p-4">
-                <div className="bg-surface border border-line rounded-2xl p-6 w-full max-w-sm">
+                <div className="bg-surface border border-hairline rounded-2xl p-6 w-full max-w-sm">
                     <p className="text-text-primary text-lg font-bold">Account scheduled for deletion</p>
                     <p className="text-text-secondary text-sm mt-2 leading-relaxed">
                         Your account is scheduled for deletion in 14 days. Log back in before then to cancel.
@@ -33,7 +33,7 @@ export default function DeleteAccountDialog({ username, loading, error, done, on
 
     return (
         <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-50 p-4" onClick={onCancel}>
-            <div className="bg-surface border border-line rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-surface border border-hairline rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
                 <p className="text-text-primary text-lg font-bold">Delete your account?</p>
                 <p className="text-text-secondary text-sm mt-2 leading-relaxed">
                     This schedules your profile and all connected games for permanent deletion in 14 days. You can cancel anytime before then by logging back in.
@@ -46,7 +46,7 @@ export default function DeleteAccountDialog({ username, loading, error, done, on
                     value={typed}
                     onChange={e => setTyped(e.target.value)}
                     placeholder="TYPE USERNAME"
-                    className="mt-2 w-full rounded-lg border border-line bg-background px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-negative focus:outline-none"
+                    className="mt-2 w-full rounded-lg border border-hairline bg-background px-3.5 py-2.5 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-negative focus:outline-none"
                 />
 
                 {error && (
@@ -57,7 +57,7 @@ export default function DeleteAccountDialog({ username, loading, error, done, on
                     <button
                         type="button"
                         onClick={onCancel}
-                        className="flex-1 border border-line rounded-lg py-2.5 text-sm text-text-secondary active:bg-background active:scale-95 transition-all"
+                        className="flex-1 border border-hairline rounded-lg py-2.5 text-sm text-text-secondary active:bg-background active:scale-95 transition-all"
                     >
                         Cancel
                     </button>

@@ -47,13 +47,13 @@ export default function AuthCallback() {
             <p className="max-w-xs text-sm text-text-secondary">
               Try signing in directly, or request a new confirmation email.
             </p>
-            <a href="/auth" className="mt-2 rounded-lg border border-line bg-surface px-5 py-2.5 text-sm font-semibold text-white hover:border-accent">
+            <a href="/auth" className="mt-2 rounded-lg border border-hairline bg-surface px-5 py-2.5 text-sm font-semibold text-white hover:border-accent">
               Back to sign in
             </a>
           </>
         ) : (
           <>
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-line border-t-accent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-hairline border-t-accent" />
             <p className="text-sm text-text-secondary">Confirming your email...</p>
           </>
         )}

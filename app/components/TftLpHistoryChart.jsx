@@ -303,7 +303,7 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
                     <Line data={data} options={options} />
                     {tooltip && (
                         <div
-                            className="absolute z-10 bg-surface border border-line rounded-lg px-2.5 py-2 pointer-events-none shadow-lg flex items-center gap-2"
+                            className="absolute z-10 bg-surface border border-hairline rounded-lg px-2.5 py-2 pointer-events-none shadow-lg flex items-center gap-2"
                             style={{
                                 top: Math.max(tooltip.y - 50, 0),
                                 left: tooltip.align === "right" ? undefined : tooltip.x + 10,
@@ -312,7 +312,7 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
                         >
                             {tooltip.point.topTrait?.icon && (
                                 <div
-                                    className="w-8 h-8 rounded-md bg-surface-deep flex-shrink-0 flex items-center justify-center"
+                                    className="w-8 h-8 rounded-lg bg-surface-deep flex-shrink-0 flex items-center justify-center"
                                     style={{ border: `1.5px solid ${accentColor}` }}
                                 >
                                     <img

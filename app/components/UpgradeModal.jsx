@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { Palette, ImageIcon, LayoutGrid, Swords, Zap, Users, Infinity, TrendingUp, Radio } from "lucide-react"
+import { Palette, ImageIcon, LayoutGrid, Swords, Zap, Users, Infinity, TrendingUp, Radio, X } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
 const features = [
@@ -86,10 +86,10 @@ export default function UpgradeModal({ onClose, onUpgraded }) {
 
     return (
         <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-surface border border-accent/40 rounded-2xl p-6 sm:p-7 w-full max-w-md shadow-[0_0_60px_rgba(177,108,255,0.25)]" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-surface border border-accent/40 rounded-2xl p-6 sm:p-7 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-between items-start mb-1">
                     <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-accent-tint text-accent-soft border border-accent/40">PRO</span>
-                    <button type="button" onClick={onClose} className="text-text-secondary hover:text-text-primary active:scale-90 transition-transform text-xl leading-none">✕</button>
+                    <button type="button" onClick={onClose} className="text-text-secondary hover:text-text-primary active:scale-90 transition-transform"><X size={18} /></button>
                 </div>
                 <p className="text-text-primary text-lg font-bold mt-2">Upgrade to RankCard Pro</p>
                 <p className="text-text-secondary text-sm mt-1">Everything on your profile, taken further:</p>

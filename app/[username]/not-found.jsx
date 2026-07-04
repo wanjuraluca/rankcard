@@ -7,7 +7,7 @@ export default function ProfileNotFound() {
                 {/* Glow badge */}
                 <div className="relative mx-auto mb-8 flex h-24 w-24 items-center justify-center">
                     <div className="absolute inset-0 rounded-full bg-accent/20 blur-2xl" />
-                    <div className="relative flex h-24 w-24 items-center justify-center rounded-2xl border border-line bg-surface">
+                    <div className="relative flex h-24 w-24 items-center justify-center rounded-2xl border border-hairline bg-surface">
                         <span className="text-4xl font-extrabold text-accent-soft">404</span>
                     </div>
                 </div>
@@ -23,13 +23,13 @@ export default function ProfileNotFound() {
                 <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                     <Link
                         href="/"
-                        className="w-full rounded-lg border border-accent bg-accent px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:text-white sm:w-auto"
+                        className="w-full rounded-lg border border-accent bg-accent px-5 py-2.5 text-sm font-semibold text-black transition-all hover:text-white sm:w-auto"
                     >
                         Back to home
                     </Link>
                     <Link
                         href="/auth"
-                        className="w-full rounded-lg border border-line px-5 py-2.5 text-sm font-semibold text-text-secondary transition-colors hover:border-accent/40 hover:text-text-primary sm:w-auto"
+                        className="w-full rounded-lg border border-hairline px-5 py-2.5 text-sm font-semibold text-text-secondary transition-colors hover:border-accent/40 hover:text-text-primary sm:w-auto"
                     >
                         Create your own RankCard
                     </Link>

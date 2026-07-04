@@ -1,5 +1,6 @@
 "use client"
 import { useState } from "react"
+import { X } from "lucide-react"
 import { platformConfig } from "@/lib/platforms"
 import { supabase } from "@/lib/supabase"
 
@@ -129,7 +130,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
         <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-50 p-4" onClick={onClose}>
 
             {/* Modal box - stopPropagation so clicking INSIDE the modal doesn't close it */}
-            <form className="bg-surface border border-line rounded-2xl p-5 sm:p-7 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} onSubmit={handleConnect}>
+            <form className="bg-surface border border-hairline rounded-2xl p-5 sm:p-7 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} onSubmit={handleConnect}>
 
                 {/* Header */}
                 <div className="flex justify-between items-start mb-6">
@@ -137,7 +138,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                         <p className="text-text-primary text-lg font-medium">Connect a game</p>
                         <p className="text-text-secondary text-sm mt-1">Pick a game and enter your account.</p>
                     </div>
-                    <button type="button" onClick={onClose} className="text-text-secondary hover:text-text-primary active:text-text-primary active:scale-90 transition-transform text-xl leading-none">✕</button>
+                    <button type="button" onClick={onClose} className="text-text-secondary hover:text-text-primary active:text-text-primary active:scale-90 transition-transform"><X size={18} /></button>
                 </div>
 
                 {/* Game selection */}
@@ -151,7 +152,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                                 key={key}
                                 type="button"
                                 onClick={() => setSelectedGame(key)}
-                                className={`border rounded-lg py-3 flex flex-col items-center gap-1.5 active:scale-95 transition-transform ${isSelected ? "border-accent bg-accent/10" : "border-line bg-background"}`}
+                                className={`border rounded-lg py-3 flex flex-col items-center gap-1.5 active:scale-95 transition-transform ${isSelected ? "border-accent bg-accent/10" : "border-hairline bg-background"}`}
                             >
                                 {config.imageUrl ? (
                                     <img src={config.imageUrl} width="22" height="22" style={{ opacity: isSelected ? 1 : 0.4 }} alt={config.shortName} />
@@ -166,7 +167,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                     })}
 
                     {/* "Coming soon" placeholder card for future games */}
-                    <div className="border border-dashed border-line rounded-lg py-3 flex flex-col items-center justify-center gap-1.5">
+                    <div className="border border-dashed border-hairline rounded-lg py-3 flex flex-col items-center justify-center gap-1.5">
                         <span className="text-text-secondary text-lg leading-none">+</span>
                         <span className="text-text-secondary text-[10px]">soon</span>
                     </div>
@@ -183,7 +184,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 placeholder={selectedConfig.inputType === "steam" ? "Steam profile link, name, or SteamID64" : "Username"}
-                                className="flex-[2] bg-background border border-line rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent outline-none"
+                                className="flex-[2] bg-background border border-hairline rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent outline-none"
                             />
                             {/* Tag - only for riot/battlenet */}
                             {needsTag && (
@@ -192,7 +193,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                                     value={tag}
                                     onChange={(e) => setTag(e.target.value)}
                                     placeholder="# Tag"
-                                    className="flex-1 bg-background border border-line rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent outline-none"
+                                    className="flex-1 bg-background border border-hairline rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent outline-none"
                                 />
                             )}
                         </div>
@@ -220,7 +221,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 border border-line rounded-lg py-2.5 text-sm text-text-secondary active:bg-background active:scale-95 transition-all"
+                        className="flex-1 border border-hairline rounded-lg py-2.5 text-sm text-text-secondary active:bg-background active:scale-95 transition-all"
                     >
                         Cancel
                     </button>

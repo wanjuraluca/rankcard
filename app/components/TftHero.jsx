@@ -2,6 +2,7 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react"
 import TftLpHistoryChart from "./TftLpHistoryChart"
 import MatchDetailTft from "./MatchDetailTft"
+import { HeroSkeleton } from "./Skeleton"
 
 const RANKED_MODES = [
     { key: "RANKED_TFT", label: "Ranked" },
@@ -50,7 +51,7 @@ function UnitIcon({ unit }) {
     return (
         <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
             <div
-                className="w-7 h-7 rounded-md overflow-hidden flex items-center justify-center text-[10px] font-bold text-text-secondary bg-surface border border-hairline flex-shrink-0"
+                className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center text-[10px] font-bold text-text-secondary bg-surface border border-hairline flex-shrink-0"
                 style={unit.tier > 1 ? { borderColor: unit.tier >= 3 ? "#facc15" : "#b16cff" } : undefined}
                 title={`${unit.name}${unit.items?.length ? ` (${unit.items.map(i => i.name).join(", ")})` : ""}`}
             >
@@ -146,11 +147,7 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
     }, [])
 
     if (loading) {
-        return (
-            <div className="bg-surface border border-line rounded-xl p-6">
-                <p className="text-text-secondary text-sm">Loading rank...</p>
-            </div>
-        )
+        return <HeroSkeleton accentColor={accentColor} />
     }
 
     const rankEntry = tftData.find(q => q.queueType === activeMode) ?? null
@@ -164,7 +161,7 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
 
     return (
         <div
-            className="bg-surface border border-line rounded-2xl p-4 sm:p-5 relative overflow-hidden"
+            className="bg-surface border border-hairline rounded-2xl p-4 sm:p-5 relative overflow-hidden"
             style={{ borderTopWidth: 3, borderTopColor: accentColor }}
         >
             {/* Mode tabs */}
@@ -257,7 +254,7 @@ function TftModeContent({ rankEntry, matchHistory, account, activeMode, accentCo
                 {/* Recent placements */}
                 {matchHistory.length > 0 && (
                     <div className="text-right">
-                        <p className="text-text-secondary text-[10px] uppercase tracking-widest mb-1.5">Recent Placements</p>
+                        <p className="text-text-muted text-[10px] uppercase tracking-widest mb-1.5">Recent Placements</p>
                         <div className="flex gap-1 justify-end">
                             {matchHistory.map((match) => (
                                 <span
@@ -276,41 +273,41 @@ function TftModeContent({ rankEntry, matchHistory, account, activeMode, accentCo
 
             {/* Stat tiles */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5">
-                <div className="bg-surface-deep rounded-xl p-3">
+                <div className="bg-surface-deep rounded-lg p-3">
                     <p className="text-text-primary font-extrabold text-xl">
                         {avgPlacement != null ? avgPlacement.toFixed(1) : "—"}
                     </p>
                     <p className="text-text-secondary text-xs">Avg. placement</p>
                 </div>
-                <div className="bg-surface-deep rounded-xl p-3">
+                <div className="bg-surface-deep rounded-lg p-3">
                     <p className="text-text-primary font-extrabold text-xl">
                         {top4Rate != null ? `${top4Rate}%` : "—"}
                     </p>
                     <p className="text-text-secondary text-xs">Top 4 rate</p>
                 </div>
-                <div className="bg-surface-deep rounded-xl p-3">
+                <div className="bg-surface-deep rounded-lg p-3">
                     <p className="text-text-primary font-extrabold text-xl">
                         {winRateFromHistory != null ? `${winRateFromHistory}%` : "—"}
                     </p>
                     <p className="text-text-secondary text-xs">Win rate (1st)</p>
                 </div>
-                <div className="bg-surface-deep rounded-xl p-3">
+                <div className="bg-surface-deep rounded-lg p-3">
                     <p className="text-text-primary font-extrabold text-xl">{totalGames}</p>
                     <p className="text-text-secondary text-xs">Total games</p>
                 </div>
-                <div className="bg-surface-deep rounded-xl p-3">
+                <div className="bg-surface-deep rounded-lg p-3">
                     <p className="text-text-primary font-extrabold text-xl">
                         {avgDamage != null ? Math.round(avgDamage) : "—"}
                     </p>
                     <p className="text-text-secondary text-xs">Avg. damage</p>
                 </div>
-                <div className="bg-surface-deep rounded-xl p-3">
+                <div className="bg-surface-deep rounded-lg p-3">
                     <p className="text-text-primary font-extrabold text-xl">
                         {avgEliminated != null ? avgEliminated.toFixed(1) : "—"}
                     </p>
                     <p className="text-text-secondary text-xs">Avg. eliminated</p>
                 </div>
-                <div className="bg-surface-deep rounded-xl p-3">
+                <div className="bg-surface-deep rounded-lg p-3">
                     <p className="text-text-primary font-extrabold text-xl">
                         {avgLevel != null ? avgLevel.toFixed(1) : "—"}
                     </p>
@@ -321,12 +318,12 @@ function TftModeContent({ rankEntry, matchHistory, account, activeMode, accentCo
             {/* Placement distribution */}
             <div className="mt-5">
                 <div className="flex items-center gap-2 mb-2.5">
-                    <p className="text-text-secondary text-xs uppercase tracking-widest">
+                    <p className="text-text-muted text-xs uppercase tracking-widest">
                         Placement Distribution {matchHistory.length > 0 && <span className="normal-case text-text-secondary/70">· {matchHistory.length} {matchHistory.length === 1 ? "game" : "games"}</span>}
                     </p>
                     <div className="flex-1 h-px bg-hairline" />
                 </div>
-                <div className="bg-surface-deep rounded-xl p-4">
+                <div className="bg-surface-deep rounded-lg p-4">
                     <div className="flex items-end justify-between gap-2 h-24 relative">
                         {placementCounts.map(({ placement, count }) => (
                             <div
@@ -336,7 +333,7 @@ function TftModeContent({ rankEntry, matchHistory, account, activeMode, accentCo
                                 onMouseLeave={() => setHoveredPlacement(prev => (prev === placement ? null : prev))}
                             >
                                 {hoveredPlacement === placement && (
-                                    <div className="absolute bottom-full mb-1.5 z-10 bg-surface border border-line rounded-lg px-2.5 py-1.5 shadow-lg pointer-events-none whitespace-nowrap">
+                                    <div className="absolute bottom-full mb-1.5 z-10 bg-surface border border-hairline rounded-lg px-2.5 py-1.5 shadow-lg pointer-events-none whitespace-nowrap">
                                         <p className="text-text-primary text-xs font-bold">{placementLabel(placement)} place</p>
                                         <p className="text-text-secondary text-[11px]">
                                             {count} {count === 1 ? "game" : "games"}
@@ -367,10 +364,10 @@ function TftModeContent({ rankEntry, matchHistory, account, activeMode, accentCo
             {/* Rank history */}
             <div className="mt-5">
                 <div className="flex items-center gap-2 mb-2.5">
-                    <p className="text-text-secondary text-xs uppercase tracking-widest">Rank History</p>
+                    <p className="text-text-muted text-xs uppercase tracking-widest">Rank History</p>
                     <div className="flex-1 h-px bg-hairline" />
                 </div>
-                <div className="bg-surface-deep rounded-xl p-4">
+                <div className="bg-surface-deep rounded-lg p-4">
                     <TftLpHistoryChart
                         accountId={account.id}
                         matchHistory={matchHistory}
@@ -386,7 +383,7 @@ function TftModeContent({ rankEntry, matchHistory, account, activeMode, accentCo
             {/* Match history */}
             <div className="mt-5">
                 <div className="flex items-center gap-2 mb-2.5">
-                    <p className="text-text-secondary text-xs uppercase tracking-widest">Match History</p>
+                    <p className="text-text-muted text-xs uppercase tracking-widest">Match History</p>
                     <div className="flex-1 h-px bg-hairline" />
                 </div>
 
@@ -400,7 +397,7 @@ function TftModeContent({ rankEntry, matchHistory, account, activeMode, accentCo
                             return (
                                 <div
                                     key={match.matchId}
-                                    className="bg-surface-deep rounded-xl overflow-hidden"
+                                    className="bg-surface-deep rounded-lg overflow-hidden"
                                     style={{ borderLeft: `3px solid ${placementColor(match.placement)}` }}
                                 >
                                     <button

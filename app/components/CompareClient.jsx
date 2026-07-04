@@ -9,7 +9,7 @@ const PLATFORMS = ["League of Legends", "Valorant", "CSGO"]
 function Avatar({ url, username, size = 56 }) {
     return (
         <div
-            className="rounded-xl bg-surface border border-line flex items-center justify-center flex-shrink-0 overflow-hidden"
+            className="rounded-lg bg-surface border border-hairline flex items-center justify-center flex-shrink-0 overflow-hidden"
             style={{ width: size, height: size }}
         >
             {url
@@ -30,7 +30,7 @@ function StatBar({ labelA, labelB, valueA, valueB, format = (v) => v }) {
             <p className={`text-right text-sm font-bold ${aWins ? "text-text-primary" : "text-text-secondary"}`}>
                 {valueA != null ? format(valueA) : "—"}
             </p>
-            <div className={`h-1.5 w-16 rounded-full bg-line overflow-hidden relative`}>
+            <div className={`h-1.5 w-16 rounded-full bg-hairline overflow-hidden relative`}>
                 {both && (
                     <div
                         className="absolute inset-y-0 left-0 rounded-full bg-accent transition-all"
@@ -108,14 +108,14 @@ export default function CompareClient({ profileA, accountsA, profileB, accountsB
                 <a href={`/${profileA.username}`} className="text-text-secondary text-sm hover:text-text-primary transition-colors">
                     ← {profileA.username}
                 </a>
-                <p className="text-text-secondary text-xs font-semibold uppercase tracking-widest">vs</p>
+                <p className="text-text-muted text-xs font-semibold uppercase tracking-widest">vs</p>
                 <a href={`/${profileB.username}`} className="text-text-secondary text-sm hover:text-text-primary transition-colors">
                     {profileB.username} →
                 </a>
             </div>
 
             {/* Avatars + names */}
-            <div className="bg-surface border border-line rounded-2xl p-5 flex items-center gap-4">
+            <div className="bg-surface border border-hairline rounded-2xl p-5 flex items-center gap-4">
                 <div className="flex-1 flex flex-col items-center gap-2 text-center">
                     <Avatar url={profileA.avatar_url} username={profileA.username} size={72} />
                     <div>
@@ -146,8 +146,8 @@ export default function CompareClient({ profileA, accountsA, profileB, accountsB
             {!loading && (
                 <>
                     {/* Overall Rank Score */}
-                    <div className="bg-surface border border-line rounded-2xl p-5 mt-3">
-                        <p className="text-text-secondary text-[11px] font-semibold uppercase tracking-widest mb-4 text-center">Overall Rank Score</p>
+                    <div className="bg-surface border border-hairline rounded-2xl p-5 mt-3">
+                        <p className="text-text-muted text-[11px] font-semibold uppercase tracking-widest mb-4 text-center">Overall Rank Score</p>
                         <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-4 mb-3">
                             <div className={`text-center ${aWinsOverall ? "" : "opacity-50"}`}>
                                 <p className={`text-4xl font-black ${aWinsOverall ? "text-accent" : "text-text-primary"}`}>
@@ -179,8 +179,8 @@ export default function CompareClient({ profileA, accountsA, profileB, accountsB
 
                     {/* Per-game comparison */}
                     {sharedPlatforms.length > 0 && (
-                        <div className="bg-surface border border-line rounded-2xl p-5 mt-3 flex flex-col gap-4">
-                            <p className="text-text-secondary text-[11px] font-semibold uppercase tracking-widest text-center">By Game</p>
+                        <div className="bg-surface border border-hairline rounded-2xl p-5 mt-3 flex flex-col gap-4">
+                            <p className="text-text-muted text-[11px] font-semibold uppercase tracking-widest text-center">By Game</p>
                             {sharedPlatforms.map(platform => {
                                 const config = platformConfig[platform]
                                 const sA = statsA[platform]
@@ -189,7 +189,7 @@ export default function CompareClient({ profileA, accountsA, profileB, accountsB
                                 const hasB = accountsB.some(a => a.platform === platform)
 
                                 return (
-                                    <div key={platform} className="border-t border-line pt-4 first:border-0 first:pt-0">
+                                    <div key={platform} className="border-t border-hairline pt-4 first:border-0 first:pt-0">
                                         <div className="flex items-center justify-center gap-2 mb-3">
                                             {config?.imageUrl ? (
                                                 <img src={config.imageUrl} className="w-3.5 h-3.5 flex-shrink-0" alt={config.shortName} />
@@ -204,7 +204,7 @@ export default function CompareClient({ profileA, accountsA, profileB, accountsB
                                             <p className={`text-right text-sm font-bold ${sA?.rankScore > (sB?.rankScore ?? -1) ? "text-text-primary" : "text-text-secondary"}`}>
                                                 {hasA ? (sA?.tierLabel ?? "Unranked") : <span className="text-[11px]">Not connected</span>}
                                             </p>
-                                            <div className="w-px h-6 bg-line" />
+                                            <div className="w-px h-6 bg-hairline" />
                                             <p className={`text-left text-sm font-bold ${sB?.rankScore > (sA?.rankScore ?? -1) ? "text-text-primary" : "text-text-secondary"}`}>
                                                 {hasB ? (sB?.tierLabel ?? "Unranked") : <span className="text-[11px]">Not connected</span>}
                                             </p>
@@ -216,8 +216,8 @@ export default function CompareClient({ profileA, accountsA, profileB, accountsB
                     )}
 
                     {/* Stats */}
-                    <div className="bg-surface border border-line rounded-2xl p-5 mt-3 flex flex-col gap-3">
-                        <p className="text-text-secondary text-[11px] font-semibold uppercase tracking-widest text-center mb-1">Stats</p>
+                    <div className="bg-surface border border-hairline rounded-2xl p-5 mt-3 flex flex-col gap-3">
+                        <p className="text-text-muted text-[11px] font-semibold uppercase tracking-widest text-center mb-1">Stats</p>
                         <div className="grid grid-cols-[1fr_auto_1fr] text-[11px] text-text-secondary text-center mb-1">
                             <span className="text-right">{profileA.username}</span>
                             <span className="w-16" />

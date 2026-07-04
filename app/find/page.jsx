@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase"
 import { extractGameStats } from "@/lib/gameStats"
 import UpgradeModal from "@/app/components/UpgradeModal"
 import Footer from "@/app/components/Footer"
+import { Check } from "lucide-react"
 
 const gameOptions = ["League of Legends", "TFT", "Valorant", "CSGO"]
 const regionOptions = ["EUW", "EUNE", "NA", "KR"]
@@ -215,7 +216,7 @@ export default function FindDuoPage() {
 
             {/* Own post — highlighted */}
             {ownPost && (
-                <div className="bg-surface border border-accent rounded-2xl p-4 mb-4 shadow-[0_0_30px_rgba(177,108,255,0.15)]">
+                <div className="bg-surface border border-accent rounded-2xl p-4 mb-4">
                     <PostCard post={ownPost} isOwn isOnline={!!onlinePostIds[ownPost.id]} />
                 </div>
             )}
@@ -226,7 +227,7 @@ export default function FindDuoPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by game, role, region, or message…"
-                className="w-full bg-surface border border-line rounded-lg px-4 py-2.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent outline-none mb-3"
+                className="w-full bg-surface border border-hairline rounded-lg px-4 py-2.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent outline-none mb-3"
             />
 
             {/* Filter row 1 — games */}
@@ -238,7 +239,7 @@ export default function FindDuoPage() {
                         <button
                             key={key}
                             onClick={() => { setGameFilter(isSelected ? null : key); setRoleFilter(null) }}
-                            className={`border rounded-lg px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-line bg-surface text-text-secondary"}`}
+                            className={`border rounded-lg px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-hairline bg-surface text-text-secondary"}`}
                         >
                             <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: config?.color }} />
                             {config?.shortName ?? key}
@@ -256,7 +257,7 @@ export default function FindDuoPage() {
                             <button
                                 key={option}
                                 onClick={() => setRoleFilter(isSelected ? null : option)}
-                                className={`border rounded-lg px-3 py-1.5 text-xs font-semibold active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-line bg-surface text-text-secondary"}`}
+                                className={`border rounded-lg px-3 py-1.5 text-xs font-semibold active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-hairline bg-surface text-text-secondary"}`}
                             >
                                 {option}
                             </button>
@@ -273,7 +274,7 @@ export default function FindDuoPage() {
                         <button
                             key={option}
                             onClick={() => setRegionFilter(isSelected ? null : option)}
-                            className={`border rounded-lg px-3 py-1.5 text-xs font-semibold active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-line bg-surface text-text-secondary"}`}
+                            className={`border rounded-lg px-3 py-1.5 text-xs font-semibold active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-hairline bg-surface text-text-secondary"}`}
                         >
                             {option}
                         </button>
@@ -283,7 +284,7 @@ export default function FindDuoPage() {
                     onClick={() => eloFilterAvailable && setEloFilter(f => !f)}
                     disabled={!eloFilterAvailable}
                     title={!gameFilter ? "Select a game first" : !eloFilterAvailable ? "Connect this game first" : undefined}
-                    className={`border rounded-lg px-3 py-1.5 text-xs font-semibold active:scale-95 transition-all ${eloFilter && eloFilterAvailable ? "border-accent bg-accent-tint text-text-primary" : "border-line bg-surface text-text-secondary"} ${!eloFilterAvailable ? "opacity-40 cursor-not-allowed" : ""}`}
+                    className={`border rounded-lg px-3 py-1.5 text-xs font-semibold active:scale-95 transition-all ${eloFilter && eloFilterAvailable ? "border-accent bg-accent-tint text-text-primary" : "border-hairline bg-surface text-text-secondary"} ${!eloFilterAvailable ? "opacity-40 cursor-not-allowed" : ""}`}
                 >
                     My ELO ±1
                 </button>
@@ -297,7 +298,7 @@ export default function FindDuoPage() {
                         <button
                             key={option}
                             onClick={() => setModeFilter(isSelected ? null : option)}
-                            className={`border rounded-lg px-3 py-1.5 text-xs font-semibold active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-line bg-surface text-text-secondary"}`}
+                            className={`border rounded-lg px-3 py-1.5 text-xs font-semibold active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-hairline bg-surface text-text-secondary"}`}
                         >
                             {option}
                         </button>
@@ -428,15 +429,15 @@ function PostCard({ post, isOwn = false, authChecked, revealedTag, copied, revea
                     <button
                         onClick={onRevealDiscord}
                         disabled={revealLoading}
-                        className="w-full rounded-lg px-3 py-2 text-xs font-semibold active:scale-95 transition-all disabled:opacity-60"
+                        className="w-full rounded-lg px-3 py-2 text-xs font-semibold active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-1.5"
                         style={{ backgroundColor: revealedTag ? "#5865f2" : "transparent", border: "1px solid #5865f2", color: revealedTag ? "white" : "#7289da" }}
                     >
-                        {revealLoading ? "Loading…" : copied ? "Copied ✓" : revealedTag ? revealedTag : "Discord"}
+                        {revealLoading ? "Loading…" : copied ? <><Check size={13} /> Copied</> : revealedTag ? revealedTag : "Discord"}
                     </button>
                 )}
                 <a
                     href={`/${post.username}`}
-                    className="w-full border border-line rounded-lg px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:border-accent/40 active:scale-95 transition-all text-center"
+                    className="w-full border border-hairline rounded-lg px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:border-accent/40 active:scale-95 transition-all text-center"
                 >
                     Profile
                 </a>

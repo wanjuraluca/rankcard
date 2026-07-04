@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { MessageSquare, X, Bug, Lightbulb } from "lucide-react"
+import { MessageSquare, X, Bug, Lightbulb, CheckCircle2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
 export default function FeedbackWidget() {
@@ -56,8 +56,8 @@ export default function FeedbackWidget() {
         <div className="fixed bottom-5 right-5 z-40 flex flex-col items-end gap-3">
             {/* Popover */}
             {open && (
-                <div className="bg-surface border border-line rounded-2xl shadow-2xl w-80 overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-line">
+                <div className="bg-surface border border-hairline rounded-2xl shadow-2xl w-80 overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-hairline">
                         <p className="text-text-primary text-sm font-semibold">Send feedback</p>
                         <button onClick={() => setOpen(false)} className="text-text-secondary hover:text-text-primary transition-colors">
                             <X size={16} />
@@ -66,7 +66,7 @@ export default function FeedbackWidget() {
 
                     {sent ? (
                         <div className="px-4 py-8 text-center">
-                            <p className="text-2xl mb-2">🙏</p>
+                            <CheckCircle2 size={28} className="text-positive mx-auto mb-2" />
                             <p className="text-text-primary text-sm font-semibold">Thanks for the feedback!</p>
                             <p className="text-text-secondary text-xs mt-1">We read every single one.</p>
                         </div>
@@ -107,7 +107,7 @@ export default function FeedbackWidget() {
                                 placeholder={type === "bug" ? "What happened? What did you expect?" : "What's on your mind?"}
                                 rows={4}
                                 maxLength={2000}
-                                className="w-full bg-background border border-hairline rounded-xl px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary resize-none focus:outline-none focus:border-accent/50 transition-colors"
+                                className="w-full bg-background border border-hairline rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary resize-none focus:outline-none focus:border-accent/50 transition-colors"
                             />
 
                             {error && <p className="text-negative text-xs">{error}</p>}
@@ -115,7 +115,7 @@ export default function FeedbackWidget() {
                             <button
                                 type="submit"
                                 disabled={sending || !message.trim()}
-                                className="w-full bg-accent rounded-xl py-2.5 text-sm font-semibold text-black active:scale-95 transition-all disabled:opacity-40"
+                                className="w-full bg-accent rounded-lg py-2.5 text-sm font-semibold text-black active:scale-95 transition-all disabled:opacity-40"
                             >
                                 {sending ? "Sending..." : "Send"}
                             </button>
@@ -127,7 +127,7 @@ export default function FeedbackWidget() {
             {/* Bubble button */}
             <button
                 onClick={open ? () => setOpen(false) : handleOpen}
-                className="w-12 h-12 rounded-full bg-surface border border-line shadow-lg flex items-center justify-center text-text-secondary hover:text-text-primary hover:border-accent/40 active:scale-95 transition-all"
+                className="w-12 h-12 rounded-full bg-surface border border-hairline shadow-lg flex items-center justify-center text-text-secondary hover:text-text-primary hover:border-accent/40 active:scale-95 transition-all"
                 title="Send feedback"
             >
                 {open ? <X size={18} /> : <MessageSquare size={18} />}

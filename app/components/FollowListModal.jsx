@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
+import { X } from "lucide-react"
 
 export default function FollowListModal({ username, type, onClose }) {
     const [users, setUsers] = useState([])
@@ -19,10 +20,10 @@ export default function FollowListModal({ username, type, onClose }) {
 
     return (
         <div className="fixed inset-0 bg-black/55 flex items-center justify-center z-50 p-4" onClick={onClose}>
-            <div className="bg-surface border border-line rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-surface border border-hairline rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-4">
                     <p className="text-text-primary text-lg font-bold">{title}</p>
-                    <button type="button" onClick={onClose} className="text-text-secondary hover:text-text-primary active:scale-90 transition-transform text-xl leading-none">✕</button>
+                    <button type="button" onClick={onClose} className="text-text-secondary hover:text-text-primary active:scale-90 transition-transform"><X size={18} /></button>
                 </div>
 
                 <div className="flex flex-col gap-1 max-h-[55vh] overflow-y-auto -mx-2">

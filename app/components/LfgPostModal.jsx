@@ -1,5 +1,6 @@
 "use client"
 import { useState } from "react"
+import { X } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { platformConfig } from "@/lib/platforms"
 import { extractGameStats } from "@/lib/gameStats"
@@ -138,14 +139,14 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
 
     return (
         <div className="fixed inset-0 bg-black/55 flex items-start justify-center z-50 p-4 pt-[6vh] overflow-y-auto" onClick={onClose}>
-            <form className="bg-surface border border-line rounded-2xl p-5 sm:p-7 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+            <form className="bg-surface border border-hairline rounded-2xl p-5 sm:p-7 w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
 
                 <div className="flex justify-between items-start mb-6">
                     <div>
                         <p className="text-text-primary text-lg font-medium">{existingPost ? "Edit your LFG post" : "Post on Find a Duo"}</p>
                         <p className="text-text-secondary text-sm mt-1">Visible to everyone for {isPro ? "72h" : "24h"}.</p>
                     </div>
-                    <button type="button" onClick={onClose} className="text-text-secondary hover:text-text-primary active:text-text-primary active:scale-90 transition-transform text-xl leading-none">✕</button>
+                    <button type="button" onClick={onClose} className="text-text-secondary hover:text-text-primary active:text-text-primary active:scale-90 transition-transform"><X size={18} /></button>
                 </div>
 
                 {/* Game */}
@@ -162,7 +163,7 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
                                     key={key}
                                     type="button"
                                     onClick={() => { setGame(key); setRoles([]); setLookingFor([]) }}
-                                    className={`border rounded-lg px-3 py-2 text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-line bg-background text-text-secondary"}`}
+                                    className={`border rounded-lg px-3 py-2 text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-hairline bg-background text-text-secondary"}`}
                                 >
                                     <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: config?.color }} />
                                     {config?.shortName ?? key}
@@ -182,7 +183,7 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
                                 key={option}
                                 type="button"
                                 onClick={() => toggle(lookingFor, setLookingFor, option)}
-                                className={`border rounded-lg px-3 py-2 text-xs font-semibold active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-line bg-background text-text-secondary"}`}
+                                className={`border rounded-lg px-3 py-2 text-xs font-semibold active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-hairline bg-background text-text-secondary"}`}
                             >
                                 {option}
                             </button>
@@ -202,7 +203,7 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
                                         key={option}
                                         type="button"
                                         onClick={() => toggle(roles, setRoles, option)}
-                                        className={`border rounded-lg px-3 py-2 text-xs font-semibold active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-line bg-background text-text-secondary"}`}
+                                        className={`border rounded-lg px-3 py-2 text-xs font-semibold active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-hairline bg-background text-text-secondary"}`}
                                     >
                                         {option}
                                     </button>
@@ -222,7 +223,7 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
                                 key={option}
                                 type="button"
                                 onClick={() => setRegion(option)}
-                                className={`border rounded-lg px-3 py-2 text-xs font-semibold active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-line bg-background text-text-secondary"}`}
+                                className={`border rounded-lg px-3 py-2 text-xs font-semibold active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-hairline bg-background text-text-secondary"}`}
                             >
                                 {option}
                             </button>
@@ -246,7 +247,7 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
                     onChange={(e) => setMessage(e.target.value.slice(0, 100))}
                     placeholder="lf serious duo, plat-diamond, any role"
                     maxLength={100}
-                    className="w-full bg-background border border-line rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent outline-none mb-6"
+                    className="w-full bg-background border border-hairline rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent outline-none mb-6"
                 />
 
                 {errorMsg && (
@@ -267,7 +268,7 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 border border-line rounded-lg py-2.5 text-sm text-text-secondary active:bg-background active:scale-95 transition-all"
+                        className="flex-1 border border-hairline rounded-lg py-2.5 text-sm text-text-secondary active:bg-background active:scale-95 transition-all"
                     >
                         Cancel
                     </button>

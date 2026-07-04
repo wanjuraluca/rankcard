@@ -78,7 +78,7 @@ export default function DiscordTagEditor({ username, discordTag, discordUserId, 
                 onKeyDown={handleKeyDown}
                 placeholder="YourName#0000"
                 maxLength={37}
-                className="text-[#7289da] text-xs mt-1 bg-surface-deep border border-[#7289da]/40 rounded-md px-2 py-1 w-44 outline-none font-mono"
+                className="text-[#7289da] text-xs mt-1 bg-surface-deep border border-[#7289da]/40 rounded-lg px-2 py-1 w-44 outline-none font-mono"
             />
         )
     }

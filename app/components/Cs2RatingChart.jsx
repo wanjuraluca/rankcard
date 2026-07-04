@@ -93,7 +93,7 @@ export default function Cs2RatingChart({ matchHistory, accentColor = "#4b9fff" }
                 <Line data={data} options={options} />
                 {tooltip && (
                     <div
-                        className="absolute z-10 bg-surface border border-line rounded-lg px-2.5 py-2 pointer-events-none shadow-lg"
+                        className="absolute z-10 bg-surface border border-hairline rounded-lg px-2.5 py-2 pointer-events-none shadow-lg"
                         style={{
                             top: Math.max(tooltip.y - 50, 0),
                             left: tooltip.align === "right" ? undefined : tooltip.x + 10,

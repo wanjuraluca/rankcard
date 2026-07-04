@@ -7,7 +7,7 @@ import DiscordTagEditor from "./DiscordTagEditor"
 import AccountMenu from "./AccountMenu"
 import Footer from "./Footer"
 import { useState, useEffect } from "react"
-import { Eye } from "lucide-react"
+import { Eye, Share2, UserPlus, UserCheck, ArrowLeftRight, Check, X } from "lucide-react"
 import { platformConfig } from "@/lib/platforms"
 import { extractGameStats, average } from "@/lib/gameStats"
 import { supabase } from "@/lib/supabase"
@@ -295,13 +295,13 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
             style={theme.startsWith("custom:") ? (() => {
                 const hex = theme.slice(7)
                 const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16)
-                return { "--accent": hex, "--accent-soft": hex, "--accent-tint": `rgba(${r},${g},${b},0.12)`, "--border": `rgba(${r},${g},${b},0.28)` }
+                return { "--accent": hex, "--accent-soft": hex, "--accent-tint": `rgba(${r},${g},${b},0.12)` }
             })() : undefined}
         >
 
             {/* Viewer context strip — only shown once auth check resolves */}
             {authChecked && !isOwnProfile && (
-                <div className="mb-3 rounded-xl border border-line bg-surface px-4 py-2.5 flex items-center justify-between gap-4 text-sm">
+                <div className="mb-3 rounded-2xl border border-hairline bg-surface px-4 py-2.5 flex items-center justify-between gap-4 text-sm">
                     {viewerUsername ? (
                         <>
                             <span className="text-text-secondary">
@@ -332,7 +332,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
             <BannerUpload username={data.username} bannerUrl={data.banner_url} editable={isOwnProfile && isPro} />
 
             {/* Profile Strip */}
-            <div className="bg-surface border border-line rounded-b-2xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center">
+            <div className="bg-surface border border-hairline rounded-b-2xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center">
                 <div className="-mt-16 self-start relative">
                     <AvatarUpload username={data.username} avatarUrl={data.avatar_url} editable={isOwnProfile} />
                 </div>
@@ -377,9 +377,9 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     )}
                 </div>
                 <div className="flex items-center gap-2 sm:flex-shrink-0 flex-wrap sm:flex-nowrap relative">
-                    <span className="flex items-center gap-1.5 text-xs text-text-secondary border border-hairline rounded-lg px-3 py-2" title="Total profile views">
-                        <Eye size={13} className="opacity-80" />
-                        {viewCount.toLocaleString()} {viewCount === 1 ? "view" : "views"}
+                    <span className="flex items-center gap-1 text-xs text-text-secondary" title="Total profile views">
+                        <Eye size={13} className="opacity-70" />
+                        {viewCount.toLocaleString()}
                     </span>
                     {authChecked && (showCompareInput ? (
                         <form
@@ -398,30 +398,35 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                 className="bg-surface border border-accent/40 rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none w-36"
                             />
                             <button type="submit" className="border border-accent/40 rounded-lg px-3 py-2 text-sm text-accent hover:bg-accent-tint transition-colors">Go</button>
-                            <button type="button" onClick={() => { setShowCompareInput(false); setCompareUsername("") }} className="text-text-secondary hover:text-text-primary px-1 text-lg leading-none">✕</button>
+                            <button type="button" onClick={() => { setShowCompareInput(false); setCompareUsername("") }} className="text-text-secondary hover:text-text-primary p-1.5 rounded-lg">
+                                <X size={14} />
+                            </button>
                         </form>
                     ) : (
                         <button
                             onClick={() => viewerIsPro ? setShowCompareInput(true) : setShowUpgradeModal(true)}
-                            className="border border-line rounded-lg px-4 py-2 text-sm text-text-secondary hover:text-text-primary hover:border-accent/40 hover:bg-accent-tint active:scale-95 transition-all"
+                            title="Compare profiles"
+                            className="border border-hairline rounded-lg p-2 text-text-secondary hover:text-text-primary hover:border-accent/40 hover:bg-accent-tint active:scale-95 transition-all"
                         >
-                            vs
+                            <ArrowLeftRight size={15} />
                         </button>
                     ))}
                     {authChecked && !isOwnProfile && viewerUserId && (
                         <button
                             onClick={handleFollow}
                             disabled={followLoading}
-                            className={`border rounded-lg px-4 py-2 text-sm font-semibold active:scale-95 transition-all disabled:opacity-60 ${isFollowing ? "border-line text-text-secondary hover:border-negative hover:text-negative" : "border-accent bg-accent text-black hover:text-white"}`}
+                            className={`border rounded-lg px-3 py-2 text-sm font-semibold flex items-center gap-1.5 active:scale-95 transition-all disabled:opacity-60 ${isFollowing ? "border-hairline text-text-secondary hover:border-negative hover:text-negative" : "border-accent text-accent-soft hover:bg-accent-tint"}`}
                         >
+                            {isFollowing ? <UserCheck size={15} /> : <UserPlus size={15} />}
                             {isFollowing ? "Following" : "Follow"}
                         </button>
                     )}
                     <button
                         onClick={handleShareProfile}
-                        className="flex-1 sm:flex-none border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all"
+                        className="flex-1 sm:flex-none border border-accent bg-accent rounded-lg px-4 py-2 text-sm font-semibold text-black hover:text-white active:scale-95 transition-all flex items-center justify-center gap-1.5"
                     >
-                        {shareCopied ? "Link copied ✓" : "Share profile ↗"}
+                        {shareCopied ? <Check size={15} /> : <Share2 size={15} />}
+                        {shareCopied ? "Link copied" : "Share profile"}
                     </button>
                     {isOwnProfile && <AccountMenu isPro={isPro} stripeCustomerId={data.stripe_customer_id} username={data.username} onUpgradeClick={() => setShowUpgradeModal(true)} onThemeClick={() => setShowThemeModal(true)} />}
                 </div>
@@ -464,7 +469,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                 <div>
                     {/* Section Header */}
                     <div className="flex items-center gap-2 mt-5 mb-2.5">
-                        <p className="text-text-secondary text-xs uppercase tracking-widest">Overall Performance</p>
+                        <p className="text-text-muted text-xs uppercase tracking-widest">Overall Performance</p>
                         <div className="flex-1 h-px bg-hairline" />
                     </div>
 
@@ -516,7 +521,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
 
                     {/* Connected Games Header */}
                     <div className="flex items-center gap-2 mt-5 mb-2.5">
-                        <p className="text-text-secondary text-xs uppercase tracking-widest">Connected Games</p>
+                        <p className="text-text-muted text-xs uppercase tracking-widest">Connected Games</p>
                         <div className="flex-1 h-px bg-hairline" />
                     </div>
 
@@ -537,14 +542,14 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                             onClick={(e) => { e.stopPropagation(); removeAccount(account) }}
                                             disabled={removingId === account.id}
                                             title="Remove account"
-                                            className="absolute top-2.5 right-2.5 text-text-secondary hover:text-negative active:text-negative active:scale-90 transition-transform text-xs leading-none disabled:opacity-40"
+                                            className="absolute top-2.5 right-2.5 text-text-secondary hover:text-negative active:text-negative active:scale-90 transition-transform disabled:opacity-40"
                                         >
-                                            ✕
+                                            <X size={13} />
                                         </button>
                                     )}
                                     <div className="flex items-center gap-2 mb-3">
                                         <div
-                                            className="rounded-[9px] flex items-center justify-center"
+                                            className="rounded-lg flex items-center justify-center"
                                             style={{ width: 30, height: 34, backgroundColor: `${config?.color}24`, border: `1px solid ${config?.color}66` }}
                                         >
                                             {config?.imageUrl ? (
@@ -579,7 +584,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     {isOwnProfile ? (
                         <div
                             onClick={() => setShowLfgModal(true)}
-                            className="mt-3 border border-dashed border-line rounded-xl p-3 flex items-center justify-between cursor-pointer hover:border-accent/40 active:scale-[0.99] transition-all"
+                            className="mt-3 border border-dashed border-hairline rounded-2xl p-3 flex items-center justify-between cursor-pointer hover:border-accent/40 active:scale-[0.99] transition-all"
                         >
                             {lfgPost && lfgTimeLeft !== "expired" ? (
                                 <span className="flex items-center gap-2 text-sm">
@@ -598,7 +603,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     ) : (
                         <a
                             href="/find"
-                            className="mt-3 border border-dashed border-line rounded-xl p-3 flex items-center justify-between hover:border-accent/40 active:scale-[0.99] transition-all"
+                            className="mt-3 border border-dashed border-hairline rounded-2xl p-3 flex items-center justify-between hover:border-accent/40 active:scale-[0.99] transition-all"
                         >
                             <span className="flex items-center gap-2 text-text-secondary text-sm">
                                 <Users size={15} className="flex-shrink-0" />
@@ -617,7 +622,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     {(isPro || isOwnProfile) && (
                         <>
                             <div className="flex items-center gap-2 mt-5 mb-2.5">
-                                <p className="text-text-secondary text-xs uppercase tracking-widest">Friends</p>
+                                <p className="text-text-muted text-xs uppercase tracking-widest">Friends</p>
                                 <div className="flex-1 h-px bg-hairline" />
                             </div>
                             {isOwnProfile && !isPro ? (
@@ -666,7 +671,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
 
                     {/* Rank History Chart */}
                     <div className="flex items-center gap-2 mt-5 mb-2.5">
-                        <p className="text-text-secondary text-xs uppercase tracking-widest">Overall LP / Rating History</p>
+                        <p className="text-text-muted text-xs uppercase tracking-widest">Overall LP / Rating History</p>
                         <div className="flex-1 h-px bg-hairline" />
                     </div>
                     <div className="bg-surface border border-hairline rounded-2xl p-4">
@@ -677,7 +682,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     {isOwnProfile && (
                         <>
                             <div className="flex items-center gap-2 mt-5 mb-2.5">
-                                <p className="text-text-secondary text-xs uppercase tracking-widest">Export Card</p>
+                                <p className="text-text-muted text-xs uppercase tracking-widest">Export Card</p>
                                 <div className="flex-1 h-px bg-hairline" />
                             </div>
                             <div className="flex flex-wrap gap-2">
@@ -718,34 +723,34 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     {isOwnProfile && (
                         <>
                             <div className="flex items-center gap-2 mt-5 mb-2.5">
-                                <p className="text-text-secondary text-xs uppercase tracking-widest">Embed Badge</p>
+                                <p className="text-text-muted text-xs uppercase tracking-widest">Embed Badge</p>
                                 <div className="flex-1 h-px bg-hairline" />
                             </div>
                             <div className="bg-surface border border-hairline rounded-2xl p-4">
-                                <p className="text-text-secondary text-xs mb-3">
+                                <p className="text-text-muted text-xs mb-3">
                                     Always shows your current rank.
                                 </p>
                                 <img
                                     src={`/api/badge?username=${data.username}`}
                                     alt={`${data.username}'s RankCard badge`}
-                                    className="rounded-xl border border-hairline max-w-full"
+                                    className="rounded-lg border border-hairline max-w-full"
                                     style={{ width: 300, height: 70 }}
                                 />
                                 <div className="flex flex-wrap gap-2 mt-3">
                                     <button
                                         onClick={() => handleCopyBadge("url")}
-                                        className="border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all"
+                                        className="border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all flex items-center gap-1.5"
                                     >
-                                        {badgeCopiedType === "url" ? "Copied ✓" : "Copy image URL (Discord / Slack)"}
+                                        {badgeCopiedType === "url" ? <><Check size={14} /> Copied</> : "Copy image URL (Discord / Slack)"}
                                     </button>
                                     <button
                                         onClick={() => handleCopyBadge("markdown")}
-                                        className="border border-hairline rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-surface-hover active:bg-surface-hover active:scale-95 transition-all"
+                                        className="border border-hairline rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-surface-hover active:bg-surface-hover active:scale-95 transition-all flex items-center gap-1.5"
                                     >
-                                        {badgeCopiedType === "markdown" ? "Copied ✓" : "Copy Markdown (GitHub)"}
+                                        {badgeCopiedType === "markdown" ? <><Check size={14} /> Copied</> : "Copy Markdown (GitHub)"}
                                     </button>
                                 </div>
-                                <p className="text-text-secondary text-[11px] mt-2">
+                                <p className="text-text-muted text-[11px] mt-2">
                                     Discord/Slack: paste the image URL alone in a message — it auto-embeds. GitHub: use the Markdown snippet in your README.
                                 </p>
                             </div>
@@ -762,7 +767,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                 return (
                     <div>
                         <div className="flex items-center gap-2 mt-5 mb-2.5">
-                            <p className="text-text-secondary text-xs uppercase tracking-widest">{config.name}</p>
+                            <p className="text-text-muted text-xs uppercase tracking-widest">{config.name}</p>
                             <div className="flex-1 h-px bg-hairline" />
                             {account && isOwnProfile && (
                                 <button
@@ -788,7 +793,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         ) : (
                             <div
                                 onClick={() => isOwnProfile && setShowModal(true)}
-                                className={`bg-surface border border-dashed border-line rounded-2xl p-6 text-center ${isOwnProfile ? "cursor-pointer hover:border-accent/50 transition-colors" : ""}`}
+                                className={`bg-surface border border-dashed border-hairline rounded-2xl p-6 text-center ${isOwnProfile ? "cursor-pointer hover:border-accent/50 transition-colors" : ""}`}
                             >
                                 <p className="text-text-secondary text-sm">No {config.name} account connected yet.</p>
                                 {isOwnProfile && <p className="text-accent-soft text-sm mt-1">+ Add Game</p>}

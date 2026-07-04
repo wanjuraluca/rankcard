@@ -34,7 +34,7 @@ export default function ResetPassword() {
       />
 
       <div className="relative z-10 w-full max-w-[392px]">
-        <div className="relative rounded-3xl border border-line bg-surface p-8 shadow-2xl">
+        <div className="relative rounded-2xl border border-hairline bg-surface p-8 shadow-2xl">
           <div className="absolute left-6 right-6 top-0 h-px bg-gradient-to-r from-transparent via-accent to-transparent opacity-70" />
 
           <div className="mb-6 flex items-center justify-center">
@@ -75,7 +75,7 @@ export default function ResetPassword() {
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full rounded-lg border border-line bg-background px-3.5 py-3 text-[15px] text-white placeholder:text-[#56565f] focus:border-accent focus:shadow-[0_0_0_3px_rgba(177,108,255,0.16)] focus:outline-none"
+                      className="w-full rounded-lg border border-hairline bg-background px-3.5 py-3 text-[15px] text-white placeholder:text-[#56565f] focus:border-accent focus:shadow-[0_0_0_3px_rgba(177,108,255,0.16)] focus:outline-none"
                     />
                     <button
                       type="button"

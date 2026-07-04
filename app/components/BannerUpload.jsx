@@ -44,7 +44,7 @@ export default function BannerUpload({ username, bannerUrl, editable }) {
     return (
         <div
             onClick={handleClickInput}
-            className={`relative h-[140px] rounded-t-2xl border border-line border-b-0 overflow-hidden group ${editable ? "cursor-pointer" : ""}`}
+            className={`relative h-[140px] rounded-t-2xl border border-hairline border-b-0 overflow-hidden group ${editable ? "cursor-pointer" : ""}`}
             style={!banner ? { background: "radial-gradient(ellipse 55% 130% at 20% 60%, rgba(177,108,255,0.45), transparent 60%)" } : undefined}
         >
             {editable && (
