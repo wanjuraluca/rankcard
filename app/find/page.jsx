@@ -9,16 +9,18 @@ import TopNav from "@/app/components/TopNav"
 import Footer from "@/app/components/Footer"
 import { Check, Plus } from "lucide-react"
 
-const gameOptions = ["League of Legends", "TFT", "Valorant", "CSGO"]
+const gameOptions = ["League of Legends", "TFT", "Valorant", "CSGO", "Overwatch", "Marvel Rivals"]
 const regionOptions = ["EUW", "EUNE", "NA", "KR"]
 const modeOptions = ["Duo Queue", "Flex", "Clash", "Chill", "Smurf welcome"]
 
-// Role chips are only meaningful for the two games that actually have lane /
-// agent-class roles — mirrors roleOptionsByGame in LfgPostModal.jsx. TFT and
-// CS2 have no role concept, so the role filter row just doesn't render for them.
+// Role chips are only meaningful for games that actually have lane /
+// agent-class / hero-class roles — mirrors roleOptionsByGame in LfgPostModal.jsx.
+// TFT and CS2 have no role concept, so the role filter row just doesn't render for them.
 const roleOptionsByGame = {
     "League of Legends": ["Top", "Jungle", "Mid", "ADC", "Support", "Fill"],
     Valorant: ["Duelist", "Initiator", "Controller", "Sentinel", "Flex"],
+    Overwatch: ["Tank", "Damage", "Support", "Flex"],
+    "Marvel Rivals": ["Vanguard", "Duelist", "Strategist", "Flex"],
 }
 
 // Heuristic tolerance for "close enough" rank matching, both for the My ELO
@@ -96,7 +98,7 @@ export default function FindDuoPage() {
     // ProfileClient's gameStats effect and LfgPostModal's submit handler.
     // Needed for both the "My ELO ±1" filter and the "Good match" badge.
     useEffect(() => {
-        const scoredAccounts = viewerAccounts.filter(a => ["League of Legends", "Valorant", "CSGO", "TFT"].includes(a.platform))
+        const scoredAccounts = viewerAccounts.filter(a => ["League of Legends", "Valorant", "CSGO", "TFT", "Overwatch", "Marvel Rivals"].includes(a.platform))
         scoredAccounts.forEach(async (account) => {
             try {
                 const res = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}`)

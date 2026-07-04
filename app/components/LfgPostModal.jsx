@@ -15,17 +15,22 @@ const lookingForOptionsByGame = {
     Valorant: ["Duo Queue", "Chill", "Smurf welcome"],
     TFT: ["Double Up", "Chill", "Smurf welcome"],
     CSGO: ["Duo Queue", "Chill", "Smurf welcome"],
+    Overwatch: ["Duo Queue", "Chill", "Smurf welcome"],
+    "Marvel Rivals": ["Duo Queue", "Chill", "Smurf welcome"],
 }
 
 // Role options are game-specific — League has lane roles, Valorant has agent
-// classes, TFT/CS2 have no role concept and skip this section entirely.
+// classes, Overwatch/Marvel Rivals have hero-class roles, TFT/CS2 have no
+// role concept and skip this section entirely.
 const roleOptionsByGame = {
     "League of Legends": ["Top", "Jungle", "Mid", "ADC", "Support", "Fill"],
     Valorant: ["Duelist", "Initiator", "Controller", "Sentinel", "Flex"],
+    Overwatch: ["Tank", "Damage", "Support", "Flex"],
+    "Marvel Rivals": ["Vanguard", "Duelist", "Strategist", "Flex"],
 }
 
 // Games connected on this profile that LFG posting supports
-const lfgGames = ["League of Legends", "TFT", "Valorant", "CSGO"]
+const lfgGames = ["League of Legends", "TFT", "Valorant", "CSGO", "Overwatch", "Marvel Rivals"]
 
 export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro, existingPost, onPosted, onRemoved }) {
     const [game, setGame] = useState(existingPost?.game ?? null)
