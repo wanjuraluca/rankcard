@@ -52,7 +52,7 @@ const GAMEMODE_TABS = [
     { key: "quickplay", label: "Quickplay" },
 ]
 
-export default function OverwatchHero({ account, accentColor = "#f99e1a" }) {
+export default function OverwatchHero({ account, accentColor = "#4a4c4e" }) {
 
     const [ranks, setRanks] = useState(null)
     const [title, setTitle] = useState(null)
