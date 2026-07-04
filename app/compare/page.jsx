@@ -1,19 +1,12 @@
 import { supabase } from "@/lib/supabase"
 import CompareClient from "../components/CompareClient"
-import Link from "next/link"
+import ComparePicker from "../components/ComparePicker"
 
 export default async function ComparePage({ searchParams }) {
     const { a, b } = await searchParams
 
     if (!a || !b) {
-        return (
-            <div className="bg-background min-h-screen flex items-center justify-center p-4">
-                <div className="text-center">
-                    <p className="text-text-primary text-lg font-bold mb-2">Missing usernames</p>
-                    <p className="text-text-secondary text-sm">Use <code className="text-accent">/compare?a=Username1&b=Username2</code></p>
-                </div>
-            </div>
-        )
+        return <ComparePicker />
     }
 
     const [{ data: profileA }, { data: profileB }] = await Promise.all([
@@ -23,15 +16,7 @@ export default async function ComparePage({ searchParams }) {
 
     if (!profileA || !profileB) {
         const missing = !profileA ? a : b
-        return (
-            <div className="bg-background min-h-screen flex items-center justify-center p-4">
-                <div className="text-center">
-                    <p className="text-text-primary text-lg font-bold mb-2">Profile not found</p>
-                    <p className="text-text-secondary text-sm mb-4">No RankCard profile for <span className="text-accent font-semibold">{missing}</span></p>
-                    <Link href="/" className="text-accent text-sm hover:underline">← Back to home</Link>
-                </div>
-            </div>
-        )
+        return <ComparePicker error={`No RankCard profile for "${missing}". Try another username.`} />
     }
 
     const [{ data: accountsA }, { data: accountsB }] = await Promise.all([

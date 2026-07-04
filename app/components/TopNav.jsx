@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Search, Users, ArrowLeftRight, Bell, X } from "lucide-react"
+import { Search, Users, ArrowLeftRight, Bell, Contact, X } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import AccountMenu from "./AccountMenu"
 
@@ -13,7 +13,13 @@ export default function TopNav({ accountMenu }) {
     const [results, setResults] = useState([])
     const [searching, setSearching] = useState(false)
     const [suggestionsOpen, setSuggestionsOpen] = useState(false)
+    const [notifOpen, setNotifOpen] = useState(false)
+    const [friendsOpen, setFriendsOpen] = useState(false)
+    const [friends, setFriends] = useState([])
+    const [friendsLoaded, setFriendsLoaded] = useState(false)
     const searchRef = useRef(null)
+    const notifRef = useRef(null)
+    const friendsRef = useRef(null)
 
     useEffect(() => {
         supabase.auth.getUser().then(async ({ data }) => {
@@ -36,10 +42,27 @@ export default function TopNav({ accountMenu }) {
             if (searchRef.current && !searchRef.current.contains(e.target)) {
                 setSuggestionsOpen(false)
             }
+            if (notifRef.current && !notifRef.current.contains(e.target)) {
+                setNotifOpen(false)
+            }
+            if (friendsRef.current && !friendsRef.current.contains(e.target)) {
+                setFriendsOpen(false)
+            }
         }
         document.addEventListener("mousedown", handleClickOutside)
         return () => document.removeEventListener("mousedown", handleClickOutside)
     }, [])
+
+    async function toggleFriends() {
+        const opening = !friendsOpen
+        setFriendsOpen(opening)
+        if (opening && !friendsLoaded && viewerUsername) {
+            const res = await fetch(`/api/profile/connections?username=${viewerUsername}&type=friends`)
+            const data = await res.json()
+            setFriends(data.users ?? [])
+            setFriendsLoaded(true)
+        }
+    }
 
     useEffect(() => {
         const trimmed = query.trim()
@@ -124,7 +147,54 @@ export default function TopNav({ accountMenu }) {
                 >
                     <ArrowLeftRight size={14} /> Compare
                 </a>
-                <Bell size={18} className="text-text-secondary" title="Notifications coming soon" aria-hidden="true" />
+                {authChecked && viewerUsername && (
+                    <div className="relative" ref={friendsRef}>
+                        <button
+                            onClick={toggleFriends}
+                            title="Friends"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+                        >
+                            <Contact size={18} />
+                        </button>
+                        {friendsOpen && (
+                            <div className="absolute top-full right-0 mt-1.5 w-64 bg-surface border border-hairline rounded-2xl shadow-lg p-2 z-50 max-h-80 overflow-y-auto">
+                                <p className="text-text-muted text-xs uppercase tracking-widest px-2 py-1.5">Friends</p>
+                                {friendsLoaded && friends.length === 0 && (
+                                    <p className="text-text-secondary text-sm px-2 py-2">No mutual friends yet.</p>
+                                )}
+                                {friends.map(f => (
+                                    <a
+                                        key={f.username}
+                                        href={`/${f.username}`}
+                                        onClick={() => setFriendsOpen(false)}
+                                        className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors"
+                                    >
+                                        <div className="w-6 h-6 rounded-full bg-background border border-hairline flex-shrink-0 overflow-hidden">
+                                            {f.avatar_url && <img src={f.avatar_url} alt={f.username} className="w-full h-full object-cover" />}
+                                        </div>
+                                        <span className="text-sm text-text-primary truncate">{f.username}</span>
+                                    </a>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <div className="relative" ref={notifRef}>
+                    <button
+                        onClick={() => setNotifOpen(v => !v)}
+                        title="Notifications"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+                    >
+                        <Bell size={18} />
+                    </button>
+                    {notifOpen && (
+                        <div className="absolute top-full right-0 mt-1.5 w-64 bg-surface border border-hairline rounded-2xl shadow-lg p-2 z-50">
+                            <p className="text-text-muted text-xs uppercase tracking-widest px-2 py-1.5">Notifications</p>
+                            <p className="text-text-secondary text-sm px-2 py-2">No new notifications.</p>
+                        </div>
+                    )}
+                </div>
                 {authChecked && (
                     accountMenu ? (
                         <AccountMenu
