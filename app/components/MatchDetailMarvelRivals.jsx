@@ -1,10 +1,13 @@
+import MarvelRankIcon from "./MarvelRankIcon"
+
 const CDN = "https://marvelrivalsapi.com/rivals"
 
 // Fixed grid so every row's stats line up under a header — matches tracker.gg's
 // scoreboard layout more closely than a single wrapping line of stat chips did.
-const GRID_COLS = "minmax(120px,2fr) 70px 56px 48px 60px 64px 64px 64px 56px 56px"
+const GRID_COLS = "minmax(120px,2fr) 34px 70px 56px 48px 60px 64px 64px 64px 56px"
 
 const COLUMNS = [
+    { label: "Rank", key: "rank" },
     { label: "K / D / A", key: "kda" },
     { label: "KDA", key: "kdaRatio" },
     { label: "Solo", key: "soloKills" },
@@ -13,7 +16,6 @@ const COLUMNS = [
     { label: "Taken", key: "damageTaken" },
     { label: "Healing", key: "healing" },
     { label: "Acc.", key: "accuracy" },
-    { label: "RS", key: "rankScore" },
 ]
 
 function HeaderRow() {
@@ -30,13 +32,12 @@ function HeaderRow() {
     )
 }
 
-// Marvel Rivals' match endpoint gives each player's raw rank_score (an
-// Elo-like number), but no tier/division label — and unlike League/Valorant,
-// that raw score can't be reliably converted into a tier here: two players
-// with nearly identical scores can sit in different tiers (confirmed against
-// a real tracker.gg screenshot showing "G2 4576" and "D1 4370" in the same
-// lobby), so guessing a tier from the number would just be wrong sometimes.
-// We show the raw score instead of a fabricated tier.
+// Marvel Rivals' match endpoint gives each player's raw rank_score, not a
+// tier name — `player.rank` is derived from it server-side (see
+// estimateMarvelRivalsRankFromScore in lib/rankScore.js) using the game's
+// own wiki rule (100 pts/division, 3 divisions/tier, Bronze-Celestial).
+// Anything at or above the Celestial cap shows as "Eternity" since Eternity
+// and One Above All can't be told apart by score alone.
 function PlayerRow({ player, isYou }) {
     const kda = ((player.kills + player.assists) / Math.max(player.deaths, 1)).toFixed(1)
 
@@ -60,6 +61,9 @@ function PlayerRow({ player, isYou }) {
                     {player.name}
                 </p>
             </div>
+            <div className="flex justify-end">
+                <MarvelRankIcon rank={player.rank} size={22} />
+            </div>
             <span className="text-right font-mono text-[11px] text-text-primary">{player.kills}/{player.deaths}/{player.assists}</span>
             <span className="text-right font-mono text-[11px] text-text-secondary">{kda}</span>
             <span className="text-right font-mono text-[11px] text-text-secondary">{player.soloKills}</span>
@@ -68,7 +72,6 @@ function PlayerRow({ player, isYou }) {
             <span className="text-right font-mono text-[11px] text-text-secondary">{player.damageTaken.toLocaleString()}</span>
             <span className="text-right font-mono text-[11px] text-text-secondary">{player.healing > 0 ? player.healing.toLocaleString() : "—"}</span>
             <span className="text-right font-mono text-[11px] text-text-secondary">{player.accuracy != null ? `${player.accuracy}%` : "—"}</span>
-            <span className="text-right font-mono text-[11px] text-text-secondary">{player.rankScore != null ? Math.round(player.rankScore) : "—"}</span>
         </div>
     )
 }

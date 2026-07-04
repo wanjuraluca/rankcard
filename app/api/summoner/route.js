@@ -1,6 +1,6 @@
 import { after } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { getLeagueScore, getValorantScore, getCs2Score, getTftScore, getOverwatchScore, getMarvelRivalsScore } from '@/lib/rankScore'
+import { getLeagueScore, getValorantScore, getCs2Score, getTftScore, getOverwatchScore, getMarvelRivalsScore, estimateMarvelRivalsRankFromScore } from '@/lib/rankScore'
 
 // A background cache refresh occasionally hits a transient Riot/Henrik
 // hiccup (rate limit, brief 5xx) and gets back an empty match-history array
@@ -651,10 +651,13 @@ async function fetchMarvelRivalsMatchDetail(matchUid) {
       damageTaken: Math.round(p.total_damage_taken ?? 0),
       accuracy: heroSession?.session_hit_rate != null ? Math.round(heroSession.session_hit_rate * 100) : null,
       scoreChange: p.dynamic_fields?.add_score ?? null,
-      // Raw score at match time — not a tier/division label. The API doesn't
-      // return per-player rank names in match data, and this raw number can't
-      // be reliably converted into one (see MatchDetailMarvelRivals.jsx).
       rankScore: p.dynamic_fields?.new_score ?? null,
+      // The match endpoint gives no rank name/tier per player, only the raw
+      // score above — this derives an approximate tier from it (Bronze-
+      // Celestial are exact per the game's own wiki; anything past Celestial
+      // is labeled "Eternity" since Eternity/One Above All can't be told
+      // apart from score alone). See lib/rankScore.js for the source rule.
+      rank: estimateMarvelRivalsRankFromScore(p.dynamic_fields?.new_score),
     }
   }) : null
 
