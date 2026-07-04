@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { getStoredReferral, clearStoredReferral } from "@/lib/referral"
 
 export default function AuthCallback() {
   const [error, setError] = useState(false)
@@ -17,7 +18,7 @@ export default function AuthCallback() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("username")
+        .select("username, referred_by")
         .eq("user_id", data.session.user.id)
         .maybeSingle()
 
@@ -27,6 +28,12 @@ export default function AuthCallback() {
         router.replace("/auth/complete-profile")
         return
       }
+
+      const ref = getStoredReferral()
+      if (ref && !profile.referred_by) {
+        await supabase.from("profiles").update({ referred_by: ref }).eq("user_id", data.session.user.id)
+      }
+      clearStoredReferral()
 
       router.replace("/" + profile.username)
     }

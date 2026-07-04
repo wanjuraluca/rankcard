@@ -12,6 +12,7 @@ import { Eye, Share2, UserPlus, UserCheck, Check, X } from "lucide-react"
 import { platformConfig } from "@/lib/platforms"
 import { extractGameStats, average } from "@/lib/gameStats"
 import { supabase } from "@/lib/supabase"
+import { storeReferral } from "@/lib/referral"
 import RankBadge from "./RankBadge"
 import RankHero from "./RankHero"
 import ValorantHero from "./ValorantHero"
@@ -64,6 +65,13 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
     const [friends, setFriends] = useState([])
     const [onlineFriends, setOnlineFriends] = useState({})
 
+    useEffect(() => {
+        const ref = new URLSearchParams(window.location.search).get("r")
+        if (!ref || ref === data.username) return
+        storeReferral(ref)
+        supabase.from("referral_visits").insert({ ref_username: ref, visited_username: data.username }).then(() => {})
+    }, [data.username])
+
     async function handleFollow() {
         if (!viewerUserId || followLoading) return
         setFollowLoading(true)
@@ -80,7 +88,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
     }
 
     async function handleCopyBadge(type) {
-        const profileUrl = `${window.location.origin}/${data.username}`
+        const profileUrl = `${window.location.origin}/${data.username}?r=${data.username}`
         const badgeUrl = `${window.location.origin}/api/badge?username=${data.username}`
         const text = type === "markdown" ? `[![RankCard](${badgeUrl})](${profileUrl})` : badgeUrl
         try {
@@ -93,7 +101,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
     }
 
     async function handleShareProfile() {
-        const profileUrl = `${window.location.origin}/${data.username}`
+        const profileUrl = `${window.location.origin}/${data.username}?r=${data.username}`
 
         if (navigator.share) {
             try {

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { getStoredReferral, clearStoredReferral } from "@/lib/referral"
 import { Check, X } from "lucide-react"
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/
@@ -62,7 +63,7 @@ export default function CompleteProfile() {
     const res = await fetch("/api/auth/complete-profile", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ username }),
+      body: JSON.stringify({ username, referredBy: getStoredReferral() }),
     })
     const data = await res.json()
     setSubmitting(false)
@@ -70,6 +71,7 @@ export default function CompleteProfile() {
       setError(data.error || "Could not create your profile.")
       return
     }
+    clearStoredReferral()
     router.replace("/" + username)
   }
 

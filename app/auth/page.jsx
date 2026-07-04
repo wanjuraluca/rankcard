@@ -7,6 +7,7 @@ import Footer from "../components/Footer"
 import { Check, X } from "lucide-react"
 import { platformConfig } from "@/lib/platforms"
 import { extractGameStats } from "@/lib/gameStats"
+import { getStoredReferral, clearStoredReferral } from "@/lib/referral"
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/
 const SHOWCASE_USERNAME = "DinDjarin"
@@ -119,10 +120,15 @@ async function handleCheckConfirmation() {
   if (data?.session) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("username")
+      .select("username, referred_by")
       .eq("user_id", data.session.user.id)
       .single()
     if (profile) {
+      const ref = getStoredReferral()
+      if (ref && !profile.referred_by) {
+        await supabase.from("profiles").update({ referred_by: ref }).eq("user_id", data.session.user.id)
+      }
+      clearStoredReferral()
       router.push("/" + profile.username)
       return
     }

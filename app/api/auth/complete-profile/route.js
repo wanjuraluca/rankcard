@@ -14,7 +14,7 @@ export async function POST(request) {
         return Response.json({ error: "Not authenticated." }, { status: 401 })
     }
 
-    const { username } = await request.json()
+    const { username, referredBy } = await request.json()
     if (!username || !USERNAME_PATTERN.test(username)) {
         return Response.json({ error: "Invalid username." }, { status: 400 })
     }
@@ -44,7 +44,7 @@ export async function POST(request) {
 
     const { error: insertError } = await supabaseAdmin
         .from("profiles")
-        .insert({ user_id: user.id, username, avatar_url: avatarUrl })
+        .insert({ user_id: user.id, username, avatar_url: avatarUrl, referred_by: referredBy || null })
 
     if (insertError) {
         return Response.json({ error: "Could not create your profile." }, { status: 500 })
