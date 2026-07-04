@@ -15,14 +15,16 @@ export default function AuthCallback() {
         return
       }
 
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile } = await supabase
         .from("profiles")
         .select("username")
         .eq("user_id", data.session.user.id)
-        .single()
+        .maybeSingle()
 
-      if (profileError || !profile) {
-        setError(true)
+      if (!profile) {
+        // No profile row yet — happens for brand-new OAuth sign-ins (Discord/Google),
+        // which skip the email/password form's username step.
+        router.replace("/auth/complete-profile")
         return
       }
 

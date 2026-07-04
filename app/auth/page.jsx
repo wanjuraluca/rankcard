@@ -131,6 +131,15 @@ async function handleCheckConfirmation() {
   setError("Not confirmed yet. Click the link in the email first.")
 }
 
+async function handleOAuth(provider) {
+  setError("")
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo: `${window.location.origin}/auth/callback` },
+  })
+  if (error) setError(friendlyError(error.message))
+}
+
 async function handleSubmit(e) {
   e.preventDefault()
   setError("")
@@ -270,8 +279,34 @@ async function handleSubmit(e) {
             </p>
           </div>
 
+          {/* OAuth */}
+          <div className="mt-6 flex flex-col gap-2.5">
+            <button
+              type="button"
+              onClick={() => handleOAuth("discord")}
+              className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-hairline bg-background py-3 text-[15px] font-semibold text-white transition-colors hover:border-[#5865f2]"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="#5865f2"><path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.076.076 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028Zm-12.36 10.96c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.418 2.157-2.418 1.21 0 2.176 1.094 2.157 2.418 0 1.334-.956 2.419-2.157 2.419Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.418 2.157-2.418 1.21 0 2.176 1.094 2.157 2.418 0 1.334-.946 2.419-2.157 2.419Z"/></svg>
+              Continue with Discord
+            </button>
+            <button
+              type="button"
+              onClick={() => handleOAuth("google")}
+              className="flex w-full cursor-pointer items-center justify-center gap-2.5 rounded-lg border border-hairline bg-background py-3 text-[15px] font-semibold text-white transition-colors hover:border-accent"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.64h6.47a5.54 5.54 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.57-5.17 3.57-8.82Z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.07 7.93-2.91l-3.88-3c-1.08.72-2.45 1.15-4.05 1.15-3.12 0-5.76-2.1-6.7-4.93H1.29v3.1A12 12 0 0 0 12 24Z"/><path fill="#FBBC05" d="M5.3 14.31A7.2 7.2 0 0 1 4.93 12c0-.8.14-1.58.37-2.31v-3.1H1.29A12 12 0 0 0 0 12c0 1.94.46 3.77 1.29 5.41l4.01-3.1Z"/><path fill="#EA4335" d="M12 4.75c1.76 0 3.34.6 4.58 1.79l3.44-3.44C17.94 1.19 15.24 0 12 0 7.31 0 3.26 2.69 1.29 6.59l4.01 3.1C6.24 6.85 8.88 4.75 12 4.75Z"/></svg>
+              Continue with Google
+            </button>
+          </div>
+
+          <div className="mt-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-hairline" />
+            <span className="text-xs text-text-secondary">or</span>
+            <div className="h-px flex-1 bg-hairline" />
+          </div>
+
           {/* form */}
-          <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
             {!isLogin && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-text-secondary">Username</label>
