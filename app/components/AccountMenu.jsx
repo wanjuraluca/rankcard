@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { MoreHorizontal, Star, Palette } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { isAdminUsername } from "@/lib/admin"
 import DeleteAccountDialog from "./DeleteAccountDialog"
 
 export default function AccountMenu({ isPro, stripeCustomerId, username, avatarUrl, onUpgradeClick, onThemeClick, onEmbedBadgeClick }) {
@@ -108,6 +109,14 @@ export default function AccountMenu({ isPro, stripeCustomerId, username, avatarU
                             >
                                 {portalLoading ? "Loading..." : "Manage subscription"}
                             </button>
+                        )}
+                        {isAdminUsername(username) && (
+                            <a
+                                href="/admin"
+                                className="block w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-surface-hover active:bg-surface-hover transition-colors"
+                            >
+                                Admin
+                            </a>
                         )}
                         {onEmbedBadgeClick && (
                             <button
