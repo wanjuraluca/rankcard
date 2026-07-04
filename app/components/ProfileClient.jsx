@@ -1,5 +1,6 @@
 "use client"
 
+import SideNav from "./SideNav"
 import AvatarUpload from "./AvatarUpload"
 import BannerUpload from "./BannerUpload"
 import BioEditor from "./BioEditor"
@@ -289,8 +290,10 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
     const activeGameTab = gameTabs.find(tab => tab.key === activeTab)
 
     return (
+        <>
+        <SideNav />
         <div
-            className="bg-background min-h-screen p-3 max-w-[1000px] mx-auto"
+            className="bg-background min-h-screen p-3 max-w-[1000px] mx-auto md:pl-[calc(1rem+4rem)]"
             data-theme={!theme.startsWith("custom:") && theme !== "default" ? theme : undefined}
             style={theme.startsWith("custom:") ? (() => {
                 const hex = theme.slice(7)
@@ -875,5 +878,6 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
             </div>
 
         </div>
+        </>
     )
 }
