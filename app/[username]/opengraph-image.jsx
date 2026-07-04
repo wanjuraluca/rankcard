@@ -44,8 +44,10 @@ export default async function Image({ params }) {
     )
 
     const avgRankScore = average(statsList.map(s => s?.rankScore))
-    const avgWinRate = average(statsList.map(s => s?.winRate))
-    const avgKda = average(statsList.map(s => s?.kda))
+
+    const gameRows = accountList
+        .map((account, i) => ({ account, stats: statsList[i], config: platformConfig[account.platform] }))
+        .filter(row => row.config)
 
     const displayName = profile?.username ?? username
 
@@ -66,6 +68,7 @@ export default async function Image({ params }) {
             >
                 {/* Header: avatar + name/bio */}
                 <div style={{ display: "flex", alignItems: "center", gap: px(24) }}>
+                    <div style={{ display: "flex", flex: 1, alignItems: "center", gap: px(24) }}>
                     {profile?.avatar_url ? (
                         <img
                             src={profile.avatar_url}
@@ -115,76 +118,62 @@ export default async function Image({ params }) {
                             </span>
                         )}
                     </div>
-                </div>
-
-                {/* Stats row */}
-                <div style={{ display: "flex", gap: px(12), marginTop: px(32) }}>
-                    {[
-                        { value: avgRankScore != null ? Math.round(avgRankScore).toLocaleString() : "—", label: "Rank Score", accent: true },
-                        { value: avgWinRate != null ? `${Math.round(avgWinRate)}%` : "—", label: "Avg Win Rate" },
-                        { value: avgKda != null ? avgKda.toFixed(2) : "—", label: "Avg KDA" },
-                        { value: String(accountList.length), label: "Games Connected" },
-                    ].map((stat) => (
-                        <div
-                            key={stat.label}
-                            style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                flex: 1,
-                                backgroundColor: "#15151f",
-                                border: `1px solid ${stat.accent ? "rgba(177,108,255,0.4)" : "rgba(255,255,255,0.08)"}`,
-                                borderRadius: px(12),
-                                padding: `${px(16)}px ${px(18)}px`,
-                            }}
-                        >
-                            <span style={{ fontSize: px(28), fontWeight: 800, color: stat.accent ? "#b16cff" : "#f4f3f7" }}>
-                                {stat.value}
+                    </div>
+                    {avgRankScore != null && (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                            <span style={{ fontSize: px(40), fontWeight: 800, color: "#b16cff" }}>
+                                {Math.round(avgRankScore).toLocaleString()}
                             </span>
-                            <span style={{ fontSize: px(12), color: "#8a8a9a", marginTop: px(4) }}>
-                                {stat.label}
-                            </span>
+                            <span style={{ fontSize: px(13), color: "#8a8a9a" }}>Rank Score</span>
                         </div>
-                    ))}
+                    )}
                 </div>
 
-                {/* Connected games */}
-                {accountList.length > 0 && (
-                    <div style={{ display: "flex", gap: px(8), marginTop: px(20) }}>
-                        {accountList.map((account, i) => {
-                            const config = platformConfig[account.platform]
-                            if (!config) return null
-                            return (
-                                <div
-                                    key={i}
-                                    style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: px(8),
-                                        backgroundColor: "#15151f",
-                                        border: "1px solid rgba(255,255,255,0.08)",
-                                        borderRadius: 999,
-                                        padding: `${px(7)}px ${px(14)}px`,
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            width: px(8),
-                                            height: px(8),
-                                            borderRadius: "50%",
-                                            backgroundColor: config.color,
-                                        }}
-                                    />
-                                    <span style={{ fontSize: px(13), color: "#f4f3f7", fontWeight: 600 }}>
+                {/* Per-game rank rows */}
+                {gameRows.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: px(16), marginTop: px(24), flex: 1 }}>
+                        {gameRows.map(({ account, stats, config }, i) => (
+                            <div
+                                key={i}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    backgroundColor: "#15151f",
+                                    border: "1px solid rgba(255,255,255,0.08)",
+                                    borderLeft: `${px(4)}px solid ${config.color}`,
+                                    borderRadius: px(12),
+                                    padding: `${px(16)}px ${px(20)}px`,
+                                }}
+                            >
+                                <div style={{ display: "flex", flexDirection: "column", width: px(220) }}>
+                                    <span style={{ fontSize: px(13), color: "#8a8a9a", fontWeight: 600 }}>
                                         {config.shortName}
                                     </span>
+                                    <span style={{ fontSize: px(24), fontWeight: 800, color: "#f4f3f7", marginTop: px(2) }}>
+                                        {stats?.tierLabel ?? "Unranked"}
+                                    </span>
                                 </div>
-                            )
-                        })}
+                                <div style={{ display: "flex", flex: 1, gap: px(28), justifyContent: "flex-end" }}>
+                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                                        <span style={{ fontSize: px(20), fontWeight: 700, color: "#f4f3f7" }}>
+                                            {stats?.winRate != null ? `${Math.round(stats.winRate)}%` : "—"}
+                                        </span>
+                                        <span style={{ fontSize: px(11), color: "#8a8a9a", marginTop: px(2) }}>Win Rate</span>
+                                    </div>
+                                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                                        <span style={{ fontSize: px(20), fontWeight: 700, color: config.color }}>
+                                            {stats?.rankScore != null ? Math.round(stats.rankScore).toLocaleString() : "—"}
+                                        </span>
+                                        <span style={{ fontSize: px(11), color: "#8a8a9a", marginTop: px(2) }}>Rank Score</span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
 
                 {/* Footer */}
-                <div style={{ display: "flex", flex: 1, alignItems: "flex-end", justifyContent: "flex-end" }}>
+                <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "flex-end", marginTop: px(20) }}>
                     <span style={{ fontSize: px(15), color: "#b16cff", fontWeight: 700 }}>
                         rankcard.app
                     </span>
