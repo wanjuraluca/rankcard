@@ -71,9 +71,20 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
 
     useEffect(() => {
         const ref = new URLSearchParams(window.location.search).get("r")
-        if (!ref || ref === data.username) return
-        storeReferral(ref)
-        supabase.from("referral_visits").insert({ ref_username: ref, visited_username: data.username }).then(() => {})
+        if (!ref) return
+        // Share links are always `/<owner>?r=<owner>` (see handleShareProfile/
+        // handleCopyBadge below), so `ref` is by construction the same as
+        // data.username for every real visitor — comparing against data.username
+        // here would always be true and silently no-op the whole feature. The
+        // actual self-referral case we want to skip is "the person currently
+        // logged in IS the referrer", which requires the viewer's own identity —
+        // resolved just below, once supabase.auth.getUser() comes back.
+        supabase.auth.getUser().then(({ data: authData }) => {
+            const viewerName = authData?.user?.user_metadata?.username ?? null
+            if (ref === viewerName) return
+            storeReferral(ref)
+            supabase.from("referral_visits").insert({ ref_username: ref, visited_username: data.username }).then(() => {})
+        })
     }, [data.username])
 
     async function handleFollow() {
