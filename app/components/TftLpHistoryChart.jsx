@@ -142,7 +142,9 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
 
         const firstPoint = points[0] ?? null
         const lastPoint = points[points.length - 1] ?? null
-        const netLpChange = firstPoint && lastPoint ? Math.round(lastPoint.lp - firstPoint.lp) : null
+        const netLpChange = typeof firstPoint?.lp === "number" && typeof lastPoint?.lp === "number"
+            ? Math.round(lastPoint.lp - firstPoint.lp)
+            : null
 
         // Reference lines: prefer the real tier ladder anchored on the current
         // tier/rank so the guides read as rank boundaries (G IV, G III, ...);

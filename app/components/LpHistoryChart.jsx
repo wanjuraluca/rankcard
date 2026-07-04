@@ -218,7 +218,9 @@ export default function LpHistoryChart({
         // vs. the current real LP), for the "▲/▼ N LP" summary.
         const firstPoint = points[0] ?? null
         const lastPoint = points[points.length - 1] ?? null
-        const netLpChange = firstPoint && lastPoint ? Math.round(lastPoint.lp - firstPoint.lp) : null
+        const netLpChange = typeof firstPoint?.lp === "number" && typeof lastPoint?.lp === "number"
+            ? Math.round(lastPoint.lp - firstPoint.lp)
+            : null
 
         // Tier reference lines. Prefer the precise ladder anchored on the real
         // tier/rank (when RankHero passes it through); otherwise approximate a

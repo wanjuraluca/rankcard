@@ -324,16 +324,20 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
         return <HeroSkeleton accentColor={accentColor} />
     }
 
-    if (!rankEntry) {
+    // No ranked Solo/Duo entry AND no match history at all (any mode) — nothing
+    // to show. If matchHistory has entries, fall through and render the stats/
+    // champions/match list below with an "Unranked" rank section instead of
+    // hiding everything just because Solo/Duo specifically is unplayed.
+    if (!rankEntry && matchHistory.length === 0) {
         return (
             <div className="bg-surface border border-hairline rounded-2xl p-6 text-center">
-                <p className="text-text-secondary text-sm">No ranked Solo/Duo games found yet.</p>
+                <p className="text-text-secondary text-sm">No games found yet.</p>
             </div>
         );
     }
 
-    const winRate = Math.round((rankEntry.wins / (rankEntry.wins + rankEntry.losses)) * 100) || 0;
-    const totalGames = rankEntry.wins + rankEntry.losses;
+    const winRate = rankEntry ? Math.round((rankEntry.wins / (rankEntry.wins + rankEntry.losses)) * 100) || 0 : null;
+    const totalGames = rankEntry ? rankEntry.wins + rankEntry.losses : null;
 
     const avgKda = average(matchHistory.map(m => (m.kills + m.assists) / Math.max(m.deaths, 1)))
     const avgCsPerMin = average(matchHistory.map(m => m.cs / (m.gameDurationSeconds / 60)))
@@ -354,32 +358,43 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
             <div className="flex gap-3 sm:gap-5 items-center flex-wrap">
 
                 {/* Rank emblem */}
-                <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 overflow-hidden">
-                    <img
-                        src={`https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${rankEntry.tier.toLowerCase()}.png`}
-                        alt={rankEntry.tier}
-                        className="w-full h-full object-contain scale-450 translate-y-2"
-                    />
+                <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                    {rankEntry && (
+                        <img
+                            src={`https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${rankEntry.tier.toLowerCase()}.png`}
+                            alt={rankEntry.tier}
+                            className="w-full h-full object-contain scale-450 translate-y-2"
+                        />
+                    )}
                 </div>
 
                 {/* Rank info */}
                 <div className="flex-1 min-w-[180px]">
-                    <p className="text-text-primary font-extrabold text-2xl">
-                        {rankEntry.tier} {rankEntry.rank}
-                    </p>
-                    <p className="text-text-secondary text-sm mt-1">
-                        {rankEntry.leaguePoints} LP · Solo/Duo
-                    </p>
-                    <div className="h-2 bg-hairline rounded-full mt-3 overflow-hidden">
-                        <div
-                            className="h-2 rounded-full transition-[width]"
-                            style={{ width: `${rankEntry.leaguePoints}%`, backgroundColor: accentColor }}
-                        />
-                    </div>
-                    <div className="flex justify-between text-text-secondary text-[10px] mt-1">
-                        <span>0 LP</span>
-                        <span>100 LP</span>
-                    </div>
+                    {rankEntry ? (
+                        <>
+                            <p className="text-text-primary font-extrabold text-2xl">
+                                {rankEntry.tier} {rankEntry.rank}
+                            </p>
+                            <p className="text-text-secondary text-sm mt-1">
+                                {rankEntry.leaguePoints} LP · Solo/Duo
+                            </p>
+                            <div className="h-2 bg-hairline rounded-full mt-3 overflow-hidden">
+                                <div
+                                    className="h-2 rounded-full transition-[width]"
+                                    style={{ width: `${rankEntry.leaguePoints}%`, backgroundColor: accentColor }}
+                                />
+                            </div>
+                            <div className="flex justify-between text-text-secondary text-[10px] mt-1">
+                                <span>0 LP</span>
+                                <span>100 LP</span>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-text-primary font-extrabold text-2xl">Unranked</p>
+                            <p className="text-text-secondary text-sm mt-1">No ranked Solo/Duo games yet</p>
+                        </>
+                    )}
                 </div>
 
                 {/* Recent form */}
@@ -452,12 +467,12 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                     <LpHistoryChart
                         accountId={account.id}
                         matchHistory={matchHistory}
-                        currentLeaguePoints={rankEntry.leaguePoints}
+                        currentLeaguePoints={rankEntry?.leaguePoints ?? null}
                         accentColor={accentColor}
                         ddragonVersion={ddragonVersion}
                         puuid={yourPuuid}
-                        tier={rankEntry.tier}
-                        rank={rankEntry.rank}
+                        tier={rankEntry?.tier ?? null}
+                        rank={rankEntry?.rank ?? null}
                     />
                 </div>
             </div>

@@ -97,10 +97,15 @@ export default function Cs2Hero({ account, accentColor = "#4b9fff" }) {
     }
 
     const premierRating = cs2Profile?.ranks?.premier ?? null
-    if (!cs2Profile || premierRating == null) {
+    // No Leetify profile at all AND no match history — genuinely nothing to
+    // show (Leetify is this game's only data source, unlike the Riot games,
+    // so an unlinked account really has zero data). But if a profile/match
+    // history exists and only Premier specifically hasn't been played, still
+    // show stats/maps/history below with an "Unranked" Premier section.
+    if (!cs2Profile && matchHistory.length === 0) {
         return (
             <div className="bg-surface border border-hairline rounded-2xl p-6 text-center">
-                <p className="text-text-secondary text-sm">No ranked data found yet.</p>
+                <p className="text-text-secondary text-sm">No games found yet.</p>
             </div>
         )
     }
@@ -115,8 +120,8 @@ export default function Cs2Hero({ account, accentColor = "#4b9fff" }) {
     const mvpTotal = matchHistory.reduce((sum, m) => sum + (m.mvps ?? 0), 0)
     const topMaps = buildTopMaps(matchHistory)
 
-    const band = getPremierBand(premierRating)
-    const progressInBand = Math.min(((premierRating - band.min) / 5000) * 100, 100)
+    const band = premierRating != null ? getPremierBand(premierRating) : null
+    const progressInBand = band ? Math.min(((premierRating - band.min) / 5000) * 100, 100) : 0
 
     return (
         <div
@@ -129,31 +134,40 @@ export default function Cs2Hero({ account, accentColor = "#4b9fff" }) {
                 <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 flex items-center justify-center">
                     <div
                         className="w-20 h-20 rounded-full flex items-center justify-center border-4"
-                        style={{ borderColor: band.color, backgroundColor: `${band.color}1f` }}
+                        style={band ? { borderColor: band.color, backgroundColor: `${band.color}1f` } : { borderColor: "#9a96a8", backgroundColor: "#9a96a81f" }}
                     >
-                        <span className="text-text-primary font-extrabold text-sm">{Math.round(premierRating / 1000)}k</span>
+                        {band && <span className="text-text-primary font-extrabold text-sm">{Math.round(premierRating / 1000)}k</span>}
                     </div>
                 </div>
 
                 {/* Rank info */}
                 <div className="flex-1 min-w-[180px]">
-                    <p className="text-text-primary font-extrabold text-2xl">
-                        {band.name}
-                    </p>
-                    <p className="text-text-secondary text-sm mt-1">
-                        {premierRating.toLocaleString()} Premier Rating
-                        {winRate != null && <> · {winRate}% WR</>}
-                    </p>
-                    <div className="h-2 bg-hairline rounded-full mt-3 overflow-hidden">
-                        <div
-                            className="h-2 rounded-full transition-[width]"
-                            style={{ width: `${progressInBand}%`, backgroundColor: accentColor }}
-                        />
-                    </div>
-                    <div className="flex justify-between text-text-secondary text-[10px] mt-1">
-                        <span>{band.min.toLocaleString()}</span>
-                        <span>{(band.min + 5000).toLocaleString()}</span>
-                    </div>
+                    {band ? (
+                        <>
+                            <p className="text-text-primary font-extrabold text-2xl">
+                                {band.name}
+                            </p>
+                            <p className="text-text-secondary text-sm mt-1">
+                                {premierRating.toLocaleString()} Premier Rating
+                                {winRate != null && <> · {winRate}% WR</>}
+                            </p>
+                            <div className="h-2 bg-hairline rounded-full mt-3 overflow-hidden">
+                                <div
+                                    className="h-2 rounded-full transition-[width]"
+                                    style={{ width: `${progressInBand}%`, backgroundColor: accentColor }}
+                                />
+                            </div>
+                            <div className="flex justify-between text-text-secondary text-[10px] mt-1">
+                                <span>{band.min.toLocaleString()}</span>
+                                <span>{(band.min + 5000).toLocaleString()}</span>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-text-primary font-extrabold text-2xl">Unranked</p>
+                            <p className="text-text-secondary text-sm mt-1">No Premier games yet</p>
+                        </>
+                    )}
                 </div>
 
                 {/* Recent form */}

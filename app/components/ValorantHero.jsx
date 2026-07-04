@@ -109,10 +109,14 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
         return <HeroSkeleton accentColor={accentColor} />
     }
 
-    if (!valorantData) {
+    // No current rank AND no match history at all (any mode) — nothing to
+    // show. If matchHistory has entries (e.g. only Unrated/Deathmatch played,
+    // never Competitive), fall through and render stats/agents/match list
+    // below with an "Unranked" rank section instead of hiding everything.
+    if (!valorantData && matchHistory.length === 0) {
         return (
             <div className="bg-surface border border-hairline rounded-2xl p-6 text-center">
-                <p className="text-text-secondary text-sm">No ranked data found yet.</p>
+                <p className="text-text-secondary text-sm">No games found yet.</p>
             </div>
         )
     }
@@ -141,29 +145,38 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
                 {/* Rank emblem */}
                 <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 overflow-hidden flex items-center justify-center">
                     {rankImage && (
-                        <img src={rankImage} alt={valorantData.tier?.name} className="w-full h-full object-contain" />
+                        <img src={rankImage} alt={valorantData?.tier?.name ?? "Rank"} className="w-full h-full object-contain" />
                     )}
                 </div>
 
                 {/* Rank info */}
                 <div className="flex-1 min-w-[180px]">
-                    <p className="text-text-primary font-extrabold text-2xl">
-                        {valorantData.tier?.name}
-                    </p>
-                    <p className="text-text-secondary text-sm mt-1">
-                        {valorantData.rr} RR
-                        {winRate != null && <> · {winRate}% WR</>}
-                    </p>
-                    <div className="h-2 bg-hairline rounded-full mt-3 overflow-hidden">
-                        <div
-                            className="h-2 rounded-full transition-[width]"
-                            style={{ width: `${valorantData.rr}%`, backgroundColor: accentColor }}
-                        />
-                    </div>
-                    <div className="flex justify-between text-text-secondary text-[10px] mt-1">
-                        <span>0 RR</span>
-                        <span>100 RR</span>
-                    </div>
+                    {valorantData ? (
+                        <>
+                            <p className="text-text-primary font-extrabold text-2xl">
+                                {valorantData.tier?.name}
+                            </p>
+                            <p className="text-text-secondary text-sm mt-1">
+                                {valorantData.rr} RR
+                                {winRate != null && <> · {winRate}% WR</>}
+                            </p>
+                            <div className="h-2 bg-hairline rounded-full mt-3 overflow-hidden">
+                                <div
+                                    className="h-2 rounded-full transition-[width]"
+                                    style={{ width: `${valorantData.rr}%`, backgroundColor: accentColor }}
+                                />
+                            </div>
+                            <div className="flex justify-between text-text-secondary text-[10px] mt-1">
+                                <span>0 RR</span>
+                                <span>100 RR</span>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-text-primary font-extrabold text-2xl">Unranked</p>
+                            <p className="text-text-secondary text-sm mt-1">No Competitive games yet</p>
+                        </>
+                    )}
                 </div>
 
                 {/* Recent form */}

@@ -177,9 +177,9 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
                 ))}
             </div>
 
-            {!rankEntry ? (
+            {!rankEntry && matchHistory.length === 0 ? (
                 <div className="text-center py-6">
-                    <p className="text-text-secondary text-sm">No ranked {modeTabs.find(m => m.key === activeMode)?.label} games found yet.</p>
+                    <p className="text-text-secondary text-sm">No {modeTabs.find(m => m.key === activeMode)?.label} games found yet.</p>
                 </div>
             ) : (
                 <TftModeContent
@@ -198,8 +198,8 @@ export default function TftHero({ account, accentColor = "#0bc4e3" }) {
 
 function TftModeContent({ rankEntry, matchHistory, account, activeMode, accentColor, expandedMatchId, toggleMatch }) {
     const [hoveredPlacement, setHoveredPlacement] = useState(null)
-    const totalGames = rankEntry.wins + rankEntry.losses
-    const winRate = totalGames > 0 ? Math.round((rankEntry.wins / totalGames) * 100) : 0
+    const totalGames = rankEntry ? rankEntry.wins + rankEntry.losses : matchHistory.length
+    const winRate = rankEntry && totalGames > 0 ? Math.round((rankEntry.wins / totalGames) * 100) : 0
     const avgPlacement = average(matchHistory.map(m => m.placement))
     const top4Count = matchHistory.filter(m => m.placement <= 4).length
     const top4Rate = matchHistory.length > 0 ? Math.round((top4Count / matchHistory.length) * 100) : null
@@ -223,32 +223,43 @@ function TftModeContent({ rankEntry, matchHistory, account, activeMode, accentCo
             <div className="flex gap-3 sm:gap-5 items-center flex-wrap">
 
                 {/* Rank emblem */}
-                <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 overflow-hidden">
-                    <img
-                        src={`https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${rankEntry.tier.toLowerCase()}.png`}
-                        alt={rankEntry.tier}
-                        className="w-full h-full object-contain scale-[4.5] translate-y-2"
-                    />
+                <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                    {rankEntry && (
+                        <img
+                            src={`https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${rankEntry.tier.toLowerCase()}.png`}
+                            alt={rankEntry.tier}
+                            className="w-full h-full object-contain scale-[4.5] translate-y-2"
+                        />
+                    )}
                 </div>
 
                 {/* Rank info */}
                 <div className="flex-1 min-w-[180px]">
-                    <p className="text-text-primary font-extrabold text-2xl">
-                        {rankEntry.tier} {rankEntry.rank}
-                    </p>
-                    <p className="text-text-secondary text-sm mt-1">
-                        {rankEntry.leaguePoints} LP · {rankEntry.wins}W {rankEntry.losses}L · {winRate}% WR
-                    </p>
-                    <div className="h-2 bg-hairline rounded-full mt-3 overflow-hidden">
-                        <div
-                            className="h-2 rounded-full transition-[width]"
-                            style={{ width: `${rankEntry.leaguePoints}%`, backgroundColor: accentColor }}
-                        />
-                    </div>
-                    <div className="flex justify-between text-text-secondary text-[10px] mt-1">
-                        <span>0 LP</span>
-                        <span>100 LP</span>
-                    </div>
+                    {rankEntry ? (
+                        <>
+                            <p className="text-text-primary font-extrabold text-2xl">
+                                {rankEntry.tier} {rankEntry.rank}
+                            </p>
+                            <p className="text-text-secondary text-sm mt-1">
+                                {rankEntry.leaguePoints} LP · {rankEntry.wins}W {rankEntry.losses}L · {winRate}% WR
+                            </p>
+                            <div className="h-2 bg-hairline rounded-full mt-3 overflow-hidden">
+                                <div
+                                    className="h-2 rounded-full transition-[width]"
+                                    style={{ width: `${rankEntry.leaguePoints}%`, backgroundColor: accentColor }}
+                                />
+                            </div>
+                            <div className="flex justify-between text-text-secondary text-[10px] mt-1">
+                                <span>0 LP</span>
+                                <span>100 LP</span>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-text-primary font-extrabold text-2xl">Unranked</p>
+                            <p className="text-text-secondary text-sm mt-1">No ranked games in this mode yet</p>
+                        </>
+                    )}
                 </div>
 
                 {/* Recent placements */}
@@ -371,11 +382,11 @@ function TftModeContent({ rankEntry, matchHistory, account, activeMode, accentCo
                     <TftLpHistoryChart
                         accountId={account.id}
                         matchHistory={matchHistory}
-                        currentLeaguePoints={rankEntry.leaguePoints}
+                        currentLeaguePoints={rankEntry?.leaguePoints ?? null}
                         accentColor={accentColor}
                         queueType={activeMode}
-                        tier={rankEntry.tier}
-                        rank={rankEntry.rank}
+                        tier={rankEntry?.tier ?? null}
+                        rank={rankEntry?.rank ?? null}
                     />
                 </div>
             </div>
