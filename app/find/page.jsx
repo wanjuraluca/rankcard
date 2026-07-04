@@ -4,8 +4,10 @@ import { platformConfig } from "@/lib/platforms"
 import { supabase } from "@/lib/supabase"
 import { extractGameStats } from "@/lib/gameStats"
 import UpgradeModal from "@/app/components/UpgradeModal"
+import LfgPostModal from "@/app/components/LfgPostModal"
+import TopNav from "@/app/components/TopNav"
 import Footer from "@/app/components/Footer"
-import { Check } from "lucide-react"
+import { Check, Plus } from "lucide-react"
 
 const gameOptions = ["League of Legends", "TFT", "Valorant", "CSGO"]
 const regionOptions = ["EUW", "EUNE", "NA", "KR"]
@@ -54,7 +56,9 @@ export default function FindDuoPage() {
     const [eloFilter, setEloFilter] = useState(false)
     const [viewerUserId, setViewerUserId] = useState(null)
     const [viewerUsername, setViewerUsername] = useState(null)
-    const [, setViewerIsPro] = useState(false)
+    const [viewerIsPro, setViewerIsPro] = useState(false)
+    const [viewerDiscordTag, setViewerDiscordTag] = useState(null)
+    const [showLfgModal, setShowLfgModal] = useState(false)
     const [viewerAccounts, setViewerAccounts] = useState([])
     const [viewerRankScores, setViewerRankScores] = useState({}) // platform -> rankScore
     const [authChecked, setAuthChecked] = useState(false)
@@ -79,8 +83,9 @@ export default function FindDuoPage() {
             if (!user) return
             setViewerUserId(user.id)
             setViewerUsername(user.user_metadata?.username ?? null)
-            const { data: profile } = await supabase.from("profiles").select("is_pro").eq("user_id", user.id).maybeSingle()
+            const { data: profile } = await supabase.from("profiles").select("is_pro, discord_tag").eq("user_id", user.id).maybeSingle()
             setViewerIsPro(profile?.is_pro ?? false)
+            setViewerDiscordTag(profile?.discord_tag ?? null)
 
             const { data: accounts } = await supabase.from("connected_accounts").select("*").eq("user_id", user.id)
             setViewerAccounts(accounts ?? [])
@@ -206,18 +211,30 @@ export default function FindDuoPage() {
     const otherPosts = filteredPosts.filter(p => p.username !== viewerUsername)
 
     return (
-        <div className="bg-background min-h-screen p-3 max-w-[1000px] mx-auto">
-            <div className="mt-4 mb-5">
-                <p className="text-text-primary text-2xl font-extrabold">Find a Duo</p>
-                <p className="text-text-secondary text-sm mt-1">
-                    {loading ? "Loading…" : `${posts.length.toLocaleString()} player${posts.length === 1 ? "" : "s"} looking right now`}
-                </p>
+        <div className="bg-background min-h-screen">
+        <TopNav />
+        <div className="p-3 max-w-[1000px] mx-auto">
+            <div className="mt-4 mb-5 flex items-start justify-between gap-4">
+                <div>
+                    <p className="text-text-primary text-2xl font-extrabold">Find a Duo</p>
+                    <p className="text-text-secondary text-sm mt-1">
+                        {loading ? "Loading…" : `${posts.length.toLocaleString()} player${posts.length === 1 ? "" : "s"} looking right now`}
+                    </p>
+                </div>
+                {authChecked && viewerUsername && !ownPost && (
+                    <button
+                        onClick={() => setShowLfgModal(true)}
+                        className="flex-shrink-0 flex items-center gap-1.5 border border-accent bg-accent rounded-lg px-4 py-2 text-sm font-semibold text-black hover:text-white active:scale-95 transition-all"
+                    >
+                        <Plus size={15} /> Post your entry
+                    </button>
+                )}
             </div>
 
             {/* Own post — highlighted */}
             {ownPost && (
                 <div className="bg-surface border border-accent rounded-2xl p-4 mb-4">
-                    <PostCard post={ownPost} isOwn isOnline={!!onlinePostIds[ownPost.id]} />
+                    <PostCard post={ownPost} isOwn isOnline={!!onlinePostIds[ownPost.id]} onManage={() => setShowLfgModal(true)} />
                 </div>
             )}
 
@@ -343,14 +360,27 @@ export default function FindDuoPage() {
                 />
             )}
 
+            {showLfgModal && (
+                <LfgPostModal
+                    onClose={() => setShowLfgModal(false)}
+                    accounts={viewerAccounts}
+                    discordTag={viewerDiscordTag}
+                    isPro={viewerIsPro}
+                    existingPost={ownPost ?? null}
+                    onPosted={(post) => setPosts(prev => [post, ...prev.filter(p => p.username !== viewerUsername)])}
+                    onRemoved={() => setPosts(prev => prev.filter(p => p.username !== viewerUsername))}
+                />
+            )}
+
             <div className="mt-8">
                 <Footer />
             </div>
         </div>
+        </div>
     )
 }
 
-function PostCard({ post, isOwn = false, authChecked, revealedTag, copied, revealLoading, onRevealDiscord, isOnline = false, isGoodMatch = false }) {
+function PostCard({ post, isOwn = false, authChecked, revealedTag, copied, revealLoading, onRevealDiscord, isOnline = false, isGoodMatch = false, onManage }) {
     const config = platformConfig[post.game]
     const role = post.roles?.[0] ?? null
 
@@ -424,7 +454,12 @@ function PostCard({ post, isOwn = false, authChecked, revealedTag, copied, revea
 
             <div className="flex flex-col gap-2 flex-shrink-0 w-24">
                 {isOwn ? (
-                    <span className="text-text-secondary text-xs px-3 py-2 text-center">Your post</span>
+                    <button
+                        onClick={onManage}
+                        className="w-full border border-hairline rounded-lg px-3 py-2 text-xs text-text-secondary hover:text-text-primary hover:border-accent/40 active:scale-95 transition-all text-center"
+                    >
+                        Manage post
+                    </button>
                 ) : !authChecked ? null : (
                     <button
                         onClick={onRevealDiscord}
