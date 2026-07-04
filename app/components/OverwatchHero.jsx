@@ -24,6 +24,7 @@ function formatDuration(seconds) {
 // OverFast's career stats categories (combat/game/assists/match_awards).
 const KEY_STATS = [
     { key: "eliminations", label: "Eliminations", get: (d) => d.combat?.eliminations, format: formatNumber },
+    { key: "kd", label: "K/D", get: (d) => d.combat?.eliminations / Math.max(d.combat?.deaths ?? 0, 1), format: (v) => v == null || isNaN(v) ? "—" : v.toFixed(2) },
     { key: "hero_damage_done", label: "Hero Damage Done", get: (d) => d.combat?.hero_damage_done, format: formatNumber },
     { key: "objective_time", label: "Objective Time", get: (d) => d.combat?.objective_time, format: formatDuration },
     { key: "games_won", label: "Games Won", get: (d) => d.game?.games_won, format: formatNumber },
@@ -156,7 +157,7 @@ export default function OverwatchHero({ account, accentColor = "#4a4c4e" }) {
             ) : (
                 <>
                     {/* Key stats */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4">
                         {KEY_STATS.map((stat) => (
                             <div key={stat.key} className="bg-surface-deep rounded-lg p-3">
                                 <p className="text-text-primary font-extrabold text-xl">{stat.format(stat.get(activeStats))}</p>
