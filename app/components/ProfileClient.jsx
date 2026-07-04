@@ -5,10 +5,10 @@ import AvatarUpload from "./AvatarUpload"
 import BannerUpload from "./BannerUpload"
 import BioEditor from "./BioEditor"
 import DiscordTagEditor from "./DiscordTagEditor"
-import AccountMenu from "./AccountMenu"
+import EmbedBadgeModal from "./EmbedBadgeModal"
 import Footer from "./Footer"
 import { useState, useEffect } from "react"
-import { Eye, Share2, UserPlus, UserCheck, ArrowLeftRight, Check, X } from "lucide-react"
+import { Eye, Share2, UserPlus, UserCheck, Check, X } from "lucide-react"
 import { platformConfig } from "@/lib/platforms"
 import { extractGameStats, average } from "@/lib/gameStats"
 import { supabase } from "@/lib/supabase"
@@ -55,9 +55,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
     const [viewCount, setViewCount] = useState(data.view_count ?? 0)
     const [theme, setTheme] = useState(data.theme ?? "default")
     const [showThemeModal, setShowThemeModal] = useState(false)
-    const [showCompareInput, setShowCompareInput] = useState(false)
-    const [compareUsername, setCompareUsername] = useState("")
-    const [viewerIsPro, setViewerIsPro] = useState(false)
+    const [showEmbedBadgeModal, setShowEmbedBadgeModal] = useState(false)
     const [seasonHigh, setSeasonHigh] = useState(data.season_high ?? null)
     const [liveGame, setLiveGame] = useState(null)
     const [isFollowing, setIsFollowing] = useState(false)
@@ -130,8 +128,6 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
             const username = user?.user_metadata?.username ?? null
             setViewerUsername(username)
             if (user && username) {
-                const { data: vp } = await supabase.from("profiles").select("is_pro").eq("user_id", user.id).maybeSingle()
-                setViewerIsPro(vp?.is_pro ?? false)
                 setViewerUserId(user.id)
                 if (user.id !== data.user_id) {
                     const { data: followRow } = await supabase
@@ -291,7 +287,17 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
 
     return (
         <div className="bg-background min-h-screen">
-        <TopNav />
+        <TopNav
+            accountMenu={isOwnProfile ? {
+                isPro,
+                stripeCustomerId: data.stripe_customer_id,
+                username: data.username,
+                avatarUrl: data.avatar_url,
+                onUpgradeClick: () => setShowUpgradeModal(true),
+                onThemeClick: () => setShowThemeModal(true),
+                onEmbedBadgeClick: () => setShowEmbedBadgeModal(true),
+            } : undefined}
+        />
         <div
             className="p-3 max-w-[1000px] mx-auto"
             data-theme={!theme.startsWith("custom:") && theme !== "default" ? theme : undefined}
@@ -384,36 +390,6 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         <Eye size={13} className="opacity-70" />
                         {viewCount.toLocaleString()}
                     </span>
-                    {authChecked && (showCompareInput ? (
-                        <form
-                            className="flex items-center gap-1"
-                            onSubmit={e => {
-                                e.preventDefault()
-                                const other = compareUsername.trim()
-                                if (other) window.location.href = `/compare?a=${data.username}&b=${other}`
-                            }}
-                        >
-                            <input
-                                autoFocus
-                                value={compareUsername}
-                                onChange={e => setCompareUsername(e.target.value)}
-                                placeholder="Enter username…"
-                                className="bg-surface border border-accent/40 rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none w-36"
-                            />
-                            <button type="submit" className="border border-accent/40 rounded-lg px-3 py-2 text-sm text-accent hover:bg-accent-tint transition-colors">Go</button>
-                            <button type="button" onClick={() => { setShowCompareInput(false); setCompareUsername("") }} className="text-text-secondary hover:text-text-primary p-1.5 rounded-lg">
-                                <X size={14} />
-                            </button>
-                        </form>
-                    ) : (
-                        <button
-                            onClick={() => viewerIsPro ? setShowCompareInput(true) : setShowUpgradeModal(true)}
-                            title="Compare profiles"
-                            className="border border-hairline rounded-lg p-2 text-text-secondary hover:text-text-primary hover:border-accent/40 hover:bg-accent-tint active:scale-95 transition-all"
-                        >
-                            <ArrowLeftRight size={15} />
-                        </button>
-                    ))}
                     {authChecked && !isOwnProfile && viewerUserId && (
                         <button
                             onClick={handleFollow}
@@ -431,7 +407,6 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         {shareCopied ? <Check size={15} /> : <Share2 size={15} />}
                         {shareCopied ? "Link copied" : "Share profile"}
                     </button>
-                    {isOwnProfile && <AccountMenu isPro={isPro} stripeCustomerId={data.stripe_customer_id} username={data.username} onUpgradeClick={() => setShowUpgradeModal(true)} onThemeClick={() => setShowThemeModal(true)} />}
                 </div>
             </div>
 
@@ -722,44 +697,16 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         </>
                     )}
 
-                    {/* Embed Badge */}
-                    {isOwnProfile && (
-                        <>
-                            <div className="flex items-center gap-2 mt-5 mb-2.5">
-                                <p className="text-text-muted text-xs uppercase tracking-widest">Embed Badge</p>
-                                <div className="flex-1 h-px bg-hairline" />
-                            </div>
-                            <div className="bg-surface border border-hairline rounded-2xl p-4">
-                                <p className="text-text-muted text-xs mb-3">
-                                    Always shows your current rank.
-                                </p>
-                                <img
-                                    src={`/api/badge?username=${data.username}`}
-                                    alt={`${data.username}'s RankCard badge`}
-                                    className="rounded-lg border border-hairline max-w-full"
-                                    style={{ width: 300, height: 70 }}
-                                />
-                                <div className="flex flex-wrap gap-2 mt-3">
-                                    <button
-                                        onClick={() => handleCopyBadge("url")}
-                                        className="border border-accent/40 rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all flex items-center gap-1.5"
-                                    >
-                                        {badgeCopiedType === "url" ? <><Check size={14} /> Copied</> : "Copy image URL (Discord / Slack)"}
-                                    </button>
-                                    <button
-                                        onClick={() => handleCopyBadge("markdown")}
-                                        className="border border-hairline rounded-lg px-4 py-2 text-sm text-text-primary hover:bg-surface-hover active:bg-surface-hover active:scale-95 transition-all flex items-center gap-1.5"
-                                    >
-                                        {badgeCopiedType === "markdown" ? <><Check size={14} /> Copied</> : "Copy Markdown (GitHub)"}
-                                    </button>
-                                </div>
-                                <p className="text-text-muted text-[11px] mt-2">
-                                    Discord/Slack: paste the image URL alone in a message — it auto-embeds. GitHub: use the Markdown snippet in your README.
-                                </p>
-                            </div>
-                        </>
-                    )}
                 </div>
+            )}
+
+            {showEmbedBadgeModal && (
+                <EmbedBadgeModal
+                    username={data.username}
+                    badgeCopiedType={badgeCopiedType}
+                    onCopy={handleCopyBadge}
+                    onClose={() => setShowEmbedBadgeModal(false)}
+                />
             )}
 
             {/* Per-game detail tabs */}

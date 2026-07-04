@@ -3,9 +3,11 @@
 import { useState, useEffect, useRef } from "react"
 import { Search, Users, ArrowLeftRight, Bell, X } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import AccountMenu from "./AccountMenu"
 
-export default function TopNav() {
+export default function TopNav({ accountMenu }) {
     const [viewerUsername, setViewerUsername] = useState(null)
+    const [viewerAvatarUrl, setViewerAvatarUrl] = useState(null)
     const [authChecked, setAuthChecked] = useState(false)
     const [query, setQuery] = useState("")
     const [results, setResults] = useState([])
@@ -14,11 +16,20 @@ export default function TopNav() {
     const searchRef = useRef(null)
 
     useEffect(() => {
-        supabase.auth.getUser().then(({ data }) => {
-            setViewerUsername(data?.user?.user_metadata?.username ?? null)
+        supabase.auth.getUser().then(async ({ data }) => {
+            const username = data?.user?.user_metadata?.username ?? null
+            setViewerUsername(username)
+            if (username && !accountMenu) {
+                const { data: profile } = await supabase
+                    .from("profiles")
+                    .select("avatar_url")
+                    .eq("username", username)
+                    .maybeSingle()
+                setViewerAvatarUrl(profile?.avatar_url ?? null)
+            }
             setAuthChecked(true)
         })
-    }, [])
+    }, [accountMenu])
 
     useEffect(() => {
         function handleClickOutside(e) {
@@ -113,15 +124,31 @@ export default function TopNav() {
                 >
                     <ArrowLeftRight size={14} /> Compare
                 </a>
-                <Bell size={18} className="text-text-secondary" aria-hidden="true" />
+                <Bell size={18} className="text-text-secondary" title="Notifications coming soon" aria-hidden="true" />
                 {authChecked && (
-                    <a
-                        href={viewerUsername ? `/${viewerUsername}` : "/auth"}
-                        title={viewerUsername ? "Your profile" : "Sign up"}
-                        className="w-7 h-7 rounded-full bg-background border border-hairline flex-shrink-0 flex items-center justify-center text-text-secondary hover:border-accent/40 transition-colors overflow-hidden"
-                    >
-                        {!viewerUsername && <span className="text-xs font-bold">+</span>}
-                    </a>
+                    accountMenu ? (
+                        <AccountMenu
+                            isPro={accountMenu.isPro}
+                            stripeCustomerId={accountMenu.stripeCustomerId}
+                            username={accountMenu.username}
+                            avatarUrl={accountMenu.avatarUrl}
+                            onUpgradeClick={accountMenu.onUpgradeClick}
+                            onThemeClick={accountMenu.onThemeClick}
+                            onEmbedBadgeClick={accountMenu.onEmbedBadgeClick}
+                        />
+                    ) : (
+                        <a
+                            href={viewerUsername ? `/${viewerUsername}` : "/auth"}
+                            title={viewerUsername ? "Your profile" : "Sign up"}
+                            className="w-7 h-7 rounded-full bg-background border border-hairline flex-shrink-0 flex items-center justify-center text-text-secondary hover:border-accent/40 transition-colors overflow-hidden"
+                        >
+                            {viewerAvatarUrl ? (
+                                <img src={viewerAvatarUrl} alt={viewerUsername} className="w-full h-full object-cover" />
+                            ) : !viewerUsername ? (
+                                <span className="text-xs font-bold">+</span>
+                            ) : null}
+                        </a>
+                    )
                 )}
             </div>
         </nav>

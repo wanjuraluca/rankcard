@@ -6,7 +6,7 @@ import { MoreHorizontal, Star, Palette } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import DeleteAccountDialog from "./DeleteAccountDialog"
 
-export default function AccountMenu({ isPro, stripeCustomerId, username, onUpgradeClick, onThemeClick }) {
+export default function AccountMenu({ isPro, stripeCustomerId, username, avatarUrl, onUpgradeClick, onThemeClick, onEmbedBadgeClick }) {
     const [open, setOpen] = useState(false)
     const [confirmingDelete, setConfirmingDelete] = useState(false)
     const [deleting, setDeleting] = useState(false)
@@ -70,10 +70,14 @@ export default function AccountMenu({ isPro, stripeCustomerId, username, onUpgra
         <div className="relative">
             <button
                 onClick={() => setOpen(!open)}
-                title="More options"
-                className="border border-hairline rounded-lg p-2 text-text-secondary hover:border-accent/40 hover:text-text-primary active:border-accent/40 active:text-text-primary active:scale-95 transition-all"
+                title="Account menu"
+                className="w-8 h-8 rounded-full border border-hairline hover:border-accent/40 active:scale-95 transition-all overflow-hidden flex items-center justify-center bg-background text-text-secondary flex-shrink-0"
             >
-                <MoreHorizontal size={15} />
+                {avatarUrl ? (
+                    <img src={avatarUrl} alt={username} className="w-full h-full object-cover" />
+                ) : (
+                    <MoreHorizontal size={15} />
+                )}
             </button>
 
             {open && (
@@ -103,6 +107,14 @@ export default function AccountMenu({ isPro, stripeCustomerId, username, onUpgra
                                 className="w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-surface-hover active:bg-surface-hover transition-colors disabled:opacity-50"
                             >
                                 {portalLoading ? "Loading..." : "Manage subscription"}
+                            </button>
+                        )}
+                        {onEmbedBadgeClick && (
+                            <button
+                                onClick={() => { setOpen(false); onEmbedBadgeClick() }}
+                                className="w-full text-left rounded-lg px-3 py-2 text-sm text-text-primary hover:bg-surface-hover active:bg-surface-hover transition-colors"
+                            >
+                                Embed badge
                             </button>
                         )}
                         <button
