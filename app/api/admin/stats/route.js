@@ -41,7 +41,7 @@ export async function GET(request) {
         supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).eq("is_pro", true),
         supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", sevenDaysAgo),
         supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", thirtyDaysAgo),
-        supabaseAdmin.from("profiles").select("username, avatar_url, is_pro, created_at").order("created_at", { ascending: false }).limit(20),
+        supabaseAdmin.from("profiles").select("username, avatar_url, is_pro, created_at").order("created_at", { ascending: false }).limit(200),
         supabaseAdmin.from("connected_accounts").select("platform"),
         supabaseAdmin.from("lfg_posts").select("*", { count: "exact", head: true }).gt("expires_at", new Date().toISOString()),
         supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).not("discord_user_id", "is", null),
