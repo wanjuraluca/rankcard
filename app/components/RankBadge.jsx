@@ -27,8 +27,7 @@ export default function RankBadge({ account }) {
 
     useEffect(() => {
         async function fetchRank() {
-            const puuidParam = account.platform === "Overwatch" ? `&puuid=${encodeURIComponent(account.puuid)}` : ""
-            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}${puuidParam}`);
+            const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}`);
             const data = await response.json();
             // Guard with Array.isArray: on a Riot error (rate limit / bad key)
             // the API returns an error object here, not an array — calling

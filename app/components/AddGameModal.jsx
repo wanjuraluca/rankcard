@@ -12,10 +12,6 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
     const [tag, setTag] = useState("")
     const [loading, setLoading] = useState(false)
     const [errorMsg, setErrorMsg] = useState("")
-    // Overwatch only: Blizzard's public search can't disambiguate accounts that
-    // share a display name (no numeric tag exposed) — when that happens, the
-    // user picks the right one from this list instead of us guessing.
-    const [owCandidates, setOwCandidates] = useState([])
 
     // Config of the selected game (or null if none selected yet)
     const selectedConfig = selectedGame ? platformConfig[selectedGame] : null
@@ -42,48 +38,6 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
         })
     }
 
-    // Shared final step: write the connected account to the database, given a
-    // resolved external ID (Riot puuid, Steam64 ID, or Overwatch player_id).
-    async function insertAccount(usernameValue, puuid) {
-        const { data: userData, error: userError } = await supabase.auth.getUser()
-        if (userError || !userData?.user) {
-            setErrorMsg("You are not logged in.")
-            setLoading(false)
-            return
-        }
-
-        const { data: inserted, error: insertError } = await supabase
-            .from("connected_accounts")
-            .insert({
-                user_id: userData.user.id,
-                platform: selectedGame,
-                platform_username: usernameValue,
-                platform_tag: needsTag ? tag : null,
-                puuid: puuid
-            })
-            .select()
-            .single()
-
-        if (insertError) {
-            setErrorMsg(
-                insertError.code === "23505"
-                    ? "This account is already connected."
-                    : insertError.message
-            )
-            setLoading(false)
-            return
-        }
-
-        onConnected(inserted)
-        onClose()
-    }
-
-    // Called when the user picks their account from the Overwatch disambiguation list.
-    async function handleSelectOwCandidate(candidate) {
-        setLoading(true)
-        await insertAccount(username, candidate.playerId)
-    }
-
     async function handleConnect(e) {
         e?.preventDefault()
         setErrorMsg("")
@@ -97,21 +51,22 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
         setLoading(true)
 
         try {
-            // 1. puuid default: null (for Steam etc. without Riot validation)
+            // 1. Get the logged-in user
+            const { data: userData, error: userError } = await supabase.auth.getUser()
+            if (userError || !userData?.user) {
+                setErrorMsg("You are not logged in.")
+                setLoading(false)
+                return
+            }
+            const userId = userData.user.id
+
+            // 2. puuid default: null (for Steam etc. without Riot validation)
             let puuid = null
 
-            // 2. For Riot/BattleTag games: validate the account via the API + get puuid
+            // 3. For Riot games: validate the account via the API + get puuid
             if (selectedConfig.inputType === "riot") {
                 const res = await fetch(`/api/summoner?platform=${selectedGame}&name=${username}&tag=${tag}`)
                 const data = await res.json()
-
-                // Overwatch only: multiple public accounts share this name and we
-                // can't tell them apart — let the user pick instead of guessing.
-                if (selectedGame === "Overwatch" && data.ambiguous) {
-                    setOwCandidates(data.candidates)
-                    setLoading(false)
-                    return
-                }
 
                 // If no puuid comes back, the account doesn't exist
                 if (!data.puuid) {
@@ -122,7 +77,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                 puuid = data.puuid
             }
 
-            // 2b. For Steam games: validate the account + resolve the SteamID64
+            // 3b. For Steam games: validate the account + resolve the SteamID64
             // (vanity names like "winter" aren't usable directly by Leetify/Steam's API)
             let steamInput = username
             if (selectedConfig.inputType === "steam") {
@@ -138,8 +93,32 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                 puuid = data.steam64Id
             }
 
-            // 3. Write to the database
-            await insertAccount(selectedConfig.inputType === "steam" ? steamInput : username, puuid)
+            // 4. Write to the database
+            const { data: inserted, error: insertError } = await supabase
+                .from("connected_accounts")
+                .insert({
+                    user_id: userId,
+                    platform: selectedGame,
+                    platform_username: selectedConfig.inputType === "steam" ? steamInput : username,
+                    platform_tag: needsTag ? tag : null,
+                    puuid: puuid
+                })
+                .select()
+                .single()
+
+            if (insertError) {
+                setErrorMsg(
+                    insertError.code === "23505"
+                        ? "This account is already connected."
+                        : insertError.message
+                )
+                setLoading(false)
+                return
+            }
+
+            // 5. Success: report the new account upward + close the modal
+            onConnected(inserted)
+            onClose()
 
         } catch (err) {
             setErrorMsg("Something went wrong. Please try again.")
@@ -172,7 +151,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                             <button
                                 key={key}
                                 type="button"
-                                onClick={() => { setSelectedGame(key); setOwCandidates([]) }}
+                                onClick={() => setSelectedGame(key)}
                                 className={`border rounded-lg py-3 flex flex-col items-center gap-1.5 active:scale-95 transition-transform ${isSelected ? "border-accent bg-accent/10" : "border-hairline bg-background"}`}
                             >
                                 {config.imageUrl ? (
@@ -203,7 +182,7 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                             <input
                                 type="text"
                                 value={username}
-                                onChange={(e) => { setUsername(e.target.value); setOwCandidates([]) }}
+                                onChange={(e) => setUsername(e.target.value)}
                                 placeholder={selectedConfig.inputType === "steam" ? "Steam profile link, name, or SteamID64" : "Username"}
                                 className="flex-[2] bg-background border border-hairline rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary focus:border-accent outline-none"
                             />
@@ -238,39 +217,6 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                     </>
                 )}
 
-                {/* Overwatch disambiguation: multiple public accounts share this name and
-                    Blizzard's search doesn't expose the numeric tag to filter by it. */}
-                {owCandidates.length > 0 && (
-                    <>
-                        <p className="text-text-secondary text-xs mb-3">
-                            Multiple public "{username}" accounts were found — pick yours:
-                        </p>
-                        <div className="flex flex-col gap-2 mb-6 max-h-[220px] overflow-y-auto">
-                            {owCandidates.map((candidate) => (
-                                <button
-                                    key={candidate.playerId}
-                                    type="button"
-                                    onClick={() => handleSelectOwCandidate(candidate)}
-                                    disabled={loading}
-                                    className="flex items-center gap-3 border border-hairline rounded-lg p-2.5 text-left hover:border-accent/50 active:scale-[0.98] transition-all disabled:opacity-40"
-                                >
-                                    {candidate.avatar ? (
-                                        <img src={candidate.avatar} alt={candidate.name} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
-                                    ) : (
-                                        <div className="w-9 h-9 rounded-full bg-background flex-shrink-0" />
-                                    )}
-                                    <div className="min-w-0">
-                                        <p className="text-text-primary text-sm font-semibold truncate">{candidate.name}</p>
-                                        {candidate.title && (
-                                            <p className="text-text-secondary text-[11px] truncate">{candidate.title}</p>
-                                        )}
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                    </>
-                )}
-
                 {/* Error message */}
                 {errorMsg && (
                     <p className="text-negative text-sm mb-4">{errorMsg}</p>
@@ -285,15 +231,13 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                     >
                         Cancel
                     </button>
-                    {owCandidates.length === 0 && (
-                        <button
-                            type="submit"
-                            disabled={!selectedGame || !username || (needsTag && !tag) || loading}
-                            className="flex-1 bg-accent rounded-lg py-2.5 text-sm text-white font-medium disabled:opacity-40 active:scale-95 transition-transform"
-                        >
-                            {loading ? "Connecting..." : "Connect"}
-                        </button>
-                    )}
+                    <button
+                        type="submit"
+                        disabled={!selectedGame || !username || (needsTag && !tag) || loading}
+                        className="flex-1 bg-accent rounded-lg py-2.5 text-sm text-white font-medium disabled:opacity-40 active:scale-95 transition-transform"
+                    >
+                        {loading ? "Connecting..." : "Connect"}
+                    </button>
                 </div>
 
             </form>

@@ -89,15 +89,12 @@ export async function GET(request) {
   const tag = searchParams.get('tag')
   const platform = searchParams.get('platform')
   const accountId = searchParams.get('accountId')
-  // The resolved OverFast player_id, stored on the connected_accounts row after
-  // a successful first connect — see fetchOverwatchData.
-  const resolvedId = searchParams.get('puuid')
   // Reused for both games' mode filters since a single request only ever
   // targets one game — Valorant's is a mode slug (e.g. "competitive"),
   // League's is a numeric Riot queue ID (e.g. 420 for Ranked Solo/Duo).
   const mode = searchParams.get('mode') || null
 
-  const cacheKey = `${platform}:${name}:${tag}:${mode}:${resolvedId}`.toLowerCase()
+  const cacheKey = `${platform}:${name}:${tag}:${mode}`.toLowerCase()
   const cached = requestCache.get(cacheKey)
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
     return Response.json(cached.data)
@@ -105,7 +102,7 @@ export async function GET(request) {
 
   async function fetchLive() {
     if (platform === 'CSGO') return await fetchCs2Data(name)
-    if (platform === 'Overwatch') return await fetchOverwatchData(name, tag, resolvedId)
+    if (platform === 'Overwatch') return await fetchOverwatchData(name, tag)
     return await fetchSummonerData(name, tag, mode)
   }
 
@@ -453,75 +450,36 @@ function buildCs2Match(match, steam64Id) {
 // Overwatch has no official rank/match API — OverFast API
 // (https://github.com/TeKrop/overfast-api) scrapes Blizzard's public career
 // pages instead. Actively maintained public instance, no API key needed:
-// https://overfast-api.tekrop.fr (30 req/s per IP). Unlike League/Valorant,
-// there's no match-history endpoint — only current competitive ranks per
-// role (tank/damage/support) + Open Queue.
-const OW_EMPTY_RESULT = { puuid: null, owRanks: null, owUsername: null, owAvatar: null, owTitle: null }
+// https://overfast-api.tekrop.fr (30 req/s per IP). BattleTag's "#" becomes
+// "-" in the URL. Unlike League/Valorant, there's no match-history endpoint —
+// only current competitive ranks per role (tank/damage/support) + Open Queue.
+async function fetchOverwatchData(name, tag) {
+  const battleTag = `${name}-${tag}`
+  const response = await fetch(`https://overfast-api.tekrop.fr/players/${encodeURIComponent(battleTag)}/summary`)
+  if (!response.ok) {
+    return { puuid: null, owRanks: null, owUsername: null, owAvatar: null, owTitle: null }
+  }
 
-function mapOverwatchRole(role) {
-  return role ? { division: role.division, tier: role.tier, rankIcon: role.rank_icon } : null
-}
-
-async function fetchOverwatchSummaryById(playerId) {
-  const response = await fetch(`https://overfast-api.tekrop.fr/players/${encodeURIComponent(playerId)}/summary`)
-  return response.ok ? await response.json() : null
-}
-
-async function searchOverwatchPlayers(name) {
-  const response = await fetch(`https://overfast-api.tekrop.fr/players?name=${encodeURIComponent(name)}`)
-  if (!response.ok) return []
-  const json = await response.json()
-  return Array.isArray(json?.results) ? json.results : []
-}
-
-function buildOverwatchResult(playerId, summary) {
+  const summary = await response.json()
   // Console competitive is tracked separately and rarely used by our players —
   // fall back to it only if the account has no PC ranks at all.
   const platformRanks = summary?.competitive?.pc ?? summary?.competitive?.console ?? null
+
+  function mapRole(role) {
+    return role ? { division: role.division, tier: role.tier, rankIcon: role.rank_icon } : null
+  }
+
   return {
-    puuid: playerId, // reused generically as "platform external ID" like CS2's SteamID64
+    puuid: battleTag, // reused generically as "platform external ID" like CS2's SteamID64
     owUsername: summary?.username ?? null,
     owAvatar: summary?.avatar ?? null,
     owTitle: summary?.title ?? null,
     owRanks: platformRanks ? {
-      tank: mapOverwatchRole(platformRanks.tank),
-      damage: mapOverwatchRole(platformRanks.damage),
-      support: mapOverwatchRole(platformRanks.support),
-      open: mapOverwatchRole(platformRanks.open),
+      tank: mapRole(platformRanks.tank),
+      damage: mapRole(platformRanks.damage),
+      support: mapRole(platformRanks.support),
+      open: mapRole(platformRanks.open),
     } : null,
-  }
-}
-
-// `resolvedId` is the real OverFast player_id stored on the connected_accounts
-// row after a successful first connect — pass it in on every later fetch to
-// skip straight to the real account, bypassing the ambiguous name search below.
-async function fetchOverwatchData(name, tag, resolvedId) {
-  if (resolvedId) {
-    const summary = await fetchOverwatchSummaryById(resolvedId)
-    return summary ? buildOverwatchResult(resolvedId, summary) : OW_EMPTY_RESULT
-  }
-
-  // Blizzard's public BattleTag format used to double as the OverFast player_id
-  // directly ("Name-1234") for older accounts — try that fast path first.
-  const battleTag = `${name}-${tag}`
-  const direct = await fetchOverwatchSummaryById(battleTag)
-  if (direct) return buildOverwatchResult(battleTag, direct)
-
-  // For newer accounts, Blizzard's public search no longer exposes the numeric
-  // BattleTag suffix at all — we can't filter candidates by tag. If exactly one
-  // public account shares this name, use it; if there's more than one, we
-  // genuinely can't tell them apart and hand the choice to the user instead.
-  const candidates = await searchOverwatchPlayers(name)
-  if (candidates.length === 0) return OW_EMPTY_RESULT
-  if (candidates.length === 1) {
-    const summary = await fetchOverwatchSummaryById(candidates[0].player_id)
-    return summary ? buildOverwatchResult(candidates[0].player_id, summary) : OW_EMPTY_RESULT
-  }
-
-  return {
-    ...OW_EMPTY_RESULT,
-    ambiguous: true,
-    candidates: candidates.map(c => ({ playerId: c.player_id, name: c.name, avatar: c.avatar, title: c.title })),
   }
 }
 
