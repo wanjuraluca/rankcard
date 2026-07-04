@@ -571,10 +571,39 @@ async function fetchOverwatchCareerStats(battleTag, gamemode, platform) {
 // OverFast) on every request. Players are identified by plain username, no
 // discriminator tag. Gives real match history (unlike Overwatch/OverFast),
 // so win rate/KDA/top heroes can all be computed from it directly.
-async function fetchMarvelRivalsData(name) {
+//
+// A brand-new lookup (a player nobody has ever searched for on
+// marvelrivalsapi.com before) 404s even though the account is real and
+// public in-game — the API just hasn't scraped it yet. `/player/{name}/update`
+// triggers that scrape on demand, so on a 404 we kick it off and retry once
+// after giving it a moment to finish, instead of reporting "not found" for
+// an account that simply hasn't been indexed yet.
+async function fetchMarvelRivalsPlayer(name) {
   const response = await fetch(`https://marvelrivalsapi.com/api/v1/player/${encodeURIComponent(name)}`, {
     headers: { 'x-api-key': process.env.MARVEL_RIVALS_API_KEY }
   })
+  if (response.status !== 404) return response
+
+  try {
+    // The update endpoint has been observed hanging for 60s+ before erroring
+    // on marvelrivalsapi.com's side — cap it so one slow/broken account
+    // doesn't stall the whole profile page for the user.
+    await fetch(`https://marvelrivalsapi.com/api/v1/player/${encodeURIComponent(name)}/update`, {
+      headers: { 'x-api-key': process.env.MARVEL_RIVALS_API_KEY },
+      signal: AbortSignal.timeout(8000)
+    })
+  } catch {
+    // update trigger is best-effort — fall through to the retry regardless
+  }
+  await new Promise(resolve => setTimeout(resolve, 3000))
+
+  return fetch(`https://marvelrivalsapi.com/api/v1/player/${encodeURIComponent(name)}`, {
+    headers: { 'x-api-key': process.env.MARVEL_RIVALS_API_KEY }
+  })
+}
+
+async function fetchMarvelRivalsData(name) {
+  const response = await fetchMarvelRivalsPlayer(name)
   if (!response.ok) {
     return { puuid: null, mrRank: null, mrStats: null, mrMatchHistory: null }
   }
