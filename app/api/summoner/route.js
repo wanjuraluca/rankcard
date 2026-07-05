@@ -1,6 +1,7 @@
 import { after } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { getLeagueScore, getValorantScore, getCs2Score, getTftScore, getOverwatchScore, getMarvelRivalsScore, estimateMarvelRivalsRankFromScore } from '@/lib/rankScore'
+import { markServiceDown, markServiceUp } from '@/lib/serviceStatus'
 
 // A background cache refresh occasionally hits a transient Riot/Henrik
 // hiccup (rate limit, brief 5xx) and gets back an empty match-history array
@@ -479,12 +480,23 @@ async function fetchOverwatchData(name, tag) {
     response = await fetch(`https://overfast-api.tekrop.fr/players/${encodeURIComponent(battleTag)}/summary`, {
       signal: AbortSignal.timeout(OVERWATCH_FETCH_TIMEOUT_MS),
     })
-  } catch {
+  } catch (err) {
+    // Network error or the AbortSignal timeout firing — OverFast/Blizzard
+    // isn't responding at all, a real outage rather than a normal 404.
+    await markServiceDown('overwatch', err.name === 'TimeoutError' ? 'request timed out' : err.message)
     return OVERWATCH_EMPTY_RESULT
   }
   if (!response.ok) {
+    // A 404 just means this battle tag doesn't exist — not an outage. Only
+    // 5xx (or OverFast's own "couldn't reach Blizzard" 502/504) counts.
+    if (response.status >= 500) {
+      await markServiceDown('overwatch', `HTTP ${response.status}`)
+    } else {
+      await markServiceUp('overwatch')
+    }
     return OVERWATCH_EMPTY_RESULT
   }
+  await markServiceUp('overwatch')
 
   const summary = await response.json()
   // Console competitive is tracked separately and rarely used by our players —
