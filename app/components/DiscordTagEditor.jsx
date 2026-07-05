@@ -2,14 +2,39 @@
 import { useState, useRef, useEffect } from "react"
 import { Pencil, Check, Copy } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import ConfirmDialog from "./ConfirmDialog"
 
 export default function DiscordTagEditor({ username, discordTag, discordUserId, isOwnProfile }) {
     const [value, setValue] = useState(discordTag ?? "")
+    const [verifiedId, setVerifiedId] = useState(discordUserId ?? null)
     const [editing, setEditing] = useState(false)
     const [error, setError] = useState("")
     const [connecting, setConnecting] = useState(false)
     const [copied, setCopied] = useState(false)
+    const [showDisconnect, setShowDisconnect] = useState(false)
+    const [disconnecting, setDisconnecting] = useState(false)
     const inputRef = useRef(null)
+
+    // Removes both the verified OAuth link and the tag it filled in — a
+    // verified account had no way to be unlinked before (e.g. to connect a
+    // different Discord account, or just remove it entirely), only ever
+    // showing a "Verified" badge with no way out.
+    async function handleDisconnect() {
+        setDisconnecting(true)
+        const { error: updateError } = await supabase
+            .from("profiles")
+            .update({ discord_user_id: null, discord_tag: null })
+            .eq("username", username)
+        setDisconnecting(false)
+
+        if (updateError) {
+            setError("Couldn't disconnect. Try again.")
+            return
+        }
+        setVerifiedId(null)
+        setValue("")
+        setShowDisconnect(false)
+    }
 
     // Same copy-on-click pattern as the Find a Duo reveal button — visitors
     // previously had to select the tag text by hand, which is fiddly on
@@ -26,7 +51,7 @@ export default function DiscordTagEditor({ username, discordTag, discordUserId, 
     }
 
     // A verified link exists once we've stored the Discord user id via OAuth.
-    const isVerified = Boolean(discordUserId)
+    const isVerified = Boolean(verifiedId)
 
     // Kicks off the "Connect Discord" OAuth flow: ask our API for the authorize
     // URL (it signs our user id into the state), then send the browser there.
@@ -122,9 +147,20 @@ export default function DiscordTagEditor({ username, discordTag, discordUserId, 
                     </span>
                 )}
                 {isVerified ? (
-                    <span className="inline-flex items-center gap-0.5 text-positive text-[10px] font-semibold" title="Verified via Discord">
-                        <Check size={11} /> Verified
-                    </span>
+                    <>
+                        <span className="inline-flex items-center gap-0.5 text-positive text-[10px] font-semibold" title="Verified via Discord">
+                            <Check size={11} /> Verified
+                        </span>
+                        {isOwnProfile && (
+                            <button
+                                type="button"
+                                onClick={() => setShowDisconnect(true)}
+                                className="text-[10px] font-semibold text-text-secondary hover:text-negative transition-colors ml-1"
+                            >
+                                Disconnect
+                            </button>
+                        )}
+                    </>
                 ) : isOwnProfile && (
                     <>
                         <button
@@ -145,6 +181,17 @@ export default function DiscordTagEditor({ username, discordTag, discordUserId, 
                 )}
             </div>
             {error && <p className="text-negative text-[11px] mt-1">{error}</p>}
+            {showDisconnect && (
+                <ConfirmDialog
+                    title="Disconnect Discord?"
+                    message="Your verified Discord link and tag will be removed from your profile. You can reconnect (the same or a different account) any time."
+                    confirmLabel="Disconnect"
+                    danger
+                    loading={disconnecting}
+                    onCancel={() => setShowDisconnect(false)}
+                    onConfirm={handleDisconnect}
+                />
+            )}
         </div>
     )
 }
