@@ -27,6 +27,12 @@ export async function GET(request) {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
+    // Starting email/OAuth signup creates an auth.users row (and, via a DB
+    // trigger, a matching profiles row) before the user ever picks a
+    // username — abandoning that step (never confirming email, closing the
+    // OAuth username prompt) leaves a permanent username=null profiles row
+    // behind. These aren't real accounts, so every count/list here excludes
+    // them rather than showing junk "Recent signups" with no username.
     const [
         { count: totalUsers },
         { count: totalPro },
@@ -37,14 +43,14 @@ export async function GET(request) {
         { count: activeLfgPosts },
         { count: discordLinked },
     ] = await Promise.all([
-        supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }),
-        supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).eq("is_pro", true),
-        supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", sevenDaysAgo),
-        supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", thirtyDaysAgo),
-        supabaseAdmin.from("profiles").select("username, avatar_url, is_pro, created_at").order("created_at", { ascending: false }).limit(200),
+        supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).not("username", "is", null),
+        supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).eq("is_pro", true).not("username", "is", null),
+        supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", sevenDaysAgo).not("username", "is", null),
+        supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", thirtyDaysAgo).not("username", "is", null),
+        supabaseAdmin.from("profiles").select("username, avatar_url, is_pro, created_at").not("username", "is", null).order("created_at", { ascending: false }).limit(200),
         supabaseAdmin.from("connected_accounts").select("platform"),
         supabaseAdmin.from("lfg_posts").select("*", { count: "exact", head: true }).gt("expires_at", new Date().toISOString()),
-        supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).not("discord_user_id", "is", null),
+        supabaseAdmin.from("profiles").select("*", { count: "exact", head: true }).not("discord_user_id", "is", null).not("username", "is", null),
     ])
 
     const platformCounts = {}
