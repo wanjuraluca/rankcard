@@ -71,28 +71,33 @@ const faqs = [
   { q: "Which games are supported?", a: "League of Legends, TFT, Valorant, CS2, Overwatch and Marvel Rivals today, with more competitive games planned." },
 ]
 
-// Rotation/offset per slot in the hero's tilted badge stack — index-matched,
-// not data-driven, since it's purely a visual arrangement of up to 3 cards.
-// No rotation at all: even a couple degrees puts the small card text at an
-// angle far enough off-axis to read as soft/blurry at normal zoom (confirmed
-// by comparing normal vs. zoomed-in screenshots — perfectly sharp pixels,
-// just perceptually "blurry" once tilted). Depth comes from offset + z-index
-// stacking only.
+// Rotation/offset per slot in the hero's badge stack — index-matched, not
+// data-driven, since it's purely a visual arrangement of 3 cards. No
+// rotation: even a couple degrees puts the small card text at an angle far
+// enough off-axis to read as soft/blurry at normal zoom (confirmed by
+// comparing normal vs. zoomed-in screenshots — perfectly sharp pixels, just
+// perceptually "blurry" once tilted). Depth comes from offset + z-index only.
 const HERO_BADGE_SLOTS = [
   { className: "absolute top-0 left-2 sm:left-10 w-[200px]", z: 1 },
   { className: "absolute top-20 right-0 w-[200px]", z: 2 },
   { className: "absolute bottom-0 left-16 sm:left-20 w-[200px]", z: 1 },
 ]
 
+// Illustrative examples, not the live showcase account — the hero previously
+// showed 3 games from the one real showcase profile, which meant the same
+// username/tag repeated on every card and occasionally an unflattering real
+// stat (a 0% win rate from an actual bad streak). The "this is what your
+// link looks like" section further down is the real, live, single-account
+// proof; these three are just a glance at variety across different players
+// and games, same visual card style, deliberately picked to look good.
+const HERO_EXAMPLE_CARDS = [
+  { platform: "TFT", username: "Frostbyte92", tierLabel: "DIAMOND II", winRate: 64 },
+  { platform: "Valorant", username: "NovaStrike", tierLabel: "Immortal 1", winRate: 58 },
+  { platform: "Marvel Rivals", username: "ShadowVex", tierLabel: "Grandmaster III", winRate: 61 },
+]
+
 export default async function Home() {
   const showcase = await getShowcaseProfile()
-
-  // Real data for the hero's badge stack, same "no fake mocks" principle as
-  // the full profile preview further down — pulled from the same live
-  // showcase profile, just trimmed to whichever 3 games have a ranked tier.
-  const heroBadges = (showcase?.games ?? [])
-    .filter(g => g.stats?.tierLabel && platformConfig[g.account.platform])
-    .slice(0, 3)
 
   return <main className="bg-background min-h-screen relative">
     <nav className="flex justify-between px-4 sm:px-8 py-5 sm:py-6 items-center border-hairline border-b-3">
@@ -149,32 +154,44 @@ export default async function Home() {
           </div>
         </div>
 
-        {heroBadges.length > 0 && (
-          <div className="relative h-[280px] hidden lg:block">
-            {heroBadges.map((game, i) => {
-              const config = platformConfig[game.account.platform]
-              const slot = HERO_BADGE_SLOTS[i]
-              return (
-                <div
-                  key={game.account.id}
-                  className={`${slot.className} bg-surface border border-hairline rounded-xl p-4`}
-                  style={{
-                    borderTopWidth: 3,
-                    borderTopColor: config.color,
-                    zIndex: slot.z,
-                    boxShadow: "0 8px 16px -4px rgba(0,0,0,0.45)",
-                  }}
-                >
-                  <p className="text-text-secondary text-[11px] mb-1">{config.name}</p>
-                  <p className="text-white text-lg font-extrabold">{game.stats.tierLabel}</p>
-                  {game.stats.winRate != null && (
-                    <p className="text-positive text-xs mt-1">{Math.round(game.stats.winRate)}% win rate</p>
-                  )}
+        <div className="relative h-[280px] hidden lg:block">
+          {HERO_EXAMPLE_CARDS.map((card, i) => {
+            const config = platformConfig[card.platform]
+            const slot = HERO_BADGE_SLOTS[i]
+            return (
+              <div
+                key={card.platform}
+                className={`${slot.className} bg-surface border border-hairline rounded-xl p-3.5`}
+                style={{
+                  borderTopWidth: 3,
+                  borderTopColor: config.color,
+                  zIndex: slot.z,
+                  boxShadow: "0 8px 16px -4px rgba(0,0,0,0.45)",
+                }}
+              >
+                <div className="flex items-center gap-2 mb-2.5">
+                  <div className="rounded-lg flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, backgroundColor: `${config.color}24`, border: `1px solid ${config.color}66` }}>
+                    {config.imageUrl ? (
+                      <img src={config.imageUrl} width="13" height="13" style={{ transform: `scale(${config.logoScale ?? 1})` }} alt="" />
+                    ) : (
+                      <svg role="img" viewBox="0 0 24 24" width="13" height="13" fill={config.color}>
+                        <path d={config.icon.path} fillRule={config.icon.fillRule ?? "nonzero"} />
+                      </svg>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-white text-xs font-bold leading-none">{config.shortName}</p>
+                    <p className="text-text-secondary text-[11px] mt-1">{card.username}</p>
+                  </div>
                 </div>
-              )
-            })}
-          </div>
-        )}
+                <div className="flex items-end justify-between">
+                  <p className="text-white text-base font-extrabold">{card.tierLabel}</p>
+                  <p className="text-positive text-xs font-semibold">{card.winRate}% WR</p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {/* How it works */}

@@ -23,6 +23,7 @@ export default function RankBadge({ account }) {
     const [valorantImage, setValorantImage] = useState(null)
     const [cs2Profile, setCs2Profile] = useState(null)
     const [owRanks, setOwRanks] = useState(null)
+    const [owStats, setOwStats] = useState(null)
     const [mrRank, setMrRank] = useState(null)
     const [mrOverallStats, setMrOverallStats] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -43,6 +44,7 @@ export default function RankBadge({ account }) {
             setValorantImage(mmrHistory[mmrHistory.length - 1]?.image ?? null)
             setCs2Profile(data.cs2Profile ?? null)
             setOwRanks(data.owRanks ?? null)
+            setOwStats(data.owStats ?? null)
             setMrRank(data.mrRank ?? null)
             setMrOverallStats(data.mrOverallStats ?? null)
             setLoading(false)
@@ -114,6 +116,11 @@ export default function RankBadge({ account }) {
             return <p className="text-text-secondary text-sm">Unranked</p>
         }
         const bestRank = owRanks[best.role]
+        // Same source + formula as OverwatchHero's own win-rate line — the
+        // competitive career stats block, not match history (OverFast has
+        // none for Overwatch).
+        const compGames = owStats?.competitive?.game
+        const winRate = compGames?.games_played > 0 ? Math.round((compGames.games_won / compGames.games_played) * 100) : null
 
         return (
             <div className="flex items-center gap-3">
@@ -124,7 +131,10 @@ export default function RankBadge({ account }) {
                 </div>
                 <div>
                     <p className="text-text-primary text-sm font-bold capitalize">{bestRank.division} {bestRank.tier}</p>
-                    <p className="text-text-secondary text-[11px] capitalize">{best.role === "open" ? "Open Queue" : best.role}</p>
+                    <p className="text-text-secondary text-[11px] capitalize">
+                        {best.role === "open" ? "Open Queue" : best.role}
+                        {winRate != null && <> · <span className="text-positive font-semibold">{winRate}% WR</span></>}
+                    </p>
                 </div>
             </div>
         )
