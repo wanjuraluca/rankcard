@@ -47,14 +47,25 @@ export async function POST(request) {
     const meta = user.user_metadata ?? {}
     const avatarUrl = meta.avatar_url ?? meta.picture ?? null
 
-    // upsert, not insert: the trigger-created blank row for this user_id
-    // already exists, so a plain insert would hit that row's unique
-    // constraint and fail every time.
-    const { error: insertError } = await supabaseAdmin
-        .from("profiles")
-        .upsert({ user_id: user.id, username, avatar_url: avatarUrl, referred_by: referredBy || null }, { onConflict: "user_id" })
+    // UPDATE the trigger-created blank row if one exists (the normal OAuth
+    // case), otherwise INSERT a fresh row. Not upsert: profiles' primary key
+    // is `id`, not `user_id` — user_id has no unique constraint at all, so
+    // upsert(..., { onConflict: "user_id" }) fails with a Postgres "no
+    // unique or exclusion constraint matching ON CONFLICT" error, which this
+    // route then swallowed into the generic "Could not create your profile"
+    // for every single OAuth signup (regression from the fix two commits
+    // before this one — existingForUser was already fetched above, so
+    // branching on it here needs no extra query).
+    const { error: writeError } = existingForUser
+        ? await supabaseAdmin
+            .from("profiles")
+            .update({ username, avatar_url: avatarUrl, referred_by: referredBy || null })
+            .eq("user_id", user.id)
+        : await supabaseAdmin
+            .from("profiles")
+            .insert({ user_id: user.id, username, avatar_url: avatarUrl, referred_by: referredBy || null })
 
-    if (insertError) {
+    if (writeError) {
         return Response.json({ error: "Could not create your profile." }, { status: 500 })
     }
 
