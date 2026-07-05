@@ -5,6 +5,12 @@ import { extractGameStats, average } from "@/lib/gameStats"
 
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
+// Next's metadata-image convention statically caches this route by default
+// (generated once, then served from cache indefinitely) — without this, a
+// profile's og:image would freeze at whatever ranks/stats existed the first
+// time anyone's client fetched the link, same class of bug as Discord's own
+// embed cache below.
+export const revalidate = 300
 
 // Layout below is authored against the logical 1200x630 og:image size.
 // We render at 2x and let consumers downscale it, so text and avatars stay crisp on HiDPI previews.
