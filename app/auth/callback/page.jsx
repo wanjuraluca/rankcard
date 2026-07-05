@@ -22,9 +22,13 @@ export default function AuthCallback() {
         .eq("user_id", data.session.user.id)
         .maybeSingle()
 
-      if (!profile) {
-        // No profile row yet — happens for brand-new OAuth sign-ins (Discord/Google),
-        // which skip the email/password form's username step.
+      if (!profile || !profile.username) {
+        // No profile row, or a row with no username yet — a DB trigger creates
+        // the profiles row immediately on signup (before the OAuth user has
+        // picked a username), so checking `!profile` alone let this fall
+        // through to router.replace("/null") and 404 instead of ever reaching
+        // complete-profile. This is why every Discord/Google signup was
+        // silently dying here.
         router.replace("/auth/complete-profile")
         return
       }

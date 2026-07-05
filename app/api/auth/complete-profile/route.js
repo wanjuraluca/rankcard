@@ -21,12 +21,17 @@ export async function POST(request) {
 
     const user = userData.user
 
+    // A DB trigger creates a blank profiles row (no username) immediately on
+    // signup, before this step ever runs — so a row existing isn't enough to
+    // mean "already has a profile", only a row with a username set does.
+    // Checking mere existence here used to reject every OAuth user's first
+    // (and only) attempt to actually finish signing up.
     const { data: existingForUser } = await supabaseAdmin
         .from("profiles")
         .select("username")
         .eq("user_id", user.id)
         .maybeSingle()
-    if (existingForUser) {
+    if (existingForUser?.username) {
         return Response.json({ error: "You already have a profile." }, { status: 409 })
     }
 
@@ -42,9 +47,12 @@ export async function POST(request) {
     const meta = user.user_metadata ?? {}
     const avatarUrl = meta.avatar_url ?? meta.picture ?? null
 
+    // upsert, not insert: the trigger-created blank row for this user_id
+    // already exists, so a plain insert would hit that row's unique
+    // constraint and fail every time.
     const { error: insertError } = await supabaseAdmin
         .from("profiles")
-        .insert({ user_id: user.id, username, avatar_url: avatarUrl, referred_by: referredBy || null })
+        .upsert({ user_id: user.id, username, avatar_url: avatarUrl, referred_by: referredBy || null }, { onConflict: "user_id" })
 
     if (insertError) {
         return Response.json({ error: "Could not create your profile." }, { status: 500 })
