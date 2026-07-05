@@ -182,7 +182,12 @@ async function handleSubmit(e) {
       },
     })
     if (error) setError(friendlyError(error.message))
-    else {
+    else if (data.user?.identities?.length === 0) {
+      // Supabase returns no error for an already-registered email (anti-enumeration
+      // protection) — identities comes back empty instead of throwing, so this is
+      // the only reliable way to detect it client-side.
+      setError("An account with this email already exists.")
+    } else {
       setSignupDone(true)
     }
   }
@@ -401,6 +406,18 @@ async function handleSubmit(e) {
             {error && (
               <div className="rounded-lg border border-negative/40 bg-negative/10 px-3.5 py-2.5 text-sm text-negative">
                 {error}
+                {error === "An account with this email already exists." && (
+                  <>
+                    {" "}
+                    <button
+                      type="button"
+                      onClick={() => { setIsLogin(true); setError("") }}
+                      className="cursor-pointer font-semibold underline hover:text-white"
+                    >
+                      Log in instead
+                    </button>
+                  </>
+                )}
               </div>
             )}
 
