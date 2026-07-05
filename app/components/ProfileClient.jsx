@@ -42,6 +42,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
 
     const [activeTab, setActiveTab] = useState("overall")
     const [showModal, setShowModal] = useState(false)
+    const [preselectedGame, setPreselectedGame] = useState(null)
     const [accountList, setAccountList] = useState(accounts)
     const [gameStats, setGameStats] = useState({})
     const [removingId, setRemovingId] = useState(null)
@@ -423,7 +424,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                 })}
                 {isOwnProfile && (
                     <button
-                        onClick={() => setShowModal(true)}
+                        onClick={() => { setPreselectedGame(null); setShowModal(true) }}
                         className="border border-dashed border-accent/45 rounded-lg px-4 py-2 text-sm font-semibold text-accent-soft hover:bg-accent-tint active:bg-accent-tint active:scale-95 transition-all"
                     >
                         + Add Game
@@ -540,7 +541,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         })}
                         {/* Add Game Card */}
                         {isOwnProfile && (
-                            <div onClick={() => setShowModal(true)} className="bg-surface border border-dashed border-accent/35 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent/60 active:border-accent/60 active:scale-[0.98] transition-all min-h-[110px]">
+                            <div onClick={() => { setPreselectedGame(null); setShowModal(true) }} className="bg-surface border border-dashed border-accent/35 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent/60 active:border-accent/60 active:scale-[0.98] transition-all min-h-[110px]">
                                 <p className="text-accent-soft text-xl">＋</p>
                                 <p className="text-accent-soft text-xs">Add Game</p>
                             </div>
@@ -697,7 +698,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                             )
                         ) : (
                             <div
-                                onClick={() => isOwnProfile && setShowModal(true)}
+                                onClick={() => { if (isOwnProfile) { setPreselectedGame(activeGameTab.platform); setShowModal(true) } }}
                                 className={`bg-surface border border-dashed border-hairline rounded-2xl p-6 text-center ${isOwnProfile ? "cursor-pointer hover:border-accent/50 transition-colors" : ""}`}
                             >
                                 <p className="text-text-secondary text-sm">No {config.name} account connected yet.</p>
@@ -714,6 +715,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     onClose={() => setShowModal(false)}
                     onConnected={(newAccount) => setAccountList([...accountList, newAccount])}
                     existingAccounts={accountList}
+                    initialGame={preselectedGame}
                 />
             )}
 

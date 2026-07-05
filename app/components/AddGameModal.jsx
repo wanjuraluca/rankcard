@@ -4,10 +4,13 @@ import { X } from "lucide-react"
 import { platformConfig } from "@/lib/platforms"
 import { supabase } from "@/lib/supabase"
 
-export default function AddGameModal({ onClose, onConnected, existingAccounts = [] }) {
+export default function AddGameModal({ onClose, onConnected, existingAccounts = [], initialGame = null }) {
 
     // Which game is selected? (key from platformConfig, e.g. "League of Legends")
-    const [selectedGame, setSelectedGame] = useState(null)
+    // Pre-filled when opened from a specific game's empty-state ("+ Add Game"
+    // on the Rivals tab, say) so the user isn't dumped back at game selection
+    // for the one game they just told us they wanted.
+    const [selectedGame, setSelectedGame] = useState(initialGame)
     const [username, setUsername] = useState("")
     const [tag, setTag] = useState("")
     const [loading, setLoading] = useState(false)
