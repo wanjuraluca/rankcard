@@ -73,10 +73,13 @@ const faqs = [
 
 // Rotation/offset per slot in the hero's tilted badge stack — index-matched,
 // not data-driven, since it's purely a visual arrangement of up to 3 cards.
+// Rotation is kept small (max ~3deg): anything steeper puts the card's text
+// at an angle far enough off-axis that font anti-aliasing reads as blurry,
+// especially at the small sizes these render at.
 const HERO_BADGE_SLOTS = [
-  { className: "absolute top-0 left-2 sm:left-10 w-[190px]", rotate: "-6deg", z: 1 },
-  { className: "absolute top-20 right-0 w-[190px]", rotate: "4deg", z: 2 },
-  { className: "absolute bottom-0 left-16 sm:left-20 w-[190px]", rotate: "-3deg", z: 1 },
+  { className: "absolute top-0 left-2 sm:left-10 w-[200px]", rotate: "-2.5deg", z: 1 },
+  { className: "absolute top-20 right-0 w-[200px]", rotate: "2deg", z: 2 },
+  { className: "absolute bottom-0 left-16 sm:left-20 w-[200px]", rotate: "-1.5deg", z: 1 },
 ]
 
 export default async function Home() {
@@ -95,6 +98,28 @@ export default async function Home() {
         <img src="/Icons/LogoSmall.png" alt="RankCard Logo" className="h-7 sm:h-8 w-auto"></img>
         <span className="font-bold sm:font-normal">RankCard</span>
       </a>
+
+      {/* In-page wayfinding + supported-games glance — desktop only, the
+          empty middle of the nav was otherwise dead space on wide screens. */}
+      <div className="hidden lg:flex items-center gap-6">
+        <a href="#how-it-works" className="text-text-secondary hover:text-white transition-colors text-sm">How it works</a>
+        <a href="#preview" className="text-text-secondary hover:text-white transition-colors text-sm">See it in action</a>
+        <a href="#faq" className="text-text-secondary hover:text-white transition-colors text-sm">FAQ</a>
+        <div className="flex items-center gap-2 border-l border-hairline pl-5 ml-1">
+          {Object.values(platformConfig).map((config) => (
+            <span key={config.name} title={config.name} className="w-6 h-6 rounded-md flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity" style={{ backgroundColor: `${config.color}1f` }}>
+              {config.imageUrl ? (
+                <img src={config.imageUrl} width="13" height="13" style={{ transform: `scale(${config.logoScale ?? 1})` }} alt="" />
+              ) : (
+                <svg role="img" viewBox="0 0 24 24" width="13" height="13" fill={config.color} aria-hidden="true">
+                  <path d={config.icon.path} fillRule={config.icon.fillRule ?? "nonzero"} />
+                </svg>
+              )}
+            </span>
+          ))}
+        </div>
+      </div>
+
       <div className="flex gap-2 sm:gap-3 items-center">
         <NavAuth />
       </div>
@@ -130,11 +155,20 @@ export default async function Home() {
               return (
                 <div
                   key={game.account.id}
-                  className={`${slot.className} bg-surface border border-hairline rounded-xl p-4 shadow-2xl`}
-                  style={{ borderTopWidth: 3, borderTopColor: config.color, transform: `rotate(${slot.rotate})`, zIndex: slot.z }}
+                  className={`${slot.className} bg-surface border border-hairline rounded-xl p-4`}
+                  style={{
+                    borderTopWidth: 3,
+                    borderTopColor: config.color,
+                    transform: `rotate(${slot.rotate})`,
+                    zIndex: slot.z,
+                    // A large soft shadow (Tailwind's shadow-2xl) reads as haze
+                    // around a rotated edge on a near-black background — a
+                    // tighter, less diffuse shadow keeps the card looking crisp.
+                    boxShadow: "0 8px 16px -4px rgba(0,0,0,0.45)",
+                  }}
                 >
                   <p className="text-text-secondary text-[11px] mb-1">{config.name}</p>
-                  <p className="text-white text-lg font-bold">{game.stats.tierLabel}</p>
+                  <p className="text-white text-lg font-extrabold">{game.stats.tierLabel}</p>
                   {game.stats.winRate != null && (
                     <p className="text-positive text-xs mt-1">{Math.round(game.stats.winRate)}% win rate</p>
                   )}
@@ -146,7 +180,7 @@ export default async function Home() {
       </div>
 
       {/* How it works */}
-      <div className="relative z-10 flex flex-col items-center mt-16 sm:mt-20 mb-8 sm:mb-10">
+      <div id="how-it-works" className="relative z-10 flex flex-col items-center mt-16 sm:mt-20 mb-8 sm:mb-10 scroll-mt-20">
         <span className="text-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest">How it works</span>
         <h2 className="text-2xl sm:text-4xl text-white font-bold mt-3 text-center">
           Three steps to one link for every game.
@@ -188,7 +222,7 @@ export default async function Home() {
     </section>
 
     {/* Profile Preview */}
-    <section className="relative z-10 px-4 sm:px-8 py-16 sm:py-24 flex flex-col items-center">
+    <section id="preview" className="relative z-10 px-4 sm:px-8 py-16 sm:py-24 flex flex-col items-center scroll-mt-20">
       <span className="text-accent text-xs sm:text-sm font-bold uppercase tracking-widest">See it in action</span>
       <h2 className="text-2xl sm:text-4xl text-white font-bold mt-3 text-center">
         This is what your link looks like.
@@ -274,7 +308,7 @@ export default async function Home() {
     </section>
 
     {/* FAQ */}
-    <section className="relative z-10 px-4 sm:px-8 py-16 sm:py-20 flex flex-col items-center">
+    <section id="faq" className="relative z-10 px-4 sm:px-8 py-16 sm:py-20 flex flex-col items-center scroll-mt-20">
       <span className="text-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest">FAQ</span>
       <h2 className="text-2xl sm:text-4xl text-white font-bold mt-3 mb-10 sm:mb-12 text-center">
         Questions? Answered.
