@@ -78,10 +78,15 @@ const faqs = [
 // comparing normal vs. zoomed-in screenshots — perfectly sharp pixels, just
 // perceptually "blurry" once tilted). Depth comes from offset + z-index only.
 const HERO_BADGE_SLOTS = [
-  { className: "absolute top-0 left-2 sm:left-10 w-[200px]", z: 1 },
-  { className: "absolute top-20 right-0 w-[200px]", z: 2 },
-  { className: "absolute bottom-0 left-16 sm:left-20 w-[200px]", z: 1 },
+  { className: "absolute top-0 left-0 sm:left-6 w-[230px]", z: 1 },
+  { className: "absolute top-24 right-0 w-[230px]", z: 2 },
+  { className: "absolute bottom-0 left-10 sm:left-16 w-[230px]", z: 1 },
 ]
+
+// Riot's ranked emblem art is a deterministic URL by tier name alone (no
+// per-account data needed) — same asset RankBadge/RankHero/TftHero use for
+// real cards, so this is the actual rank icon, not a placeholder.
+const riotEmblem = (tier) => `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${tier.toLowerCase()}.png`
 
 // Illustrative examples, not the live showcase account — the hero previously
 // showed 3 games from the one real showcase profile, which meant the same
@@ -90,10 +95,13 @@ const HERO_BADGE_SLOTS = [
 // link looks like" section further down is the real, live, single-account
 // proof; these three are just a glance at variety across different players
 // and games, same visual card style, deliberately picked to look good.
+// TFT/League use the real deterministic emblem art; CS2 uses the same plain
+// colored-circle style RankBadge falls back to (no external image exists
+// for Premier ranks, on the real cards either).
 const HERO_EXAMPLE_CARDS = [
-  { platform: "TFT", username: "Frostbyte92", tierLabel: "DIAMOND II", winRate: 64 },
-  { platform: "Valorant", username: "NovaStrike", tierLabel: "Immortal 1", winRate: 58 },
-  { platform: "Marvel Rivals", username: "ShadowVex", tierLabel: "Grandmaster III", winRate: 61 },
+  { platform: "TFT", username: "Frostbyte92", tag: "EUW", tier: "Diamond", division: "II", winRate: 64, emblem: riotEmblem("diamond") },
+  { platform: "League of Legends", username: "NovaStrike", tag: "NA1", tier: "Platinum", division: "I", winRate: 58, emblem: riotEmblem("platinum") },
+  { platform: "CSGO", username: "ShadowVex", tier: "Purple", ratingShort: "18k", winRate: 61 },
 ]
 
 export default async function Home() {
@@ -154,14 +162,14 @@ export default async function Home() {
           </div>
         </div>
 
-        <div className="relative h-[280px] hidden lg:block">
+        <div className="relative h-[300px] hidden lg:block">
           {HERO_EXAMPLE_CARDS.map((card, i) => {
             const config = platformConfig[card.platform]
             const slot = HERO_BADGE_SLOTS[i]
             return (
               <div
                 key={card.platform}
-                className={`${slot.className} bg-surface border border-hairline rounded-xl p-3.5`}
+                className={`${slot.className} bg-surface border border-hairline rounded-xl p-4`}
                 style={{
                   borderTopWidth: 3,
                   borderTopColor: config.color,
@@ -169,24 +177,38 @@ export default async function Home() {
                   boxShadow: "0 8px 16px -4px rgba(0,0,0,0.45)",
                 }}
               >
-                <div className="flex items-center gap-2 mb-2.5">
-                  <div className="rounded-lg flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, backgroundColor: `${config.color}24`, border: `1px solid ${config.color}66` }}>
+                {/* Header row — small game logo + shortName + tagged username,
+                    mirrors the outer wrapper each real Connected Games card has. */}
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="rounded-lg flex items-center justify-center flex-shrink-0" style={{ width: 24, height: 24, backgroundColor: `${config.color}24`, border: `1px solid ${config.color}66` }}>
                     {config.imageUrl ? (
-                      <img src={config.imageUrl} width="13" height="13" style={{ transform: `scale(${config.logoScale ?? 1})` }} alt="" />
+                      <img src={config.imageUrl} width="12" height="12" style={{ transform: `scale(${config.logoScale ?? 1})` }} alt="" />
                     ) : (
-                      <svg role="img" viewBox="0 0 24 24" width="13" height="13" fill={config.color}>
+                      <svg role="img" viewBox="0 0 24 24" width="12" height="12" fill={config.color}>
                         <path d={config.icon.path} fillRule={config.icon.fillRule ?? "nonzero"} />
                       </svg>
                     )}
                   </div>
                   <div>
                     <p className="text-white text-xs font-bold leading-none">{config.shortName}</p>
-                    <p className="text-text-secondary text-[11px] mt-1">{card.username}</p>
+                    <p className="text-text-secondary text-[11px] mt-1">{card.username}{card.tag ? `#${card.tag}` : ""}</p>
                   </div>
                 </div>
-                <div className="flex items-end justify-between">
-                  <p className="text-white text-base font-extrabold">{card.tierLabel}</p>
-                  <p className="text-positive text-xs font-semibold">{card.winRate}% WR</p>
+
+                {/* Rank row — real tier emblem (or the plain colored-circle
+                    fallback CS2 also uses), same layout as RankBadge.jsx. */}
+                <div className="flex items-center gap-3">
+                  {card.emblem ? (
+                    <img src={card.emblem} alt={card.tier} className="w-11 h-11 flex-shrink-0 object-contain" />
+                  ) : (
+                    <div className="w-11 h-11 flex-shrink-0 rounded-full flex items-center justify-center border-2" style={{ borderColor: config.color, backgroundColor: `${config.color}1f` }}>
+                      <span className="text-white font-extrabold text-[11px]">{card.ratingShort}</span>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-white text-sm font-bold">{card.tier}{card.division ? ` ${card.division}` : ""}</p>
+                    <p className="text-positive text-xs font-semibold">{card.winRate}% WR</p>
+                  </div>
                 </div>
               </div>
             )
