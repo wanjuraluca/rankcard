@@ -73,13 +73,15 @@ const faqs = [
 
 // Rotation/offset per slot in the hero's tilted badge stack — index-matched,
 // not data-driven, since it's purely a visual arrangement of up to 3 cards.
-// Rotation is kept small (max ~3deg): anything steeper puts the card's text
-// at an angle far enough off-axis that font anti-aliasing reads as blurry,
-// especially at the small sizes these render at.
+// No rotation at all: even a couple degrees puts the small card text at an
+// angle far enough off-axis to read as soft/blurry at normal zoom (confirmed
+// by comparing normal vs. zoomed-in screenshots — perfectly sharp pixels,
+// just perceptually "blurry" once tilted). Depth comes from offset + z-index
+// stacking only.
 const HERO_BADGE_SLOTS = [
-  { className: "absolute top-0 left-2 sm:left-10 w-[200px]", rotate: "-2.5deg", z: 1 },
-  { className: "absolute top-20 right-0 w-[200px]", rotate: "2deg", z: 2 },
-  { className: "absolute bottom-0 left-16 sm:left-20 w-[200px]", rotate: "-1.5deg", z: 1 },
+  { className: "absolute top-0 left-2 sm:left-10 w-[200px]", z: 1 },
+  { className: "absolute top-20 right-0 w-[200px]", z: 2 },
+  { className: "absolute bottom-0 left-16 sm:left-20 w-[200px]", z: 1 },
 ]
 
 export default async function Home() {
@@ -159,11 +161,7 @@ export default async function Home() {
                   style={{
                     borderTopWidth: 3,
                     borderTopColor: config.color,
-                    transform: `rotate(${slot.rotate})`,
                     zIndex: slot.z,
-                    // A large soft shadow (Tailwind's shadow-2xl) reads as haze
-                    // around a rotated edge on a near-black background — a
-                    // tighter, less diffuse shadow keeps the card looking crisp.
                     boxShadow: "0 8px 16px -4px rgba(0,0,0,0.45)",
                   }}
                 >
