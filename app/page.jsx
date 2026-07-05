@@ -95,13 +95,18 @@ const riotEmblem = (tier) => `https://raw.communitydragon.org/latest/plugins/rcp
 // link looks like" section further down is the real, live, single-account
 // proof; these three are just a glance at variety across different players
 // and games, same visual card style, deliberately picked to look good.
-// TFT/League use the real deterministic emblem art; CS2 uses the same plain
-// colored-circle style RankBadge falls back to (no external image exists
-// for Premier ranks, on the real cards either).
+// TFT/League use the real deterministic emblem art. Overwatch's rank icon
+// URL includes a content hash Blizzard assigns per tier asset — not
+// guessable in general, but this exact Diamond URL was pulled from a real
+// live API response, so it's a genuine icon rather than a made-up one.
 const HERO_EXAMPLE_CARDS = [
-  { platform: "TFT", username: "Frostbyte92", tag: "EUW", tier: "Diamond", division: "II", winRate: 64, emblem: riotEmblem("diamond") },
-  { platform: "League of Legends", username: "NovaStrike", tag: "NA1", tier: "Platinum", division: "I", winRate: 58, emblem: riotEmblem("platinum") },
-  { platform: "CSGO", username: "ShadowVex", tier: "Purple", ratingShort: "18k", winRate: 61 },
+  // Riot's ranked-emblem PNGs render tiny by default — the visible emblem
+  // occupies only a small fraction of a mostly-transparent square canvas,
+  // same reason RankBadge/RankHero/TftHero all apply this exact
+  // scale-450 + overflow-hidden treatment to make it actually visible.
+  { platform: "TFT", username: "Frostbyte92", tag: "EUW", tier: "Diamond", division: "II", winRate: 64, emblem: riotEmblem("diamond"), scaleEmblem: true },
+  { platform: "League of Legends", username: "NovaStrike", tag: "NA1", tier: "Platinum", division: "I", winRate: 58, emblem: riotEmblem("platinum"), scaleEmblem: true },
+  { platform: "Overwatch", username: "ShadowVex", tag: "2178", tier: "Diamond", division: "2", winRate: 61, emblem: "https://static.playoverwatch.com/images/pages/career/icons/rank/Rank_DiamondTier.bc8c5d6005f916c62c51728087aeb26f4facaa9b.png" },
 ]
 
 export default async function Home() {
@@ -195,16 +200,15 @@ export default async function Home() {
                   </div>
                 </div>
 
-                {/* Rank row — real tier emblem (or the plain colored-circle
-                    fallback CS2 also uses), same layout as RankBadge.jsx. */}
+                {/* Rank row — real tier emblem, same layout as RankBadge.jsx. */}
                 <div className="flex items-center gap-3">
-                  {card.emblem ? (
-                    <img src={card.emblem} alt={card.tier} className="w-11 h-11 flex-shrink-0 object-contain" />
-                  ) : (
-                    <div className="w-11 h-11 flex-shrink-0 rounded-full flex items-center justify-center border-2" style={{ borderColor: config.color, backgroundColor: `${config.color}1f` }}>
-                      <span className="text-white font-extrabold text-[11px]">{card.ratingShort}</span>
-                    </div>
-                  )}
+                  <div className="w-12 h-12 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                    <img
+                      src={card.emblem}
+                      alt={card.tier}
+                      className={card.scaleEmblem ? "w-full h-full object-contain scale-450 translate-y-1" : "w-full h-full object-contain"}
+                    />
+                  </div>
                   <div>
                     <p className="text-white text-sm font-bold">{card.tier}{card.division ? ` ${card.division}` : ""}</p>
                     <p className="text-positive text-xs font-semibold">{card.winRate}% WR</p>
