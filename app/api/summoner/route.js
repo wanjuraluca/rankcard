@@ -111,11 +111,26 @@ export async function GET(request) {
     return Response.json(cached.data)
   }
 
+  // Overwatch tracks its own up/down status internally (fetchOverwatchData),
+  // since it can distinguish a normal "battle tag not found" 404 from a real
+  // OverFast/Blizzard outage. The other platforms don't make that
+  // distinction yet, so here we only treat a thrown/rejected fetch (network
+  // error, DNS failure, timeout) as a real outage — a bad account name
+  // normally comes back as a resolved (if empty) response, not a throw.
   async function fetchLive() {
-    if (platform === 'CSGO') return await fetchCs2Data(name)
     if (platform === 'Overwatch') return await fetchOverwatchData(name, tag)
-    if (platform === 'Marvel Rivals') return await fetchMarvelRivalsData(name)
-    return await fetchSummonerData(name, tag, mode)
+
+    const service = platform === 'CSGO' ? 'cs2' : platform === 'Marvel Rivals' ? 'marvel-rivals' : 'riot'
+    try {
+      const result = platform === 'CSGO' ? await fetchCs2Data(name)
+        : platform === 'Marvel Rivals' ? await fetchMarvelRivalsData(name)
+        : await fetchSummonerData(name, tag, mode)
+      await markServiceUp(service)
+      return result
+    } catch (err) {
+      await markServiceDown(service, err.message)
+      throw err
+    }
   }
 
   // Only the unfiltered request is DB-cached.
