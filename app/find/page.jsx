@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from "react"
 import { platformConfig } from "@/lib/platforms"
 import { supabase } from "@/lib/supabase"
 import { extractGameStats } from "@/lib/gameStats"
+import { lookingForOptionsByGame, GENERIC_LOOKING_FOR_OPTIONS, roleOptionsByGame } from "@/lib/lfgOptions"
 import UpgradeModal from "@/app/components/UpgradeModal"
 import LfgPostModal from "@/app/components/LfgPostModal"
 import TopNav from "@/app/components/TopNav"
@@ -11,17 +12,6 @@ import { Check, Plus } from "lucide-react"
 
 const gameOptions = ["League of Legends", "TFT", "Valorant", "CSGO", "Overwatch", "Marvel Rivals"]
 const regionOptions = ["EUW", "EUNE", "NA", "KR"]
-const modeOptions = ["Duo Queue", "Flex", "Clash", "Chill", "Smurf welcome"]
-
-// Role chips are only meaningful for games that actually have lane /
-// agent-class / hero-class roles — mirrors roleOptionsByGame in LfgPostModal.jsx.
-// TFT and CS2 have no role concept, so the role filter row just doesn't render for them.
-const roleOptionsByGame = {
-    "League of Legends": ["Top", "Jungle", "Mid", "ADC", "Support", "Fill"],
-    Valorant: ["Duelist", "Initiator", "Controller", "Sentinel", "Flex"],
-    Overwatch: ["Tank", "Damage", "Support", "Flex"],
-    "Marvel Rivals": ["Vanguard", "Duelist", "Strategist", "Flex"],
-}
 
 // Heuristic tolerance for "close enough" rank matching, both for the My ELO
 // filter and the Good match badge. Not meant to be precise — just rules out
@@ -182,6 +172,7 @@ export default function FindDuoPage() {
     const eloFilterAvailable = eloFilterApplicableScore != null
 
     const showRoleRow = gameFilter && roleOptionsByGame[gameFilter]
+    const modeOptions = gameFilter ? (lookingForOptionsByGame[gameFilter] ?? GENERIC_LOOKING_FOR_OPTIONS) : GENERIC_LOOKING_FOR_OPTIONS
 
     const filteredPosts = useMemo(() => {
         const query = search.trim().toLowerCase()
@@ -257,7 +248,7 @@ export default function FindDuoPage() {
                     return (
                         <button
                             key={key}
-                            onClick={() => { setGameFilter(isSelected ? null : key); setRoleFilter(null) }}
+                            onClick={() => { setGameFilter(isSelected ? null : key); setRoleFilter(null); setModeFilter(null) }}
                             className={`border rounded-lg px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition-all ${isSelected ? "border-accent bg-accent-tint text-text-primary" : "border-hairline bg-surface text-text-secondary"}`}
                         >
                             <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: config?.color }} />

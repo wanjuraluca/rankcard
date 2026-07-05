@@ -4,30 +4,9 @@ import { X } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { platformConfig } from "@/lib/platforms"
 import { extractGameStats } from "@/lib/gameStats"
+import { lookingForOptionsByGame, roleOptionsByGame } from "@/lib/lfgOptions"
 
 const regionOptions = ["EUW", "EUNE", "NA", "KR"]
-
-// "Looking for" options are game-specific — Flex/Clash are League-only queue
-// types, TFT has no traditional duo queue (Double Up IS its duo mode), CS2
-// has no Flex/Clash equivalent.
-const lookingForOptionsByGame = {
-    "League of Legends": ["Duo Queue", "Flex", "Clash", "Chill", "Smurf welcome"],
-    Valorant: ["Duo Queue", "Chill", "Smurf welcome"],
-    TFT: ["Double Up", "Chill", "Smurf welcome"],
-    CSGO: ["Duo Queue", "Chill", "Smurf welcome"],
-    Overwatch: ["Duo Queue", "Chill", "Smurf welcome"],
-    "Marvel Rivals": ["Duo Queue", "Chill", "Smurf welcome"],
-}
-
-// Role options are game-specific — League has lane roles, Valorant has agent
-// classes, Overwatch/Marvel Rivals have hero-class roles, TFT/CS2 have no
-// role concept and skip this section entirely.
-const roleOptionsByGame = {
-    "League of Legends": ["Top", "Jungle", "Mid", "ADC", "Support", "Fill"],
-    Valorant: ["Duelist", "Initiator", "Controller", "Sentinel", "Flex"],
-    Overwatch: ["Tank", "Damage", "Support", "Flex"],
-    "Marvel Rivals": ["Vanguard", "Duelist", "Strategist", "Flex"],
-}
 
 // Games connected on this profile that LFG posting supports
 const lfgGames = ["League of Legends", "TFT", "Valorant", "CSGO", "Overwatch", "Marvel Rivals"]
