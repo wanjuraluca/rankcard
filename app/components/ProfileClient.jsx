@@ -670,6 +670,15 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     <div>
                         <div className="flex items-center gap-2 mt-5 mb-2.5">
                             <p className="text-text-muted text-xs uppercase tracking-widest">{config.name}</p>
+                            {account && (
+                                // Shown so visitors can verify this profile's claimed
+                                // account against the game's own in-game tag/username —
+                                // requested after a user reported no way to check that
+                                // on a game-specific site.
+                                <p className="text-text-secondary text-xs font-mono">
+                                    {account.platform_tag ? `${account.platform_username}#${account.platform_tag}` : account.platform_username}
+                                </p>
+                            )}
                             <div className="flex-1 h-px bg-hairline" />
                             {account && isOwnProfile && (
                                 <button
