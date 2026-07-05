@@ -6,6 +6,8 @@ export default async function sitemap() {
   const { data: profiles } = await supabase
     .from("profiles")
     .select("username, created_at")
+    .not("username", "is", null)
+    .neq("username", "")
 
   const profileEntries = (profiles ?? []).map((profile) => ({
     url: `${SITE_URL}/${profile.username}`,
