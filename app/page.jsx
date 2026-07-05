@@ -152,7 +152,7 @@ export default async function Home() {
         <div className="text-center lg:text-left">
           <p className="text-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest mb-4">For competitive gamers</p>
           <h1 className="text-4xl sm:text-6xl text-white font-bold leading-tight">
-            Every rank you play. <span className="text-accent">One link that proves it.</span>
+            All your ranks. <span className="text-accent">One link to prove it.</span>
           </h1>
           <p className="text-text-secondary max-w-lg mx-auto lg:mx-0 pt-5 sm:pt-6 text-sm sm:text-base">
             League, TFT, Valorant, CS2, Overwatch and Marvel Rivals — pulled straight from each game's own API, always in sync, never self-reported.
