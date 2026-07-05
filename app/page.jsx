@@ -1,4 +1,3 @@
-import ParticlesBackground from "./components/ParticlesBackground";
 import Footer from "./components/Footer";
 import NavAuth from "./components/NavAuth";
 import { Link2, Trophy, Share2, ShieldCheck, RefreshCw, Ban, Star } from "lucide-react";
@@ -59,21 +58,36 @@ const steps = [
 ]
 
 const trustPoints = [
-  { icon: ShieldCheck, title: "Straight from Riot", body: "Every rank comes directly from the official Riot Games API — the same source the game itself uses." },
+  { icon: ShieldCheck, title: "Straight from the source", body: "Every rank comes directly from each game's own API — League, Valorant, CS2, Overwatch, TFT and Marvel Rivals included. Nothing is typed in by hand." },
   { icon: RefreshCw, title: "Always up to date", body: "Your card syncs in the background whenever you play. No manual updates, ever." },
-  { icon: Ban, title: "No self-reporting", body: "There's no field to type in a rank. What you see is what the API returns — nothing more." },
+  { icon: Ban, title: "No self-reporting", body: "There's no field to type in a rank. What you see is what each game's own API returns — nothing more." },
 ]
 
 const faqs = [
   { q: "Is RankCard free?", a: "Yes. Creating a profile and connecting your accounts is completely free. Pro adds cosmetic extras like custom themes and per-game cards — never your rank data itself." },
-  { q: "Where do the ranks come from?", a: "Directly from the official Riot Games API. We never let you type in or edit a rank — it's pulled straight from the same source the games themselves use." },
+  { q: "Where do the ranks come from?", a: "Directly from each game's own API — League, Valorant, CS2, Overwatch, TFT and Marvel Rivals all included. We never let you type in or edit a rank." },
   { q: "How often does my card update?", a: "Automatically, in the background. Whenever you play a ranked game, your rank and stats sync without you having to do anything." },
   { q: "Can I remove a connected account?", a: "Any time, from your profile. Removing an account immediately removes its stats from your public card too." },
   { q: "Which games are supported?", a: "League of Legends, TFT, Valorant, CS2, Overwatch and Marvel Rivals today, with more competitive games planned." },
 ]
 
+// Rotation/offset per slot in the hero's tilted badge stack — index-matched,
+// not data-driven, since it's purely a visual arrangement of up to 3 cards.
+const HERO_BADGE_SLOTS = [
+  { className: "absolute top-0 left-2 sm:left-10 w-[190px]", rotate: "-6deg", z: 1 },
+  { className: "absolute top-20 right-0 w-[190px]", rotate: "4deg", z: 2 },
+  { className: "absolute bottom-0 left-16 sm:left-20 w-[190px]", rotate: "-3deg", z: 1 },
+]
+
 export default async function Home() {
   const showcase = await getShowcaseProfile()
+
+  // Real data for the hero's badge stack, same "no fake mocks" principle as
+  // the full profile preview further down — pulled from the same live
+  // showcase profile, just trimmed to whichever 3 games have a ranked tier.
+  const heroBadges = (showcase?.games ?? [])
+    .filter(g => g.stats?.tierLabel && platformConfig[g.account.platform])
+    .slice(0, 3)
 
   return <main className="bg-background min-h-screen relative">
     <nav className="flex justify-between px-4 sm:px-8 py-5 sm:py-6 items-center border-hairline border-b-3">
@@ -87,29 +101,58 @@ export default async function Home() {
     </nav>
 
     <div className="relative overflow-hidden">
-      <ParticlesBackground />
 
-    <section className="relative flex flex-col items-center text-center px-4 sm:px-8 pt-20 sm:pt-32 pb-16 sm:pb-24">
-      <div className="relative z-10 flex flex-col items-center pointer-events-none">
-        <span className="text-accent text-xs sm:text-sm bg-black/20 font-bold border border-hairline rounded-full px-3 py-2">• For competitive gamers</span>
-        <h1 className="text-4xl sm:text-6xl text-white font-bold mt-4 leading-tight">
-          All your ranks. <span className="block text-4xl sm:text-6xl font-bold text-accent">One profile.</span>
-        </h1>
-        <p className="text-text-secondary max-w-lg pt-5 sm:pt-7 text-sm sm:text-base px-2">Connect League, TFT, Valorant, CS2, Overwatch and Marvel Rivals — RankCard pulls your real ranks into one clean, shareable profile and gives you deep insights into your overall performance.</p>
-        <div className="items-center flex flex-col sm:flex-row gap-3 sm:gap-4 pt-8 sm:pt-10 pb-12 sm:pb-16 w-full sm:w-auto px-4 sm:px-0">
-          <a className="pointer-events-auto w-full sm:w-auto text-center shadow-[0_0_30px_rgba(177,108,255,0.5)] bg-accent text-black font-bold px-5 py-3 rounded-lg hover:text-white active:scale-95 transition-all duration-150" href="/auth">Create your profile</a>
-          <a className="pointer-events-auto w-full sm:w-auto text-center border-hairline border-2 text-white font-bold px-5 py-3 rounded-lg hover:bg-accent hover:text-black hover:border-accent active:scale-95 transition-all duration-150" href="/DinDjarin">View live example</a>
+    <section className="relative px-4 sm:px-8 pt-16 sm:pt-24 pb-16 sm:pb-20">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-16 items-center max-w-6xl mx-auto">
+        <div className="text-center lg:text-left">
+          <p className="text-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest mb-4">For competitive gamers</p>
+          <h1 className="text-4xl sm:text-6xl text-white font-bold leading-tight">
+            Every rank you play. <span className="text-accent">One link that proves it.</span>
+          </h1>
+          <p className="text-text-secondary max-w-lg mx-auto lg:mx-0 pt-5 sm:pt-6 text-sm sm:text-base">
+            League, TFT, Valorant, CS2, Overwatch and Marvel Rivals — pulled straight from each game's own API, always in sync, never self-reported.
+          </p>
+          <div className="items-center flex flex-col sm:flex-row gap-3 sm:gap-4 pt-8 w-full sm:w-auto justify-center lg:justify-start">
+            <a className="w-full sm:w-auto text-center shadow-[0_0_30px_rgba(177,108,255,0.5)] bg-accent text-black font-bold px-5 py-3 rounded-lg hover:text-white active:scale-95 transition-all duration-150" href="/auth">Create your profile</a>
+            <a className="w-full sm:w-auto text-center border-hairline border-2 text-white font-bold px-5 py-3 rounded-lg hover:bg-accent hover:text-black hover:border-accent active:scale-95 transition-all duration-150" href="/DinDjarin">View live example</a>
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 pt-8 justify-center lg:justify-start">
+            <span className="text-text-muted text-xs flex items-center gap-1.5"><ShieldCheck size={14} className="text-accent" /> Straight from the source</span>
+            <span className="text-text-muted text-xs flex items-center gap-1.5"><RefreshCw size={14} className="text-accent" /> Always in sync</span>
+          </div>
         </div>
+
+        {heroBadges.length > 0 && (
+          <div className="relative h-[280px] hidden lg:block">
+            {heroBadges.map((game, i) => {
+              const config = platformConfig[game.account.platform]
+              const slot = HERO_BADGE_SLOTS[i]
+              return (
+                <div
+                  key={game.account.id}
+                  className={`${slot.className} bg-surface border border-hairline rounded-xl p-4 shadow-2xl`}
+                  style={{ borderTopWidth: 3, borderTopColor: config.color, transform: `rotate(${slot.rotate})`, zIndex: slot.z }}
+                >
+                  <p className="text-text-secondary text-[11px] mb-1">{config.name}</p>
+                  <p className="text-white text-lg font-bold">{game.stats.tierLabel}</p>
+                  {game.stats.winRate != null && (
+                    <p className="text-positive text-xs mt-1">{Math.round(game.stats.winRate)}% win rate</p>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* How it works */}
-      <div className="relative z-10 flex flex-col items-center pointer-events-none mb-8 sm:mb-10">
+      <div className="relative z-10 flex flex-col items-center mt-16 sm:mt-20 mb-8 sm:mb-10">
         <span className="text-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest">How it works</span>
         <h2 className="text-2xl sm:text-4xl text-white font-bold mt-3 text-center">
           Three steps to one link for every game.
         </h2>
       </div>
-      <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-5xl pointer-events-none">
+      <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-5xl mx-auto">
         {steps.map((step) => (
           <div key={step.number} className="bg-surface border border-hairline rounded-2xl p-6 sm:p-10 text-left min-h-0 sm:min-h-48">
             <div className="flex items-center gap-3 mb-5 sm:mb-6">
