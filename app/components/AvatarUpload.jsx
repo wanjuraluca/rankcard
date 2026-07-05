@@ -2,44 +2,64 @@
 import { useState, useRef } from "react"
 import { Camera } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import ImageCropModal from "./ImageCropModal"
 
-export default function AvatarUpload( {username, avatarUrl, editable} ) {
+export default function AvatarUpload( {username, avatarUrl, editable, isPro} ) {
     const [avatar, setAvatar] = useState(avatarUrl)
     const [error, setError] = useState("")
+    const [pendingFile, setPendingFile] = useState(null)
     const fileInput = useRef(null)
 
     function handleClickInput() {
         if (editable) fileInput.current.click()
     }
 
-    async function handleFileChange(e) {
-    const file = e.target.files[0]
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${username}/${Date.now()}.${fileExt}`
-    if (!file) return
+    async function uploadFile(fileOrBlob, ext) {
+        const fileName = `${username}/${Date.now()}.${ext}`
+        setError("")
 
-    setError("")
+        const { error: uploadError } = await supabase.storage
+            .from("avatars")
+            .upload(fileName, fileOrBlob, { upsert: true })
 
-    const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(fileName, file, { upsert: true })
+        if (uploadError) {
+            setError("Couldn't upload image. Try a smaller file.")
+            return
+        }
 
-    if (uploadError) {
-        setError("Couldn't upload image. Try a smaller file.")
-        return
+        const { data } = supabase.storage
+            .from("avatars")
+            .getPublicUrl(fileName)
+
+        await supabase
+            .from("profiles")
+            .update({ avatar_url: data.publicUrl })
+            .eq("username", username)
+
+        setAvatar(data.publicUrl)
     }
 
-    const { data } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(fileName)
+    function handleFileChange(e) {
+        const file = e.target.files[0]
+        e.target.value = "" // allow re-selecting the same file next time
+        if (!file) return
 
-    await supabase
-        .from("profiles")
-        .update({ avatar_url: data.publicUrl })
-        .eq("username", username)
+        // Animated GIF avatars are a Pro perk (like Discord Nitro) — a non-Pro
+        // user picking a GIF still just gets it cropped/flattened like any
+        // other image rather than blocked outright, so this never bricks the
+        // upload flow, it just quietly drops the animation for free accounts.
+        if (file.type === "image/gif" && isPro) {
+            uploadFile(file, "gif")
+            return
+        }
 
-    setAvatar(data.publicUrl)
-}
+        setPendingFile(file)
+    }
+
+    function handleCropped(blob) {
+        setPendingFile(null)
+        uploadFile(blob, "jpg")
+    }
 
     return (
     <div className={`relative w-24 h-24 rounded-lg border-4 border-accent flex items-center justify-center font-bold group ${editable ? "cursor-pointer" : ""}`}>
@@ -58,6 +78,15 @@ export default function AvatarUpload( {username, avatarUrl, editable} ) {
             <div className="absolute top-full left-0 mt-1.5 w-48 rounded-lg border border-negative/40 bg-negative/10 px-2.5 py-1.5 text-[11px] text-negative z-20">
                 {error}
             </div>
+        )}
+        {pendingFile && (
+            <ImageCropModal
+                file={pendingFile}
+                shape="round"
+                aspect={1}
+                onCancel={() => setPendingFile(null)}
+                onCropped={handleCropped}
+            />
         )}
     </div>
 )

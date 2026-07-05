@@ -332,7 +332,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
             {/* Profile Strip */}
             <div className="bg-surface border border-hairline rounded-b-2xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center">
                 <div className="-mt-16 self-start relative">
-                    <AvatarUpload username={data.username} avatarUrl={data.avatar_url} editable={isOwnProfile} />
+                    <AvatarUpload username={data.username} avatarUrl={data.avatar_url} editable={isOwnProfile} isPro={isPro} />
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
