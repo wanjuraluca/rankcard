@@ -465,11 +465,25 @@ function buildCs2Match(match, steam64Id) {
 // "-" in the URL. Unlike League/Valorant, there's no match-history endpoint —
 // only current competitive ranks per role (tank/damage/support) + Open Queue,
 // plus lifetime career stat totals (fetched separately below).
+// OverFast's per-player endpoints scrape Blizzard's live career pages, which
+// occasionally hang indefinitely (no response at all) instead of erroring
+// when Blizzard's page changes or blocks the scraper — an 8s timeout keeps
+// that from stalling the whole request.
+const OVERWATCH_EMPTY_RESULT = { puuid: null, owRanks: null, owUsername: null, owAvatar: null, owTitle: null, owStats: null }
+const OVERWATCH_FETCH_TIMEOUT_MS = 8000
+
 async function fetchOverwatchData(name, tag) {
   const battleTag = `${name}-${tag}`
-  const response = await fetch(`https://overfast-api.tekrop.fr/players/${encodeURIComponent(battleTag)}/summary`)
+  let response
+  try {
+    response = await fetch(`https://overfast-api.tekrop.fr/players/${encodeURIComponent(battleTag)}/summary`, {
+      signal: AbortSignal.timeout(OVERWATCH_FETCH_TIMEOUT_MS),
+    })
+  } catch {
+    return OVERWATCH_EMPTY_RESULT
+  }
   if (!response.ok) {
-    return { puuid: null, owRanks: null, owUsername: null, owAvatar: null, owTitle: null, owStats: null }
+    return OVERWATCH_EMPTY_RESULT
   }
 
   const summary = await response.json()
@@ -514,7 +528,9 @@ async function fetchOverwatchHeroesMap() {
     return owHeroesCache
   }
   try {
-    const response = await fetch('https://overfast-api.tekrop.fr/heroes')
+    const response = await fetch('https://overfast-api.tekrop.fr/heroes', {
+      signal: AbortSignal.timeout(OVERWATCH_FETCH_TIMEOUT_MS),
+    })
     if (!response.ok) return owHeroesCache ?? {}
     const heroes = await response.json()
     const map = {}
@@ -537,9 +553,15 @@ async function fetchOverwatchHeroesMap() {
 // is a single combined bucket for both queue types, only quickplay/competitive
 // and platform (pc/console) can be filtered.
 async function fetchOverwatchCareerStats(battleTag, gamemode, platform) {
-  const response = await fetch(
-    `https://overfast-api.tekrop.fr/players/${encodeURIComponent(battleTag)}/stats/career?gamemode=${gamemode}&platform=${platform}`
-  )
+  let response
+  try {
+    response = await fetch(
+      `https://overfast-api.tekrop.fr/players/${encodeURIComponent(battleTag)}/stats/career?gamemode=${gamemode}&platform=${platform}`,
+      { signal: AbortSignal.timeout(OVERWATCH_FETCH_TIMEOUT_MS) }
+    )
+  } catch {
+    return null
+  }
   if (!response.ok) return null
   const json = await response.json()
   const allHeroes = json?.['all-heroes'] ?? null
