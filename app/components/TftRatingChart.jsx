@@ -35,7 +35,7 @@ export default function TftRatingChart({ accountId }) {
     if (points.length < 2) {
         return (
             <div className="h-32 flex items-center justify-center">
-                <p className="text-text-secondary text-xs">Not enough data yet — check back after a few days.</p>
+                <p className="text-text-secondary text-xs">Not enough data yet. Check back after a few days.</p>
             </div>
         )
     }

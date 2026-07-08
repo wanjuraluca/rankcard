@@ -8,12 +8,14 @@ import DiscordTagEditor from "./DiscordTagEditor"
 import EmbedBadgeModal from "./EmbedBadgeModal"
 import Footer from "./Footer"
 import { useState, useEffect } from "react"
-import { Eye, Share2, UserPlus, UserCheck, Check, X } from "lucide-react"
+import { Eye, Share2, UserPlus, UserCheck, Check, X, Sparkles, ArrowLeft } from "lucide-react"
 import { platformConfig } from "@/lib/platforms"
 import { extractGameStats, average } from "@/lib/gameStats"
 import { supabase } from "@/lib/supabase"
 import { storeReferral } from "@/lib/referral"
 import RankBadge from "./RankBadge"
+import AnimatedNumber from "./AnimatedNumber"
+import SignatureCard from "./SignatureCard"
 import RankHero from "./RankHero"
 import ValorantHero from "./ValorantHero"
 import Cs2Hero from "./Cs2Hero"
@@ -28,6 +30,14 @@ import ThemeModal from "./ThemeModal"
 import RankHistoryChart from "./RankHistoryChart"
 import FollowListModal from "./FollowListModal"
 import { getRankTier } from "@/lib/rankScore"
+
+// Feeds the cursor position to .spotlight-card's hover glow (globals.css)
+// without needing a wrapper element around interactive/styled cards.
+function trackSpotlight(e) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    e.currentTarget.style.setProperty("--spot-x", `${e.clientX - rect.left}px`)
+    e.currentTarget.style.setProperty("--spot-y", `${e.clientY - rect.top}px`)
+}
 
 const gameTabs = [
     { key: "league", platform: "League of Legends" },
@@ -289,7 +299,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
             } : undefined}
         />
         <div
-            className="p-3 max-w-[1000px] mx-auto"
+            className="p-3 max-w-[1140px] mx-auto"
             data-theme={!theme.startsWith("custom:") && theme !== "default" ? theme : undefined}
             style={theme.startsWith("custom:") ? (() => {
                 const hex = theme.slice(7)
@@ -298,29 +308,42 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
             })() : undefined}
         >
 
-            {/* Viewer context strip — only shown once auth check resolves */}
+            {/* Viewer context strip, only shown once auth check resolves.
+                Shares the signature card's visual language (holo hairline,
+                soft glow) so the page reads as one system. */}
             {authChecked && !isOwnProfile && (
-                <div className="mb-3 rounded-2xl border border-hairline bg-surface px-4 py-2.5 flex items-center justify-between gap-4 text-sm">
+                <div className="relative overflow-hidden mb-3 rounded-2xl border border-accent/25 bg-surface px-4 py-3 flex items-center justify-between gap-4 text-sm">
+                    <div aria-hidden="true" className="absolute inset-x-0 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(199,155,255,0.8),transparent)]" />
+                    <div aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(ellipse_50%_160%_at_0%_50%,rgba(177,108,255,0.10),transparent_65%)] pointer-events-none" />
                     {viewerUsername ? (
                         <>
-                            <span className="text-text-secondary">
+                            <span className="relative text-text-secondary min-w-0 truncate">
                                 Signed in as <span className="text-text-primary font-semibold">{viewerUsername}</span>
                             </span>
                             <a
                                 href={`/${viewerUsername}`}
-                                className="text-accent-soft font-semibold hover:text-accent active:text-accent transition-colors flex-shrink-0"
+                                className="relative flex-shrink-0 flex items-center gap-1.5 border border-accent/40 rounded-lg px-3 py-1.5 text-xs font-semibold text-accent-soft hover:bg-accent-tint hover:border-accent active:scale-95 transition-all"
                             >
-                                ← Your profile
+                                <ArrowLeft size={13} />
+                                Your profile
                             </a>
                         </>
                     ) : (
                         <>
-                            <span className="text-text-secondary">Get your own RankCard profile — free.</span>
+                            <span className="relative flex items-center gap-2.5 min-w-0">
+                                <span className="hidden sm:flex w-7 h-7 rounded-lg bg-accent-tint border border-accent/40 items-center justify-center flex-shrink-0">
+                                    <Sparkles size={14} className="text-accent-soft" />
+                                </span>
+                                <span className="min-w-0 truncate">
+                                    <span className="text-text-primary font-semibold">Get your own RankCard.</span>{" "}
+                                    <span className="text-text-secondary hidden sm:inline">Free, takes a minute.</span>
+                                </span>
+                            </span>
                             <a
                                 href="/auth"
-                                className="text-accent font-semibold hover:underline flex-shrink-0"
+                                className="btn-shine relative flex-shrink-0 bg-accent text-black rounded-lg px-3.5 py-1.5 text-xs font-bold hover:text-white hover:shadow-[0_0_20px_rgba(177,108,255,0.45)] active:scale-95 transition-all"
                             >
-                                Sign up →
+                                Create yours
                             </a>
                         </>
                     )}
@@ -337,7 +360,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                        <p className="text-text-primary text-2xl font-extrabold relative -top-[3px]" style={{ lineHeight: 1 }}>{data.username}</p>
+                        <p className="text-text-primary text-[26px] font-extrabold relative -top-[3px]" style={{ lineHeight: 1 }}>{data.username}</p>
                         {isPro && (
                             <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-full border border-accent/40 text-accent-soft bg-accent-tint">
                                 PRO
@@ -392,7 +415,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     )}
                     <button
                         onClick={handleShareProfile}
-                        className="flex-1 sm:flex-none border border-accent bg-accent rounded-lg px-4 py-2 text-sm font-semibold text-black hover:text-white active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                        className="flex-1 sm:flex-none border border-accent/50 rounded-lg px-4 py-2 text-sm font-semibold text-text-primary hover:bg-accent-tint hover:border-accent active:scale-95 transition-all flex items-center justify-center gap-1.5"
                     >
                         {shareCopied ? <Check size={15} /> : <Share2 size={15} />}
                         {shareCopied ? "Link copied" : "Share profile"}
@@ -400,11 +423,28 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                 </div>
             </div>
 
+            {/* Card-centric layout: the signature RankCard is a sticky sidebar
+                on desktop and sits above the tab content on mobile. */}
+            <div className="mt-3 flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-4 lg:items-start">
+            <aside className="lg:order-2 lg:sticky lg:top-4">
+                <SignatureCard
+                    username={data.username}
+                    avatarUrl={data.avatar_url}
+                    isPro={isPro}
+                    accounts={accountList}
+                    gameStats={gameStats}
+                    avgRankScore={avgRankScore}
+                    onShare={handleShareProfile}
+                    shareCopied={shareCopied}
+                />
+            </aside>
+            <div className="lg:order-1 min-w-0">
+
             {/* Tab Bar */}
-            <div className="flex gap-2 mt-3 flex-wrap">
+            <div className="flex gap-2 flex-wrap">
                 <button
                     onClick={() => setActiveTab("overall")}
-                    className={`border rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${activeTab === "overall" ? "border-accent/50 bg-accent-tint text-text-primary" : "border-hairline bg-surface text-text-secondary"}`}
+                    className={`border rounded-lg px-4 py-2 text-sm font-semibold transition-all active:scale-95 ${activeTab === "overall" ? "border-accent/50 bg-accent-tint text-text-primary" : "border-hairline bg-surface text-text-secondary hover:border-accent/30 hover:text-text-primary"}`}
                 >
                     Overall
                 </button>
@@ -415,9 +455,9 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         <button
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
-                            className={`border rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-2 transition-colors ${isActive ? "border-accent/50 bg-accent-tint text-text-primary" : "border-hairline bg-surface text-text-secondary"}`}
+                            className={`border rounded-lg px-4 py-2 text-sm font-semibold flex items-center gap-2 transition-all active:scale-95 ${isActive ? "border-accent/50 bg-accent-tint text-text-primary" : "border-hairline bg-surface text-text-secondary hover:border-accent/30 hover:text-text-primary"}`}
                         >
-                            <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: config.color }} />
+                            <span className={`w-2 h-2 rounded-full inline-block transition-transform ${isActive ? "scale-125 animate-pulse" : ""}`} style={{ backgroundColor: config.color }} />
                             {config.shortName}
                         </button>
                     )
@@ -434,10 +474,10 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
 
             {/* Overall Tab */}
             {activeTab === "overall" && (
-                <div>
+                <div className="anim-rise-fast">
                     {/* Section Header */}
                     <div className="flex items-center gap-2 mt-5 mb-2.5">
-                        <p className="text-text-muted text-xs uppercase tracking-widest">Overall Performance</p>
+                        <p className="text-text-secondary text-[11px] font-semibold uppercase tracking-[0.14em]">Overall Performance</p>
                         <div className="flex-1 h-px bg-hairline" />
                     </div>
 
@@ -445,14 +485,15 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <button
                             onClick={() => setShowRankInfo(true)}
-                            className="bg-surface border border-accent/40 rounded-2xl p-4 text-left hover:bg-accent-tint active:bg-accent-tint active:scale-[0.97] transition-all group"
+                            onPointerMove={trackSpotlight}
+                            className="spotlight-card bg-surface border border-accent/40 rounded-2xl p-4 text-left hover:bg-accent-tint hover:-translate-y-0.5 active:bg-accent-tint active:scale-[0.97] transition-all group"
                         >
                             {(() => {
                                 const rankInfo = avgRankScore != null ? getRankTier(Math.round(avgRankScore)) : null
                                 return (
                                     <>
-                                        <p className="text-accent text-2xl font-extrabold">
-                                            {avgRankScore != null ? Math.round(avgRankScore).toLocaleString() : "—"}
+                                        <p className="text-accent text-3xl font-extrabold">
+                                            {avgRankScore != null ? <AnimatedNumber value={Math.round(avgRankScore)} localize /> : "—"}
                                         </p>
                                         <p className="text-text-secondary text-xs">Rank Score</p>
                                         {rankInfo && (
@@ -469,41 +510,42 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                 )
                             })()}
                         </button>
-                        <div className="bg-surface border border-hairline rounded-2xl p-4">
-                            <p className="text-text-primary text-2xl font-extrabold">
-                                {avgWinRate != null ? `${Math.round(avgWinRate)}%` : "—"}
+                        <div onPointerMove={trackSpotlight} className="spotlight-card bg-surface border border-hairline rounded-2xl p-4 hover:border-accent/30 hover:-translate-y-0.5 transition-all">
+                            <p className="text-text-primary text-3xl font-extrabold">
+                                {avgWinRate != null ? <AnimatedNumber value={Math.round(avgWinRate)} suffix="%" /> : "—"}
                             </p>
                             <p className="text-text-secondary text-xs">Avg Win Rate</p>
                         </div>
-                        <div className="bg-surface border border-hairline rounded-2xl p-4">
-                            <p className="text-text-primary text-2xl font-extrabold">
-                                {avgKda != null ? avgKda.toFixed(2) : "—"}
+                        <div onPointerMove={trackSpotlight} className="spotlight-card bg-surface border border-hairline rounded-2xl p-4 hover:border-accent/30 hover:-translate-y-0.5 transition-all">
+                            <p className="text-text-primary text-3xl font-extrabold">
+                                {avgKda != null ? <AnimatedNumber value={avgKda} decimals={2} /> : "—"}
                             </p>
                             <p className="text-text-secondary text-xs">Avg KDA</p>
                         </div>
-                        <div className="bg-surface border border-hairline rounded-2xl p-4">
-                            <p className="text-text-primary text-2xl font-extrabold">{accountList.length}</p>
+                        <div onPointerMove={trackSpotlight} className="spotlight-card bg-surface border border-hairline rounded-2xl p-4 hover:border-accent/30 hover:-translate-y-0.5 transition-all">
+                            <p className="text-text-primary text-3xl font-extrabold"><AnimatedNumber value={accountList.length} /></p>
                             <p className="text-text-secondary text-xs">Games Connected</p>
                         </div>
                     </div>
 
                     {/* Connected Games Header */}
                     <div className="flex items-center gap-2 mt-5 mb-2.5">
-                        <p className="text-text-muted text-xs uppercase tracking-widest">Connected Games</p>
+                        <p className="text-text-secondary text-[11px] font-semibold uppercase tracking-[0.14em]">Connected Games</p>
                         <div className="flex-1 h-px bg-hairline" />
                     </div>
 
                     {/* Connected Games Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {accountList.map((account) => {
+                        {accountList.map((account, i) => {
                             const config = platformConfig[account.platform]
                             const tabForAccount = gameTabs.find(t => t.platform === account.platform)
                             return (
                                 <div
                                     key={account.id}
                                     onClick={() => tabForAccount && setActiveTab(tabForAccount.key)}
-                                    className="bg-surface border border-hairline rounded-2xl p-4 cursor-pointer hover:border-accent/40 active:border-accent/40 active:scale-[0.98] transition-all relative"
-                                    style={{ borderTopWidth: 3, borderTopColor: config?.color }}
+                                    onPointerMove={trackSpotlight}
+                                    className="group spotlight-card anim-rise-fast bg-surface border border-hairline rounded-2xl p-4 cursor-pointer hover:border-accent/40 hover:-translate-y-0.5 active:border-accent/40 active:scale-[0.98] transition-all relative"
+                                    style={{ borderTopWidth: 3, borderTopColor: config?.color, "--rise-delay": `${i * 60}ms` }}
                                 >
                                     {isOwnProfile && (
                                         <button
@@ -536,6 +578,10 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                         </div>
                                     </div>
                                     <RankBadge account={account} />
+                                    <div className="mt-3 pt-2.5 border-t border-hairline flex items-center justify-between">
+                                        <span className="text-text-secondary text-[11px]">{config?.name}</span>
+                                        <span className="text-accent-soft text-[11px] font-semibold group-hover:translate-x-0.5 transition-transform">View details →</span>
+                                    </div>
                                 </div>
                             )
                         })}
@@ -552,7 +598,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     {(isPro || isOwnProfile) && (
                         <>
                             <div className="flex items-center gap-2 mt-5 mb-2.5">
-                                <p className="text-text-muted text-xs uppercase tracking-widest">Friends</p>
+                                <p className="text-text-secondary text-[11px] font-semibold uppercase tracking-[0.14em]">Friends</p>
                                 <div className="flex-1 h-px bg-hairline" />
                             </div>
                             {isOwnProfile && !isPro ? (
@@ -570,7 +616,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                         <a
                                             key={friend.username}
                                             href={`/${friend.username}`}
-                                            className="bg-surface border border-hairline rounded-2xl p-3 flex flex-col items-center gap-2 hover:border-accent/40 active:scale-[0.97] transition-all flex-shrink-0 w-24"
+                                            className="bg-surface border border-hairline rounded-2xl p-3 flex flex-col items-center gap-2 hover:border-accent/40 hover:-translate-y-0.5 active:scale-[0.97] transition-all flex-shrink-0 w-24"
                                         >
                                             <div className="relative">
                                                 <div className="w-12 h-12 rounded-lg border border-accent/40 flex items-center justify-center font-bold text-accent-soft bg-background overflow-hidden">
@@ -601,7 +647,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
 
                     {/* Rank History Chart */}
                     <div className="flex items-center gap-2 mt-5 mb-2.5">
-                        <p className="text-text-muted text-xs uppercase tracking-widest">Overall LP / Rating History</p>
+                        <p className="text-text-secondary text-[11px] font-semibold uppercase tracking-[0.14em]">Overall LP / Rating History</p>
                         <div className="flex-1 h-px bg-hairline" />
                     </div>
                     <div className="bg-surface border border-hairline rounded-2xl p-4">
@@ -612,7 +658,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     {isOwnProfile && (
                         <>
                             <div className="flex items-center gap-2 mt-5 mb-2.5">
-                                <p className="text-text-muted text-xs uppercase tracking-widest">Export Card</p>
+                                <p className="text-text-secondary text-[11px] font-semibold uppercase tracking-[0.14em]">Export Card</p>
                                 <div className="flex-1 h-px bg-hairline" />
                             </div>
                             <div className="flex flex-wrap gap-2">
@@ -667,9 +713,9 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                 const account = accountList.find(a => a.platform === activeGameTab.platform)
 
                 return (
-                    <div>
+                    <div key={activeTab} className="anim-rise-fast">
                         <div className="flex items-center gap-2 mt-5 mb-2.5">
-                            <p className="text-text-muted text-xs uppercase tracking-widest">{config.name}</p>
+                            <p className="text-text-secondary text-[11px] font-semibold uppercase tracking-[0.14em]">{config.name}</p>
                             {account && (
                                 // Shown so visitors can verify this profile's claimed
                                 // account against the game's own in-game tag/username —
@@ -717,6 +763,9 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     </div>
                 )
             })()}
+
+            </div>
+            </div>
 
             {/* Add Game Modal */}
             {showModal && (

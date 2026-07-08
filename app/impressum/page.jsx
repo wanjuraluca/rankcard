@@ -1,6 +1,6 @@
 import LegalLayout from "../components/LegalLayout"
 
-export const metadata = { title: "Legal Notice — RankCard" }
+export const metadata = { title: "Legal Notice · RankCard" }
 
 export default function Impressum() {
     return (

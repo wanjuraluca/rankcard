@@ -1,5 +1,10 @@
 import Footer from "./components/Footer";
 import NavAuth from "./components/NavAuth";
+import Reveal from "./components/landing/Reveal";
+import ParallaxStack from "./components/landing/ParallaxStack";
+import SpotlightCard from "./components/landing/SpotlightCard";
+import CountUp from "./components/landing/CountUp";
+import ScrollProgress from "./components/landing/ScrollProgress";
 import { Link2, Trophy, Share2, ShieldCheck, RefreshCw, Ban, Star } from "lucide-react";
 import { platformConfig } from "@/lib/platforms";
 import { supabase } from "@/lib/supabase";
@@ -58,14 +63,14 @@ const steps = [
 ]
 
 const trustPoints = [
-  { icon: ShieldCheck, title: "Straight from the source", body: "Every rank comes directly from each game's own API — League, Valorant, CS2, Overwatch, TFT and Marvel Rivals included. Nothing is typed in by hand." },
+  { icon: ShieldCheck, title: "Straight from the source", body: "Every rank comes directly from each game's own API: League, Valorant, CS2, Overwatch, TFT and Marvel Rivals included. Nothing is typed in by hand." },
   { icon: RefreshCw, title: "Always up to date", body: "Your card syncs in the background whenever you play. No manual updates, ever." },
-  { icon: Ban, title: "No self-reporting", body: "There's no field to type in a rank. What you see is what each game's own API returns — nothing more." },
+  { icon: Ban, title: "No self-reporting", body: "There's no field to type in a rank. What you see is what each game's own API returns, nothing more." },
 ]
 
 const faqs = [
-  { q: "Is RankCard free?", a: "Yes. Creating a profile and connecting your accounts is completely free. Pro adds cosmetic extras like custom themes and per-game cards — never your rank data itself." },
-  { q: "Where do the ranks come from?", a: "Directly from each game's own API — League, Valorant, CS2, Overwatch, TFT and Marvel Rivals all included. We never let you type in or edit a rank." },
+  { q: "Is RankCard free?", a: "Yes. Creating a profile and connecting your accounts is completely free. Pro adds cosmetic extras like custom themes and per-game cards, never your rank data itself." },
+  { q: "Where do the ranks come from?", a: "Directly from each game's own API: League, Valorant, CS2, Overwatch, TFT and Marvel Rivals all included. We never let you type in or edit a rank." },
   { q: "How often does my card update?", a: "Automatically, in the background. Whenever you play a ranked game, your rank and stats sync without you having to do anything." },
   { q: "Can I remove a connected account?", a: "Any time, from your profile. Removing an account immediately removes its stats from your public card too." },
   { q: "Which games are supported?", a: "League of Legends, TFT, Valorant, CS2, Overwatch and Marvel Rivals today, with more competitive games planned." },
@@ -78,9 +83,9 @@ const faqs = [
 // comparing normal vs. zoomed-in screenshots — perfectly sharp pixels, just
 // perceptually "blurry" once tilted). Depth comes from offset + z-index only.
 const HERO_BADGE_SLOTS = [
-  { className: "absolute top-0 left-0 sm:left-6 w-[230px]", z: 1 },
-  { className: "absolute top-24 right-0 w-[230px]", z: 2 },
-  { className: "absolute bottom-0 left-10 sm:left-16 w-[230px]", z: 1 },
+  { className: "absolute top-0 left-0 sm:left-6 w-[230px]", z: 1, depth: 5 },
+  { className: "absolute top-24 right-0 w-[230px]", z: 2, depth: 11 },
+  { className: "absolute bottom-0 left-10 sm:left-16 w-[230px]", z: 1, depth: 7 },
 ]
 
 // Riot's ranked emblem art is a deterministic URL by tier name alone (no
@@ -113,6 +118,7 @@ export default async function Home() {
   const showcase = await getShowcaseProfile()
 
   return <main className="bg-background min-h-screen relative">
+    <ScrollProgress />
     <nav className="flex justify-between px-4 sm:px-8 py-5 sm:py-6 items-center border-hairline border-b-3">
       <a href="/" className="flex items-center gap-2 sm:gap-3">
         <img src="/Icons/LogoSmall.png" alt="RankCard Logo" className="h-7 sm:h-8 w-auto"></img>
@@ -122,9 +128,9 @@ export default async function Home() {
       {/* In-page wayfinding + supported-games glance — desktop only, the
           empty middle of the nav was otherwise dead space on wide screens. */}
       <div className="hidden lg:flex items-center gap-6">
-        <a href="#how-it-works" className="text-text-secondary hover:text-white transition-colors text-sm">How it works</a>
-        <a href="#preview" className="text-text-secondary hover:text-white transition-colors text-sm">See it in action</a>
-        <a href="#faq" className="text-text-secondary hover:text-white transition-colors text-sm">FAQ</a>
+        <a href="#how-it-works" className="nav-link text-text-secondary hover:text-white transition-colors text-sm">How it works</a>
+        <a href="#preview" className="nav-link text-text-secondary hover:text-white transition-colors text-sm">See it in action</a>
+        <a href="#faq" className="nav-link text-text-secondary hover:text-white transition-colors text-sm">FAQ</a>
         <div className="flex items-center gap-2 border-l border-hairline pl-5 ml-1">
           {Object.values(platformConfig).map((config) => (
             <span key={config.name} title={config.name} className="w-6 h-6 rounded-md flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity" style={{ backgroundColor: `${config.color}1f` }}>
@@ -148,38 +154,51 @@ export default async function Home() {
     <div className="relative overflow-hidden">
 
     <section className="relative px-4 sm:px-8 pt-16 sm:pt-24 pb-16 sm:pb-20">
-      <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-16 items-center max-w-6xl mx-auto">
+      {/* Ambient glow — two slow-drifting radial blobs, deliberately faint.
+          This is NOT the removed particle background; just soft depth. */}
+      <div aria-hidden="true" className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="anim-glow-drift absolute -top-32 -left-24 w-[480px] h-[480px] rounded-full bg-accent/[0.07] blur-[100px]" />
+        <div className="anim-glow-drift absolute top-20 right-[-120px] w-[420px] h-[420px] rounded-full bg-accent/[0.05] blur-[110px]" style={{ animationDelay: "-7s" }} />
+      </div>
+      <div className="relative grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-16 items-center max-w-6xl mx-auto">
         <div className="text-center lg:text-left">
-          <p className="text-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest mb-4">For competitive gamers</p>
-          <h1 className="text-4xl sm:text-6xl text-white font-bold leading-tight">
+          <p className="anim-rise text-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest mb-4">For competitive gamers</p>
+          <h1 className="anim-rise text-4xl sm:text-6xl text-white font-bold leading-tight" style={{ "--rise-delay": "0.08s" }}>
             All your ranks. <span className="text-accent">One link to prove it.</span>
           </h1>
-          <p className="text-text-secondary max-w-lg mx-auto lg:mx-0 pt-5 sm:pt-6 text-sm sm:text-base">
-            League, TFT, Valorant, CS2, Overwatch and Marvel Rivals — pulled straight from each game's own API, always in sync, never self-reported.
+          <p className="anim-rise text-text-secondary max-w-lg mx-auto lg:mx-0 pt-5 sm:pt-6 text-sm sm:text-base" style={{ "--rise-delay": "0.16s" }}>
+            League, TFT, Valorant, CS2, Overwatch and Marvel Rivals. Pulled straight from each game's own API, always in sync, never self-reported.
           </p>
-          <div className="items-center flex flex-col sm:flex-row gap-3 sm:gap-4 pt-8 w-full sm:w-auto justify-center lg:justify-start">
-            <a className="w-full sm:w-auto text-center shadow-[0_0_30px_rgba(177,108,255,0.5)] bg-accent text-black font-bold px-5 py-3 rounded-lg hover:text-white active:scale-95 transition-all duration-150" href="/auth">Create your profile</a>
+          <div className="anim-rise items-center flex flex-col sm:flex-row gap-3 sm:gap-4 pt-8 w-full sm:w-auto justify-center lg:justify-start" style={{ "--rise-delay": "0.24s" }}>
+            <a className="btn-shine w-full sm:w-auto text-center shadow-[0_0_30px_rgba(177,108,255,0.5)] bg-accent text-black font-bold px-5 py-3 rounded-lg hover:text-white hover:shadow-[0_0_45px_rgba(177,108,255,0.7)] active:scale-95 transition-all duration-150" href="/auth">Create your profile</a>
             <a className="w-full sm:w-auto text-center border-hairline border-2 text-white font-bold px-5 py-3 rounded-lg hover:bg-accent hover:text-black hover:border-accent active:scale-95 transition-all duration-150" href="/DinDjarin">View live example</a>
           </div>
-          <div className="flex flex-wrap gap-x-5 gap-y-2 pt-8 justify-center lg:justify-start">
+          <div className="anim-rise flex flex-wrap gap-x-5 gap-y-2 pt-8 justify-center lg:justify-start" style={{ "--rise-delay": "0.32s" }}>
             <span className="text-text-muted text-xs flex items-center gap-1.5"><ShieldCheck size={14} className="text-accent" /> Straight from the source</span>
             <span className="text-text-muted text-xs flex items-center gap-1.5"><RefreshCw size={14} className="text-accent" /> Always in sync</span>
           </div>
         </div>
 
-        <div className="relative h-[300px] hidden lg:block">
+        <ParallaxStack className="anim-rise relative h-[300px] hidden lg:block" style={{ "--rise-delay": "0.2s" }}>
           {HERO_EXAMPLE_CARDS.map((card, i) => {
             const config = platformConfig[card.platform]
             const slot = HERO_BADGE_SLOTS[i]
             return (
+              // Two nested layers because both effects animate `transform`:
+              // outer follows the pointer (parallax), inner bobs idly (float).
               <div
                 key={card.platform}
-                className={`${slot.className} bg-surface border border-hairline rounded-xl p-4`}
+                className={`${slot.className} parallax-layer`}
+                style={{ zIndex: slot.z, "--par-depth": slot.depth }}
+              >
+              <div
+                className="anim-float bg-surface border border-hairline rounded-xl p-4 hover:border-accent/40 transition-colors"
                 style={{
                   borderTopWidth: 3,
                   borderTopColor: config.color,
-                  zIndex: slot.z,
                   boxShadow: "0 8px 16px -4px rgba(0,0,0,0.45)",
+                  "--float-duration": `${5.5 + i * 0.9}s`,
+                  "--float-delay": `${i * -1.7}s`,
                 }}
               >
                 {/* Header row — small game logo + shortName + tagged username,
@@ -215,66 +234,78 @@ export default async function Home() {
                   </div>
                 </div>
               </div>
+              </div>
             )
           })}
-        </div>
+        </ParallaxStack>
       </div>
 
       {/* How it works */}
-      <div id="how-it-works" className="relative z-10 flex flex-col items-center mt-16 sm:mt-20 mb-8 sm:mb-10 scroll-mt-20">
-        <span className="text-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest">How it works</span>
-        <h2 className="text-2xl sm:text-4xl text-white font-bold mt-3 text-center">
-          Three steps to one link for every game.
-        </h2>
-      </div>
+      <Reveal>
+        <div id="how-it-works" className="relative z-10 flex flex-col items-center mt-16 sm:mt-20 mb-8 sm:mb-10 scroll-mt-20">
+          <span className="text-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest">How it works</span>
+          <h2 className="text-2xl sm:text-4xl text-white font-bold mt-3 text-center">
+            Three steps to one link for every game.
+          </h2>
+        </div>
+      </Reveal>
       <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-5xl mx-auto">
-        {steps.map((step) => (
-          <div key={step.number} className="bg-surface border border-hairline rounded-2xl p-6 sm:p-10 text-left min-h-0 sm:min-h-48">
-            <div className="flex items-center gap-3 mb-5 sm:mb-6">
-              <div className="w-12 h-12 rounded-lg bg-accent/10 border border-hairline flex items-center justify-center flex-shrink-0">
-                <step.icon size={22} className="text-accent" />
+        {steps.map((step, i) => (
+          <Reveal key={step.number} delay={i * 110}>
+            <SpotlightCard className="group bg-surface border border-hairline rounded-2xl p-6 sm:p-10 text-left min-h-0 sm:min-h-48 h-full hover:border-accent/30 hover:-translate-y-1 transition-[border-color,transform] duration-300">
+              <div className="flex items-center gap-3 mb-5 sm:mb-6">
+                <div className="w-12 h-12 rounded-lg bg-accent/10 border border-hairline flex items-center justify-center flex-shrink-0 group-hover:bg-accent/20 group-hover:scale-110 transition-[background-color,transform] duration-300">
+                  <step.icon size={22} className="text-accent" />
+                </div>
+                <span className="text-accent/50 text-2xl sm:text-3xl font-extrabold group-hover:text-accent transition-colors duration-300">{step.number}</span>
               </div>
-              <span className="text-accent/50 text-2xl sm:text-3xl font-extrabold">{step.number}</span>
-            </div>
-            <p className="text-text-primary font-semibold text-xl sm:text-2xl mb-2 sm:mb-3">{step.title}</p>
-            <p className="text-text-secondary text-sm sm:text-base leading-relaxed">{step.body}</p>
-          </div>
+              <p className="text-text-primary font-semibold text-xl sm:text-2xl mb-2 sm:mb-3">{step.title}</p>
+              <p className="text-text-secondary text-sm sm:text-base leading-relaxed">{step.body}</p>
+            </SpotlightCard>
+          </Reveal>
         ))}
       </div>
     </section>
 
     {/* Trust */}
     <section className="relative z-10 px-4 sm:px-8 py-16 sm:py-20 flex flex-col items-center">
-      <span className="text-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest">Why the ranks are real</span>
-      <h2 className="text-2xl sm:text-4xl text-white font-bold mt-3 text-center max-w-2xl">
-        Not self-reported. Not editable. Just your real rank.
-      </h2>
+      <Reveal className="flex flex-col items-center">
+        <span className="text-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest">Why the ranks are real</span>
+        <h2 className="text-2xl sm:text-4xl text-white font-bold mt-3 text-center max-w-2xl">
+          Not self-reported. Not editable. Just your real rank.
+        </h2>
+      </Reveal>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full max-w-5xl mt-10 sm:mt-12">
-        {trustPoints.map((point) => (
-          <div key={point.title} className="bg-surface border border-hairline rounded-2xl p-6 text-left">
-            <div className="w-12 h-12 rounded-lg bg-accent/10 border border-hairline mb-4 flex items-center justify-center">
-              <point.icon size={20} className="text-accent" />
-            </div>
-            <p className="text-text-primary font-semibold text-lg mb-1.5">{point.title}</p>
-            <p className="text-text-secondary text-sm leading-relaxed">{point.body}</p>
-          </div>
+        {trustPoints.map((point, i) => (
+          <Reveal key={point.title} delay={i * 110}>
+            <SpotlightCard className="group bg-surface border border-hairline rounded-2xl p-6 text-left h-full hover:border-accent/30 hover:-translate-y-1 transition-[border-color,transform] duration-300">
+              <div className="w-12 h-12 rounded-lg bg-accent/10 border border-hairline mb-4 flex items-center justify-center group-hover:bg-accent/20 group-hover:scale-110 transition-[background-color,transform] duration-300">
+                <point.icon size={20} className="text-accent" />
+              </div>
+              <p className="text-text-primary font-semibold text-lg mb-1.5">{point.title}</p>
+              <p className="text-text-secondary text-sm leading-relaxed">{point.body}</p>
+            </SpotlightCard>
+          </Reveal>
         ))}
       </div>
     </section>
 
     {/* Profile Preview */}
     <section id="preview" className="relative z-10 px-4 sm:px-8 py-16 sm:py-24 flex flex-col items-center scroll-mt-20">
-      <span className="text-accent text-xs sm:text-sm font-bold uppercase tracking-widest">See it in action</span>
-      <h2 className="text-2xl sm:text-4xl text-white font-bold mt-3 text-center">
-        This is what your link looks like.
-      </h2>
-      <p className="text-text-secondary text-sm sm:text-base mt-3 text-center max-w-md">
-        Real ranks, real stats, one link you can drop in your bio or Discord.
-      </p>
+      <Reveal className="flex flex-col items-center">
+        <span className="text-accent text-xs sm:text-sm font-bold uppercase tracking-widest">See it in action</span>
+        <h2 className="text-2xl sm:text-4xl text-white font-bold mt-3 text-center">
+          This is what your link looks like.
+        </h2>
+        <p className="text-text-secondary text-sm sm:text-base mt-3 text-center max-w-md">
+          Real ranks, real stats, one link you can drop in your bio or Discord.
+        </p>
+      </Reveal>
 
+      <Reveal delay={120} className="w-full max-w-2xl flex justify-center">
       <a
         href={showcase ? `/${showcase.profile.username}` : "/DinDjarin"}
-        className="relative mt-10 sm:mt-12 w-full max-w-2xl rounded-2xl border border-accent/30 bg-surface shadow-2xl overflow-hidden block hover:border-accent/50 transition-colors"
+        className="relative mt-10 sm:mt-12 w-full max-w-2xl rounded-2xl border border-accent/30 bg-surface shadow-2xl overflow-hidden block hover:border-accent/50 hover:shadow-[0_0_50px_rgba(177,108,255,0.15)] hover:-translate-y-1 transition-[border-color,box-shadow,transform] duration-300"
       >
         <div className="h-24 sm:h-28 bg-[radial-gradient(ellipse_55%_130%_at_20%_60%,rgba(177,108,255,0.45),transparent_60%)]" />
         <div className="p-4 sm:p-6 -mt-10 sm:-mt-12">
@@ -301,10 +332,10 @@ export default async function Home() {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-6">
             {[
-              { value: showcase?.avgRankScore != null ? Math.round(showcase.avgRankScore).toLocaleString() : "—", label: "Rank Score", accent: true },
-              { value: showcase?.avgWinRate != null ? `${Math.round(showcase.avgWinRate)}%` : "—", label: "Avg Win Rate" },
-              { value: showcase?.avgKda != null ? showcase.avgKda.toFixed(2) : "—", label: "Avg KDA" },
-              { value: String(showcase?.games.length ?? 0), label: "Games Connected" },
+              { value: showcase?.avgRankScore != null ? <CountUp value={Math.round(showcase.avgRankScore)} localize /> : "—", label: "Rank Score", accent: true },
+              { value: showcase?.avgWinRate != null ? <CountUp value={Math.round(showcase.avgWinRate)} suffix="%" /> : "—", label: "Avg Win Rate" },
+              { value: showcase?.avgKda != null ? <CountUp value={showcase.avgKda} decimals={2} /> : "—", label: "Avg KDA" },
+              { value: <CountUp value={showcase?.games.length ?? 0} />, label: "Games Connected" },
             ].map((stat) => (
               <div key={stat.label} className={`rounded-lg p-3 border ${stat.accent ? "border-accent/40 bg-accent-tint" : "border-hairline bg-surface-deep"}`}>
                 <p className={`text-lg sm:text-xl font-extrabold ${stat.accent ? "text-accent" : "text-white"}`}>{stat.value}</p>
@@ -339,30 +370,37 @@ export default async function Home() {
           </div>
         </div>
       </a>
+      </Reveal>
 
-      <a
-        className="mt-10 shadow-[0_0_30px_rgba(177,108,255,0.5)] bg-accent text-black font-bold px-6 py-3 rounded-lg hover:text-white active:scale-95 transition-all duration-150"
-        href="/auth"
-      >
-        Create your profile
-      </a>
+      <Reveal delay={200}>
+        <a
+          className="btn-shine inline-block mt-10 shadow-[0_0_30px_rgba(177,108,255,0.5)] bg-accent text-black font-bold px-6 py-3 rounded-lg hover:text-white hover:shadow-[0_0_45px_rgba(177,108,255,0.7)] active:scale-95 transition-all duration-150"
+          href="/auth"
+        >
+          Create your profile
+        </a>
+      </Reveal>
     </section>
 
     {/* FAQ */}
     <section id="faq" className="relative z-10 px-4 sm:px-8 py-16 sm:py-20 flex flex-col items-center scroll-mt-20">
-      <span className="text-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest">FAQ</span>
-      <h2 className="text-2xl sm:text-4xl text-white font-bold mt-3 mb-10 sm:mb-12 text-center">
-        Questions? Answered.
-      </h2>
+      <Reveal className="flex flex-col items-center">
+        <span className="text-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest">FAQ</span>
+        <h2 className="text-2xl sm:text-4xl text-white font-bold mt-3 mb-10 sm:mb-12 text-center">
+          Questions? Answered.
+        </h2>
+      </Reveal>
       <div className="w-full max-w-2xl flex flex-col gap-3">
-        {faqs.map((faq) => (
-          <details key={faq.q} className="group bg-surface border border-hairline rounded-2xl px-5 py-4">
-            <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center justify-between gap-4 text-text-primary font-semibold text-sm sm:text-base">
-              {faq.q}
-              <span className="text-accent text-lg leading-none flex-shrink-0 transition-transform group-open:rotate-45">+</span>
-            </summary>
-            <p className="text-text-secondary text-sm leading-relaxed mt-3">{faq.a}</p>
-          </details>
+        {faqs.map((faq, i) => (
+          <Reveal key={faq.q} delay={i * 60}>
+            <details className="faq group bg-surface border border-hairline rounded-2xl px-5 py-4 hover:border-accent/25 transition-colors">
+              <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden flex items-center justify-between gap-4 text-text-primary font-semibold text-sm sm:text-base">
+                {faq.q}
+                <span className="text-accent text-lg leading-none flex-shrink-0 transition-transform duration-300 group-open:rotate-45">+</span>
+              </summary>
+              <p className="text-text-secondary text-sm leading-relaxed mt-3">{faq.a}</p>
+            </details>
+          </Reveal>
         ))}
       </div>
     </section>

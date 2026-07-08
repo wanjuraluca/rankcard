@@ -93,3 +93,155 @@ body {
   color: var(--text-primary);
   font-family: var(--font-sans);
 }
+
+/* ---------- Landing page motion ---------- */
+
+/* Lets block-size animate to/from `auto` (used by the FAQ accordion). */
+:root {
+  interpolate-size: allow-keywords;
+}
+
+/* Hero entry — pure CSS so it starts on first paint (no JS-added hidden
+   state, therefore no flash). `both` keeps the pre-animation frame hidden
+   only for the animation's own duration. */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+.anim-rise {
+  animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--rise-delay, 0s);
+}
+
+/* Faster variant for in-app content swaps (profile tab switches, card
+   grids) — same motion, snappier so navigation never feels sluggish. */
+.anim-rise-fast {
+  animation: rise-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--rise-delay, 0s);
+}
+
+/* Idle bob for the hero badge cards — each card gets its own duration/delay
+   inline so the stack never moves in lockstep. */
+@keyframes float-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+.anim-float {
+  animation: float-bob var(--float-duration, 6s) ease-in-out infinite;
+  animation-delay: var(--float-delay, 0s);
+}
+
+/* Slow ambient glow drift behind the hero. */
+@keyframes glow-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(4%, 6%) scale(1.08); }
+}
+
+.anim-glow-drift {
+  animation: glow-drift 14s ease-in-out infinite;
+}
+
+/* Pointer parallax — translation only, no rotation (rotated card text reads
+   as blurry at normal zoom). --par-x/--par-y are set by ParallaxStack,
+   --par-depth per layer. */
+.parallax-layer {
+  transform: translate3d(
+    calc(var(--par-x, 0) * var(--par-depth, 6) * 1px),
+    calc(var(--par-y, 0) * var(--par-depth, 6) * 1px),
+    0
+  );
+  transition: transform 0.3s ease-out;
+}
+
+/* Cursor-following hover glow, fed by SpotlightCard. */
+.spotlight-card {
+  position: relative;
+}
+
+.spotlight-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  background: radial-gradient(
+    320px circle at var(--spot-x, 50%) var(--spot-y, 50%),
+    color-mix(in srgb, var(--accent) 10%, transparent),
+    transparent 65%
+  );
+  pointer-events: none;
+}
+
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
+/* Light sweep across primary buttons on hover. */
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  transform: translateX(-130%);
+  transition: transform 0.6s ease;
+  pointer-events: none;
+}
+
+.btn-shine:hover::after {
+  transform: translateX(130%);
+}
+
+/* Nav links grow an accent underline from the left. */
+.nav-link {
+  position: relative;
+}
+
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: -4px;
+  height: 1.5px;
+  background: var(--accent);
+  transition: right 0.25s ease;
+}
+
+.nav-link:hover::after {
+  right: 0;
+}
+
+/* FAQ accordion — animates open/close height in browsers that support
+   ::details-content; elsewhere it simply snaps like before. */
+details.faq::details-content {
+  block-size: 0;
+  overflow: hidden;
+  transition: block-size 0.35s ease, content-visibility 0.35s allow-discrete;
+}
+
+details.faq[open]::details-content {
+  block-size: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-rise,
+  .anim-rise-fast,
+  .anim-float,
+  .anim-glow-drift {
+    animation: none !important;
+  }
+  .parallax-layer {
+    transform: none !important;
+  }
+  details.faq::details-content {
+    transition: none;
+  }
+}

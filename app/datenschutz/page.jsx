@@ -1,6 +1,6 @@
 import LegalLayout from "../components/LegalLayout"
 
-export const metadata = { title: "Privacy Policy — RankCard" }
+export const metadata = { title: "Privacy Policy · RankCard" }
 
 export default function Datenschutz() {
     return (
@@ -44,7 +44,7 @@ export default function Datenschutz() {
                     in-game name (or SteamID) you provide. We use this to fetch publicly available rank and
                     match data through the respective official or community APIs (Riot Games API, Henrik
                     Dev API, Leetify, Steam Web API). We never store passwords or login credentials for
-                    your game accounts — connecting an account only relies on publicly visible profile
+                    your game accounts. Connecting an account only relies on publicly visible profile
                     data.
                 </p>
             </section>

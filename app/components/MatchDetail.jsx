@@ -223,7 +223,7 @@ function PlayerRow({
             {player.impactScore != null && (
                 <span
                     className="text-[10px] sm:text-xs font-bold text-accent-soft bg-accent-tint rounded-lg px-1.5 py-0.5 flex-shrink-0 ml-1"
-                    title="Impact — our own performance estimate (not an official Riot stat): 40% kill participation, 40% team damage share, 20% gold-per-minute rank"
+                    title="Impact: our own performance estimate (not an official Riot stat): 40% kill participation, 40% team damage share, 20% gold-per-minute rank"
                 >
                     <span className="text-[9px] sm:text-[10px] font-semibold text-text-secondary mr-1">Impact</span>
                     {player.impactScore}
@@ -370,7 +370,7 @@ export default function MatchDetail({
                     </div>
                 ))}
                 <p className="text-text-secondary text-[9px] sm:text-[10px] leading-relaxed border-t border-hairline pt-2">
-                    Arena — teams of {teams[0]?.members.length ?? 3}, ranked by final placement ·{" "}
+                    Arena: teams of {teams[0]?.members.length ?? 3}, ranked by final placement ·{" "}
                     <span className="font-semibold">KDA</span> kills/deaths/assists ·{" "}
                     <span className="font-semibold">DMG</span> damage to champions
                 </p>

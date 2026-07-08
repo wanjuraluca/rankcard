@@ -29,7 +29,7 @@ export default function EmbedBadgeModal({ username, badgeCopiedType, onCopy, onC
                     </button>
                 </div>
                 <p className="text-text-muted text-[11px] mt-2">
-                    Discord/Slack: paste the image URL alone in a message — it auto-embeds. GitHub: use the Markdown snippet in your README.
+                    Discord/Slack: paste the image URL alone in a message and it auto-embeds. GitHub: use the Markdown snippet in your README.
                 </p>
                 <button
                     onClick={onClose}

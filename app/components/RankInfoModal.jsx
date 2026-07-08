@@ -103,7 +103,7 @@ export default function RankInfoModal({ score, onClose }) {
                 {/* Footer explanation */}
                 <div className="px-4 pb-5">
                     <p className="text-text-secondary text-[11px] leading-relaxed border-t border-hairline pt-4">
-                        Your <span className="text-text-primary">Rank Score</span> is a cross-game percentile — each connected game's rank is converted into "top X% of players worldwide", then mapped to a 0–{MAX_SCORE.toLocaleString()} scale. The overall score is the average across all your games, so a Challenger in League and a Radiant in Valorant land near each other, even though the tier names are different.
+                        Your <span className="text-text-primary">Rank Score</span> is a cross-game percentile: each connected game's rank is converted into "top X% of players worldwide", then mapped to a 0–{MAX_SCORE.toLocaleString()} scale. The overall score is the average across all your games, so a Challenger in League and a Radiant in Valorant land near each other, even though the tier names are different.
                     </p>
                 </div>
 

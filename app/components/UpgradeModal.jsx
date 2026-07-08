@@ -47,7 +47,7 @@ const features = [
     {
         icon: Zap,
         title: "More on the way",
-        description: "New Pro perks ship regularly — you'll get them automatically.",
+        description: "New Pro perks ship regularly. You'll get them automatically.",
     },
 ]
 

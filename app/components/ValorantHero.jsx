@@ -163,7 +163,7 @@ export default function ValorantHero({ account, accentColor = "#ff4655" }) {
                             <div className="h-2 bg-hairline rounded-full mt-3 overflow-hidden">
                                 <div
                                     className="h-2 rounded-full transition-[width]"
-                                    style={{ width: `${valorantData.rr}%`, backgroundColor: accentColor }}
+                                    style={{ width: `${Math.min(valorantData.rr, 100)}%`, backgroundColor: accentColor }}
                                 />
                             </div>
                             <div className="flex justify-between text-text-secondary text-[10px] mt-1">

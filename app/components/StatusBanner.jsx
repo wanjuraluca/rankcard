@@ -39,7 +39,7 @@ export default function StatusBanner() {
 
   return (
     <div className="sticky top-0 z-50 bg-negative px-4 py-2 text-center text-sm font-semibold text-black">
-      {names} data is temporarily unavailable — we're aware and monitoring. Other games are unaffected.
+      {names} data is temporarily unavailable. We're aware and monitoring. Other games are unaffected.
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import LegalLayout from "../components/LegalLayout"
 
-export const metadata = { title: "Terms of Service — RankCard" }
+export const metadata = { title: "Terms of Service · RankCard" }
 
 export default function Agb() {
     return (
@@ -36,7 +36,7 @@ export default function Agb() {
                 <p>
                     You may only connect game accounts that belong to you or that you're authorized to use.
                     RankCard currently doesn't perform technical ownership verification of connected
-                    accounts — we reserve the right to suspend or delete profiles without prior notice if
+                    accounts. We reserve the right to suspend or delete profiles without prior notice if
                     we have reasonable grounds to suspect misuse.
                 </p>
             </section>

@@ -26,7 +26,7 @@ export async function generateMetadata({ params }) {
 
   const description = profile.bio
     || (games.length > 0
-      ? `${profile.username}'s real ranks on ${games.join(", ")} — connected via RankCard.`
+      ? `${profile.username}'s real ranks on ${games.join(", ")}, connected via RankCard.`
       : `${profile.username}'s shareable rank profile on RankCard.`)
 
   return {

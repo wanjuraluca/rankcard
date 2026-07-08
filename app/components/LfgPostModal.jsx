@@ -220,7 +220,7 @@ export default function LfgPostModal({ onClose, accounts = [], discordTag, isPro
                 {discordTag ? (
                     <p className="text-[#7289da] text-sm font-mono mb-6">{discordTag}</p>
                 ) : (
-                    <p className="text-negative text-xs mb-6">Add a Discord tag on your profile first — it&apos;s how people will reach you.</p>
+                    <p className="text-negative text-xs mb-6">Add a Discord tag on your profile first. It&apos;s how people will reach you.</p>
                 )}
 
                 {/* Message */}

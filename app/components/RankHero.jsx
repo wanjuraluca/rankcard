@@ -381,7 +381,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                             <div className="h-2 bg-hairline rounded-full mt-3 overflow-hidden">
                                 <div
                                     className="h-2 rounded-full transition-[width]"
-                                    style={{ width: `${rankEntry.leaguePoints}%`, backgroundColor: accentColor }}
+                                    style={{ width: `${Math.min(rankEntry.leaguePoints, 100)}%`, backgroundColor: accentColor }}
                                 />
                             </div>
                             <div className="flex justify-between text-text-secondary text-[10px] mt-1">
@@ -573,7 +573,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                                         {match.lpDelta != null && (
                                             <p
                                                 className={`text-[10px] sm:text-xs font-bold flex-shrink-0 ${match.lpDelta > 0 ? "text-positive" : "text-negative"}`}
-                                                title={match.lpDeltaIsEstimate ? "Estimated LP change — Riot doesn't expose the real per-match value" : undefined}
+                                                title={match.lpDeltaIsEstimate ? "Estimated LP change (Riot doesn't expose the real per-match value)" : undefined}
                                             >
                                                 {match.lpDelta > 0 ? "▲" : "▼"} {match.lpDelta > 0 ? "+" : ""}{match.lpDelta} LP
                                             </p>

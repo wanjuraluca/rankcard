@@ -16,7 +16,7 @@ export default function ProfileNotFound() {
                     We couldn&apos;t find that profile
                 </h1>
                 <p className="mt-3 text-sm leading-relaxed text-text-secondary">
-                    This RankCard doesn&apos;t exist — the username may have been
+                    This RankCard doesn&apos;t exist. The username may have been
                     changed, the profile removed, or the link mistyped.
                 </p>
 

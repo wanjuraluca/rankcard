@@ -82,7 +82,7 @@ export default function OverwatchHero({ account, accentColor = "#4a4c4e" }) {
     if (!ranks || !best) {
         return (
             <div className="bg-surface border border-hairline rounded-2xl p-6 text-center">
-                <p className="text-text-secondary text-sm">No competitive rank found yet — career profile may be private, or no ranked games played this season.</p>
+                <p className="text-text-secondary text-sm">No competitive rank found yet. The career profile may be private, or no ranked games were played this season.</p>
             </div>
         )
     }
@@ -130,7 +130,7 @@ export default function OverwatchHero({ account, accentColor = "#4a4c4e" }) {
             </div>
 
             <p className="text-text-secondary text-[11px] mt-4">
-                Rank Score uses your highest role — there's no single "main" rank in Overwatch.
+                Rank Score uses your highest role, since there's no single "main" rank in Overwatch.
             </p>
 
             {/* Gamemode tabs — Blizzard's own data has no Open Queue vs Role Queue
