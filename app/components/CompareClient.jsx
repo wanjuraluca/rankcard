@@ -34,7 +34,7 @@ function StatBar({ labelA, labelB, valueA, valueB, format = (v) => v }) {
                 {both && (
                     <div
                         className="absolute inset-y-0 left-0 rounded-full bg-accent transition-all"
-                        style={{ width: `${(valueA / (valueA + valueB)) * 100}%` }}
+                        style={{ width: `${valueA + valueB > 0 ? (valueA / (valueA + valueB)) * 100 : 50}%` }}
                     />
                 )}
             </div>

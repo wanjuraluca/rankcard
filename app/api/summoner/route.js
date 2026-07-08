@@ -186,6 +186,21 @@ export async function GET(request) {
   return Response.json(data)
 }
 
+// Riot/Henrik normally return a valid JSON error body even on 4xx (e.g. an
+// expired dev key gives {"status":{"status_code":401,...}}, still parseable)
+// — but a real infra-level outage (Cloudflare/nginx gateway error) can return
+// an HTML/plain-text body instead, and response.json() throws a SyntaxError
+// on that. Left unguarded, that throw crashes the *entire* request (all of
+// League+Valorant+TFT, since they're fetched together) instead of degrading
+// gracefully like the Overwatch/CS2 paths already do.
+async function safeJson(response) {
+  try {
+    return await response.json()
+  } catch {
+    return null
+  }
+}
+
 // Mode-filtered requests only come from the League match-history dropdown
 // (RankHero.jsx) — they only need rankData + the filtered matchHistory, not
 // Valorant/TFT data that's completely unaffected by a League queue filter.
@@ -195,7 +210,7 @@ async function fetchLeagueOnlyData(name, tag, mode) {
     `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${name}/${tag}`,
     { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
   )
-  const account = await response.json()
+  const account = (await safeJson(response)) ?? {}
 
   const [rankRes, matchHistory, ddragonVersion] = await Promise.all([
     fetch(
@@ -205,7 +220,7 @@ async function fetchLeagueOnlyData(name, tag, mode) {
     fetchMatchHistory(account.puuid, mode),
     fetchDdragonVersion(),
   ])
-  const rankData = await rankRes.json()
+  const rankData = await safeJson(rankRes)
 
   return { puuid: account.puuid, rankData, matchHistory, ddragonVersion }
 }
@@ -229,8 +244,8 @@ async function fetchSummonerData(name, tag, mode) {
     ),
   ])
 
-  const account = await response.json()
-  const valorantAccountData = await valAccountData.json()
+  const account = (await safeJson(response)) ?? {}
+  const valorantAccountData = await safeJson(valAccountData)
   // Henrik shards Valorant data by region (eu/na/ap/kr/br/latam) — using the
   // wrong one returns "Invalid UUID/PUUID" even for a real, active account.
   // The account lookup above tells us which shard this player is actually on.
@@ -271,9 +286,9 @@ async function fetchSummonerData(name, tag, mode) {
     fetchTftMatchHistory(account.puuid),
   ])
 
-  const rankData = await rankRes.json()
-  const valorantData = await valorantRes.json()
-  const tftData = await tftRes.json()
+  const rankData = await safeJson(rankRes)
+  const valorantData = await safeJson(valorantRes)
+  const tftData = await safeJson(tftRes)
 
   return {
     puuid: account.puuid,
@@ -926,7 +941,7 @@ async function fetchTftMatchHistory(puuid) {
     `https://europe.api.riotgames.com/tft/match/v1/matches/by-puuid/${puuid}/ids?count=10`,
     { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
   )
-  const matchIds = await idsResponse.json()
+  const matchIds = await safeJson(idsResponse)
   if (!Array.isArray(matchIds)) return []
 
   const iconMaps = await fetchTftIconMaps()
@@ -1033,7 +1048,7 @@ async function fetchMatchHistory(puuid, queueId) {
       }
     }
   )
-  const matchIds = await idsResponse.json()
+  const matchIds = await safeJson(idsResponse)
   if (!Array.isArray(matchIds)) return []
 
   const matches = await Promise.all(
@@ -1046,8 +1061,8 @@ async function fetchMatchHistory(puuid, queueId) {
           }
         }
       )
-      const match = await matchResponse.json()
-      const participant = match.info?.participants?.find(p => p.puuid === puuid)
+      const match = await safeJson(matchResponse)
+      const participant = match?.info?.participants?.find(p => p.puuid === puuid)
       if (!participant) return null
 
       const allParticipants = match.info.participants
