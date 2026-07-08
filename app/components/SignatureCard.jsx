@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Share2, Check } from "lucide-react"
+import { Share2, Check, Minus } from "lucide-react"
 import { platformConfig } from "@/lib/platforms"
 import { getRankTier } from "@/lib/rankScore"
 import AnimatedNumber from "./AnimatedNumber"
@@ -88,17 +88,42 @@ export default function SignatureCard({ username, avatarUrl, isPro, accounts, ga
                         const config = platformConfig[account.platform]
                         const stats = gameStats[account.id]
                         if (!config) return null
+                        const emblem = stats?.emblem
                         return (
                             <div key={account.id} className="flex items-center gap-2.5 py-2.5">
-                                <div className="rounded-lg flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, backgroundColor: `${config.color}24`, border: `1px solid ${config.color}66` }}>
-                                    {config.imageUrl ? (
-                                        <img src={config.imageUrl} width="13" height="13" style={{ transform: `scale(${config.logoScale ?? 1})` }} alt="" />
-                                    ) : (
-                                        <svg role="img" viewBox="0 0 24 24" width="13" height="13" fill={config.color} aria-hidden="true">
-                                            <path d={config.icon.path} fillRule={config.icon.fillRule ?? "nonzero"} />
-                                        </svg>
-                                    )}
-                                </div>
+                                {/* Real rank emblem when available (matches RankBadge's art);
+                                    falls back to the game's own logo chip when unranked or
+                                    still loading, so the row never shows an empty box. */}
+                                {emblem?.type === "image" ? (
+                                    <div className="w-9 h-9 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                                        <img
+                                            src={emblem.url}
+                                            alt={stats?.tierLabel ?? ""}
+                                            className={emblem.scale ? "w-full h-full object-contain scale-450 translate-y-1" : "w-full h-full object-contain"}
+                                        />
+                                    </div>
+                                ) : emblem?.type === "badge" ? (
+                                    <div
+                                        className="w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center border-2"
+                                        style={{ borderColor: emblem.color, backgroundColor: `${emblem.color}1f` }}
+                                    >
+                                        <span className="text-text-primary font-extrabold text-[9px]">{emblem.label}</span>
+                                    </div>
+                                ) : emblem?.type === "unranked" ? (
+                                    <div className="w-9 h-9 flex-shrink-0 rounded-full flex items-center justify-center border border-hairline bg-surface-deep">
+                                        <Minus size={14} className="text-text-muted" />
+                                    </div>
+                                ) : (
+                                    <div className="rounded-lg flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, backgroundColor: `${config.color}24`, border: `1px solid ${config.color}66` }}>
+                                        {config.imageUrl ? (
+                                            <img src={config.imageUrl} width="13" height="13" style={{ transform: `scale(${config.logoScale ?? 1})` }} alt="" />
+                                        ) : (
+                                            <svg role="img" viewBox="0 0 24 24" width="13" height="13" fill={config.color} aria-hidden="true">
+                                                <path d={config.icon.path} fillRule={config.icon.fillRule ?? "nonzero"} />
+                                            </svg>
+                                        )}
+                                    </div>
+                                )}
                                 <div className="min-w-0 flex-1">
                                     <p className="text-text-primary text-[13px] font-bold leading-tight truncate">{stats?.tierLabel ?? "Unranked"}</p>
                                     <p className="text-text-secondary text-[10px] leading-tight">{config.shortName}</p>

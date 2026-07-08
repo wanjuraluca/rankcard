@@ -2,6 +2,8 @@ import { ImageResponse } from "next/og"
 import { supabase } from "@/lib/supabase"
 import { platformConfig } from "@/lib/platforms"
 import { extractGameStats, average } from "@/lib/gameStats"
+import { getGameEmblem } from "@/lib/rankEmblem"
+import { getRankTier } from "@/lib/rankScore"
 
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
@@ -45,15 +47,19 @@ export default async function Image({ params }) {
     const statsList = await Promise.all(
         accountList.map(async (account) => {
             const apiData = await getCachedData(account.id)
-            return extractGameStats(account.platform, apiData)
+            return { ...extractGameStats(account.platform, apiData), emblem: getGameEmblem(account.platform, apiData) }
         })
     )
 
     const avgRankScore = average(statsList.map(s => s?.rankScore))
+    const rankInfo = avgRankScore != null ? getRankTier(Math.round(avgRankScore)) : null
 
+    // Best rank first, mirroring the signature card's "trophy shelf" order —
+    // this is the same object shared as a link, so it must show the same rows.
     const gameRows = accountList
         .map((account, i) => ({ account, stats: statsList[i], config: platformConfig[account.platform] }))
         .filter(row => row.config)
+        .sort((a, b) => (b.stats?.rankScore ?? -1) - (a.stats?.rankScore ?? -1))
 
     const displayName = profile?.username ?? username
 
@@ -130,21 +136,29 @@ export default async function Image({ params }) {
                             <span style={{ fontSize: px(40), fontWeight: 800, color: "#b16cff" }}>
                                 {Math.round(avgRankScore).toLocaleString()}
                             </span>
-                            <span style={{ fontSize: px(13), color: "#8a8a9a" }}>Rank Score</span>
+                            <span style={{ fontSize: px(13), color: "#8a8a9a" }}>
+                                Rank Score{rankInfo ? ` · ${rankInfo.tier.name}` : ""}
+                            </span>
                         </div>
                     )}
                 </div>
 
-                {/* Per-game rank rows — row padding/gaps/fonts shrink once more than
-                    4 games are connected, so 5-6 rows still fit the fixed 630px
-                    canvas instead of overflowing into (and being clipped by) the
-                    footer below. */}
+                {/* Per-game rank rows, sorted best-first and carrying the same real
+                    rank-icon art as the signature card and RankBadge — this image is
+                    what shows up when the profile link is shared, so it has to match
+                    what the owner sees on their own page, not a simplified summary.
+                    Row padding/gaps/fonts shrink once more than 4 games are connected,
+                    so 5-6 rows still fit the fixed 630px canvas instead of overflowing
+                    into (and being clipped by) the footer below. */}
                 {gameRows.length > 0 && (() => {
                     const rowScale = Math.min(1, 4.2 / gameRows.length)
                     const rpx = (n) => px(n * rowScale)
                     return (
                         <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: rpx(16), marginTop: px(24), flex: 1 }}>
-                            {gameRows.map(({ account, stats, config }, i) => (
+                            {gameRows.map(({ account, stats, config }, i) => {
+                                const emblem = stats?.emblem
+                                const emblemSize = rpx(56)
+                                return (
                                 <div
                                     key={i}
                                     style={{
@@ -155,9 +169,32 @@ export default async function Image({ params }) {
                                         borderLeft: `${px(4)}px solid ${config.color}`,
                                         borderRadius: px(12),
                                         padding: `${rpx(16)}px ${rpx(20)}px`,
+                                        gap: rpx(18),
                                     }}
                                 >
-                                    <div style={{ display: "flex", flexDirection: "column", width: px(220) }}>
+                                    {emblem?.type === "image" ? (
+                                        <div style={{ display: "flex", width: emblemSize, height: emblemSize, alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                                            <img
+                                                src={emblem.url}
+                                                width={emblemSize}
+                                                height={emblemSize}
+                                                style={emblem.scale ? { objectFit: "contain", transform: `scale(4.5) translateY(${rpx(4)}px)` } : { objectFit: "contain" }}
+                                            />
+                                        </div>
+                                    ) : emblem?.type === "badge" ? (
+                                        <div style={{ display: "flex", width: emblemSize, height: emblemSize, borderRadius: "50%", border: `${px(2)}px solid ${emblem.color}`, backgroundColor: `${emblem.color}1f`, alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                            <span style={{ fontSize: rpx(14), fontWeight: 800, color: "#f4f3f7" }}>{emblem.label}</span>
+                                        </div>
+                                    ) : emblem?.type === "unranked" ? (
+                                        <div style={{ display: "flex", width: emblemSize, height: emblemSize, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.08)", backgroundColor: "#0e0d16", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                            <div style={{ width: rpx(16), height: px(2), backgroundColor: "#5c5c6c", borderRadius: px(1) }} />
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: "flex", width: emblemSize, height: emblemSize, borderRadius: px(10), backgroundColor: `${config.color}24`, border: `1px solid ${config.color}66`, alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                            <div style={{ width: rpx(10), height: rpx(10), borderRadius: "50%", backgroundColor: config.color }} />
+                                        </div>
+                                    )}
+                                    <div style={{ display: "flex", flexDirection: "column", width: px(190) }}>
                                         <span style={{ fontSize: rpx(13), color: "#8a8a9a", fontWeight: 600 }}>
                                             {config.shortName}
                                         </span>
@@ -180,7 +217,8 @@ export default async function Image({ params }) {
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                                )
+                            })}
                         </div>
                     )
                 })()}
@@ -188,7 +226,7 @@ export default async function Image({ params }) {
                 {/* Footer */}
                 <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "flex-end", marginTop: px(20) }}>
                     <span style={{ fontSize: px(15), color: "#b16cff", fontWeight: 700 }}>
-                        rankcard.app
+                        rankcard.app/{displayName}
                     </span>
                 </div>
             </div>

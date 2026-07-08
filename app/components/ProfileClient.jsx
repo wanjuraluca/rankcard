@@ -11,6 +11,7 @@ import { useState, useEffect } from "react"
 import { Eye, Share2, UserPlus, UserCheck, Check, X, Sparkles, ArrowLeft } from "lucide-react"
 import { platformConfig } from "@/lib/platforms"
 import { extractGameStats, average } from "@/lib/gameStats"
+import { getGameEmblem } from "@/lib/rankEmblem"
 import { supabase } from "@/lib/supabase"
 import { storeReferral } from "@/lib/referral"
 import RankBadge from "./RankBadge"
@@ -224,7 +225,8 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
             const response = await fetch(`/api/summoner?platform=${account.platform}&name=${account.platform_username}&tag=${account.platform_tag}&accountId=${account.id}`)
             const apiData = await response.json()
             const stats = extractGameStats(account.platform, apiData)
-            setGameStats(prev => ({ ...prev, [account.id]: stats }))
+            const emblem = getGameEmblem(account.platform, apiData)
+            setGameStats(prev => ({ ...prev, [account.id]: { ...stats, emblem } }))
         })
     }, [accountList])
 

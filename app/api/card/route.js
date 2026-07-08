@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og"
 import { supabase } from "@/lib/supabase"
 import { platformConfig } from "@/lib/platforms"
 import { extractGameStats, average } from "@/lib/gameStats"
+import { getGameEmblem } from "@/lib/rankEmblem"
 
 const SIZE = { width: 1200, height: 630 }
 
@@ -60,7 +61,7 @@ async function renderOverallCard(profile, accountList) {
     const statsList = await Promise.all(
         accountList.map(async (account) => {
             const apiData = await getCachedData(account.id)
-            return extractGameStats(account.platform, apiData)
+            return { ...extractGameStats(account.platform, apiData), emblem: getGameEmblem(account.platform, apiData) }
         })
     )
 
@@ -116,20 +117,46 @@ async function renderOverallCard(profile, accountList) {
                 ))}
             </div>
 
-            {accountList.length > 0 && (
-                <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-                    {accountList.map((account, i) => {
-                        const config = platformConfig[account.platform]
-                        if (!config) return null
-                        return (
-                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, backgroundColor: "#15151f", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 999, padding: "8px 16px" }}>
-                                <div style={{ width: 9, height: 9, borderRadius: "50%", backgroundColor: config.color }} />
-                                <span style={{ fontSize: 14, color: "#f4f3f7", fontWeight: 600 }}>{config.shortName}</span>
-                            </div>
-                        )
-                    })}
-                </div>
-            )}
+            {accountList.length > 0 && (() => {
+                // Best rank first, same "trophy shelf" order as the signature card —
+                // this export is the same object, just downloadable.
+                const rows = accountList
+                    .map((account, i) => ({ account, stats: statsList[i], config: platformConfig[account.platform] }))
+                    .filter(row => row.config)
+                    .sort((a, b) => (b.stats?.rankScore ?? -1) - (a.stats?.rankScore ?? -1))
+                return (
+                    <div style={{ display: "flex", gap: 10, marginTop: 24, flexWrap: "wrap" }}>
+                        {rows.map(({ config, stats }, i) => {
+                            const emblem = stats?.emblem
+                            return (
+                                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, backgroundColor: "#15151f", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 999, padding: "6px 16px 6px 6px" }}>
+                                    {emblem?.type === "image" ? (
+                                        <div style={{ display: "flex", width: 28, height: 28, alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                                            <img
+                                                src={emblem.url}
+                                                width={28}
+                                                height={28}
+                                                style={emblem.scale ? { objectFit: "contain", transform: "scale(4.5) translateY(2px)" } : { objectFit: "contain" }}
+                                            />
+                                        </div>
+                                    ) : emblem?.type === "badge" ? (
+                                        <div style={{ display: "flex", width: 28, height: 28, borderRadius: "50%", border: `2px solid ${emblem.color}`, backgroundColor: `${emblem.color}1f`, alignItems: "center", justifyContent: "center" }}>
+                                            <span style={{ fontSize: 9, fontWeight: 800, color: "#f4f3f7" }}>{emblem.label}</span>
+                                        </div>
+                                    ) : emblem?.type === "unranked" ? (
+                                        <div style={{ display: "flex", width: 28, height: 28, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.08)", backgroundColor: "#0e0d16", alignItems: "center", justifyContent: "center" }}>
+                                            <div style={{ width: 10, height: 2, backgroundColor: "#5c5c6c", borderRadius: 1 }} />
+                                        </div>
+                                    ) : (
+                                        <div style={{ width: 9, height: 9, borderRadius: "50%", backgroundColor: config.color, margin: "0 9px" }} />
+                                    )}
+                                    <span style={{ fontSize: 14, color: "#f4f3f7", fontWeight: 600 }}>{config.shortName}</span>
+                                </div>
+                            )
+                        })}
+                    </div>
+                )
+            })()}
 
             <div style={{ display: "flex", flex: 1, alignItems: "flex-end", justifyContent: "flex-end" }}>
                 <span style={{ fontSize: 17, color: "#b16cff", fontWeight: 700 }}>rankcard.app</span>
