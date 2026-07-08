@@ -1,20 +1,23 @@
-// One-off script: registers RankCard's slash commands on the test server.
+// One-off script: registers RankCard's slash commands globally, so they show
+// up in any server the bot is invited to — not just a single test guild.
 // Uses a bulk PUT, so it's idempotent — running it again just overwrites the
-// guild's command set with exactly the commands below. Guild-scoped commands
-// appear instantly; global ones can take up to an hour.
+// application's global command set with exactly the commands below. Global
+// commands can take up to an hour to propagate (guild-scoped ones are
+// instant, which is why this used to target DISCORD_TEST_GUILD_ID during
+// early development — now that the bot needs to work in servers we don't
+// control, global is the only option).
 //
 // Run from the project root:
 //   node --env-file=.env.local scripts/register-discord-command.mjs
 //
 // Needs these in .env.local:
-//   DISCORD_APP_ID, DISCORD_BOT_TOKEN, DISCORD_TEST_GUILD_ID
+//   DISCORD_APP_ID, DISCORD_BOT_TOKEN
 
 const APP_ID = process.env.DISCORD_APP_ID
 const BOT_TOKEN = process.env.DISCORD_BOT_TOKEN
-const GUILD_ID = process.env.DISCORD_TEST_GUILD_ID
 
-if (!APP_ID || !BOT_TOKEN || !GUILD_ID) {
-    console.error("Missing DISCORD_APP_ID, DISCORD_BOT_TOKEN or DISCORD_TEST_GUILD_ID in your env.")
+if (!APP_ID || !BOT_TOKEN) {
+    console.error("Missing DISCORD_APP_ID or DISCORD_BOT_TOKEN in your env.")
     process.exit(1)
 }
 
@@ -42,7 +45,7 @@ const commands = [
     },
 ]
 
-const url = `https://discord.com/api/v10/applications/${APP_ID}/guilds/${GUILD_ID}/commands`
+const url = `https://discord.com/api/v10/applications/${APP_ID}/commands`
 
 const res = await fetch(url, {
     method: "PUT",
@@ -54,7 +57,8 @@ const res = await fetch(url, {
 })
 
 if (res.ok) {
-    console.log(`✅ Registered ${commands.length} commands: ${commands.map(c => "/" + c.name).join(", ")}`)
+    console.log(`✅ Registered ${commands.length} commands globally: ${commands.map(c => "/" + c.name).join(", ")}`)
+    console.log("Global commands can take up to an hour to appear in servers.")
 } else {
     console.error(`❌ Failed (${res.status}):`, await res.text())
     process.exit(1)

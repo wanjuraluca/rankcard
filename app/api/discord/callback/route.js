@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabaseAdmin"
 import { verifyState } from "@/lib/discordAuth"
+import { loadGuildConfigs, syncMemberAcrossGuilds } from "@/lib/discordSync"
 
 const SITE_URL = "https://rankcard.app"
 const REDIRECT_URI = `${SITE_URL}/api/discord/callback`
@@ -56,13 +57,32 @@ export async function GET(request) {
         .maybeSingle()
     if (existing && existing.user_id !== userId) return redirectTo("/?discord=taken")
 
-    // 3. Store the verified id (drives the future role sync) + refresh the tag.
+    // 3. Store the verified id (drives the role sync) + refresh the tag.
     const { data: profile } = await supabaseAdmin
         .from("profiles")
         .update({ discord_user_id: discordUser.id, discord_tag: discordTag })
         .eq("user_id", userId)
         .select("username")
         .single()
+
+    // 4. Instant sync: give this one user their role right away instead of
+    // making them wait for the next daily cron run (see lib/discordSync.js).
+    // Best-effort — a sync hiccup here must never block the "connected"
+    // redirect; the cron sweep still catches it later.
+    try {
+        const guildConfigs = await loadGuildConfigs(supabaseAdmin)
+        if (Object.keys(guildConfigs).length) {
+            const { data: leagueAccount } = await supabaseAdmin
+                .from("connected_accounts")
+                .select("puuid")
+                .eq("user_id", userId)
+                .eq("platform", "League of Legends")
+                .maybeSingle()
+            await syncMemberAcrossGuilds(discordUser.id, leagueAccount?.puuid ?? null, guildConfigs)
+        }
+    } catch {
+        // Swallowed — the daily cron is the safety net.
+    }
 
     return redirectTo(profile?.username ? `/${profile.username}?discord=connected` : "/?discord=connected")
 }
