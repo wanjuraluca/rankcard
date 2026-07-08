@@ -211,7 +211,7 @@ export default function FindDuoPage() {
                 <div>
                     <p className="text-text-primary text-2xl font-extrabold">Find a Duo</p>
                     <p className="text-text-secondary text-sm mt-1">
-                        {loading ? "Loading…" : `${posts.length.toLocaleString()} player${posts.length === 1 ? "" : "s"} looking right now`}
+                        {loading ? "Loading…" : `${posts.length.toLocaleString("en-US")} player${posts.length === 1 ? "" : "s"} looking right now`}
                     </p>
                 </div>
                 {authChecked && viewerUsername && !ownPost && (

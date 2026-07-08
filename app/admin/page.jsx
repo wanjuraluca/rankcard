@@ -115,16 +115,16 @@ export default function AdminPage() {
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                    <StatCard label="Total users" value={stats.totalUsers.toLocaleString()} />
-                    <StatCard label="Pro users" value={stats.totalPro.toLocaleString()} accent />
+                    <StatCard label="Total users" value={stats.totalUsers.toLocaleString("en-US")} />
+                    <StatCard label="Pro users" value={stats.totalPro.toLocaleString("en-US")} accent />
                     <StatCard label="Conversion rate" value={`${(stats.conversionRate * 100).toFixed(1)}%`} />
-                    <StatCard label="Discord linked" value={stats.discordLinked.toLocaleString()} />
+                    <StatCard label="Discord linked" value={stats.discordLinked.toLocaleString("en-US")} />
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-                    <StatCard label="Signups (7d)" value={stats.signupsLast7d.toLocaleString()} />
-                    <StatCard label="Signups (30d)" value={stats.signupsLast30d.toLocaleString()} />
-                    <StatCard label="Active LFG posts" value={stats.activeLfgPosts.toLocaleString()} />
+                    <StatCard label="Signups (7d)" value={stats.signupsLast7d.toLocaleString("en-US")} />
+                    <StatCard label="Signups (30d)" value={stats.signupsLast30d.toLocaleString("en-US")} />
+                    <StatCard label="Active LFG posts" value={stats.activeLfgPosts.toLocaleString("en-US")} />
                 </div>
 
                 <div className="flex items-center gap-2 mb-2.5">
@@ -133,7 +133,7 @@ export default function AdminPage() {
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                     {Object.entries(platformConfig).map(([key, config]) => (
-                        <StatCard key={key} label={config.shortName} value={(stats.platformCounts[key] ?? 0).toLocaleString()} dotColor={config.color} />
+                        <StatCard key={key} label={config.shortName} value={(stats.platformCounts[key] ?? 0).toLocaleString("en-US")} dotColor={config.color} />
                     ))}
                 </div>
 

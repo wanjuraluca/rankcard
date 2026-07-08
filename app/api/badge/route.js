@@ -82,7 +82,7 @@ export async function GET(request) {
 
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                     <span style={{ fontSize: 30, fontWeight: 800, color: "#b16cff" }}>
-                        {avgRankScore != null ? Math.round(avgRankScore).toLocaleString() : "—"}
+                        {avgRankScore != null ? Math.round(avgRankScore).toLocaleString("en-US") : "—"}
                     </span>
                     <span style={{ fontSize: 12, color: "#8a8a9a" }}>
                         Rank Score{avgWinRate != null ? ` · ${Math.round(avgWinRate)}% WR` : ""}

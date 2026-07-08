@@ -151,14 +151,14 @@ export default function CompareClient({ profileA, accountsA, profileB, accountsB
                         <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-4 mb-3">
                             <div className={`text-center ${aWinsOverall ? "" : "opacity-50"}`}>
                                 <p className={`text-4xl font-black ${aWinsOverall ? "text-accent" : "text-text-primary"}`}>
-                                    {scoreA != null ? Math.round(scoreA).toLocaleString() : "—"}
+                                    {scoreA != null ? Math.round(scoreA).toLocaleString("en-US") : "—"}
                                 </p>
                                 {tierA && <p className="text-xs mt-1" style={{ color: tierA.color }}>{tierA.name}</p>}
                             </div>
                             <div className="text-text-secondary text-lg font-black pb-2 select-none">vs</div>
                             <div className={`text-center ${bWinsOverall ? "" : "opacity-50"}`}>
                                 <p className={`text-4xl font-black ${bWinsOverall ? "text-accent" : "text-text-primary"}`}>
-                                    {scoreB != null ? Math.round(scoreB).toLocaleString() : "—"}
+                                    {scoreB != null ? Math.round(scoreB).toLocaleString("en-US") : "—"}
                                 </p>
                                 {tierB && <p className="text-xs mt-1" style={{ color: tierB.color }}>{tierB.name}</p>}
                             </div>
@@ -171,7 +171,7 @@ export default function CompareClient({ profileA, accountsA, profileB, accountsB
                                 </span>{" "}
                                 leads by{" "}
                                 <span className="text-accent font-semibold">
-                                    {Math.abs(Math.round((scoreA ?? 0) - (scoreB ?? 0))).toLocaleString()} pts
+                                    {Math.abs(Math.round((scoreA ?? 0) - (scoreB ?? 0))).toLocaleString("en-US")} pts
                                 </span>
                             </p>
                         )}

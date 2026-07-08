@@ -195,7 +195,7 @@ function PlayerRow({
             </div>
 
             <div className="w-[60px] sm:w-[90px] flex-shrink-0">
-                <span className="text-text-primary text-[10px] sm:text-xs font-mono">{player.damageDealt?.toLocaleString()}</span>
+                <span className="text-text-primary text-[10px] sm:text-xs font-mono">{player.damageDealt?.toLocaleString("en-US")}</span>
                 <div className="h-1 bg-hairline rounded-full mt-0.5 overflow-hidden">
                     <div
                         className="h-1 rounded-full bg-negative/70"
@@ -274,7 +274,7 @@ function ArenaPlayerRow({ player, ddragonVersion, isYou, maxDamage }) {
             </div>
 
             <div className="w-[70px] sm:w-[90px] flex-shrink-0">
-                <span className="text-text-primary text-[10px] sm:text-xs font-mono">{player.damageDealt?.toLocaleString()}</span>
+                <span className="text-text-primary text-[10px] sm:text-xs font-mono">{player.damageDealt?.toLocaleString("en-US")}</span>
                 <div className="h-1 bg-hairline rounded-full mt-0.5 overflow-hidden">
                     <div className="h-1 rounded-full bg-negative/70" style={{ width: `${damagePct}%` }} />
                 </div>

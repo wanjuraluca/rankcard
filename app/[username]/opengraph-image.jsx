@@ -134,7 +134,7 @@ export default async function Image({ params }) {
                     {avgRankScore != null && (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                             <span style={{ fontSize: px(40), fontWeight: 800, color: "#b16cff" }}>
-                                {Math.round(avgRankScore).toLocaleString()}
+                                {Math.round(avgRankScore).toLocaleString("en-US")}
                             </span>
                             <span style={{ fontSize: px(13), color: "#8a8a9a" }}>
                                 Rank Score{rankInfo ? ` · ${rankInfo.tier.name}` : ""}
@@ -211,7 +211,7 @@ export default async function Image({ params }) {
                                         </div>
                                         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                                             <span style={{ fontSize: rpx(20), fontWeight: 700, color: config.color }}>
-                                                {stats?.rankScore != null ? Math.round(stats.rankScore).toLocaleString() : "—"}
+                                                {stats?.rankScore != null ? Math.round(stats.rankScore).toLocaleString("en-US") : "—"}
                                             </span>
                                             <span style={{ fontSize: rpx(11), color: "#8a8a9a", marginTop: px(2) }}>Rank Score</span>
                                         </div>

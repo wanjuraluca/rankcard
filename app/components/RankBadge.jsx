@@ -104,7 +104,7 @@ export default function RankBadge({ account }) {
                 </div>
                 <div>
                     <p className="text-text-primary text-sm font-bold">{band.name}</p>
-                    <p className="text-text-secondary text-[11px]">{premierRating.toLocaleString()} Premier</p>
+                    <p className="text-text-secondary text-[11px]">{premierRating.toLocaleString("en-US")} Premier</p>
                 </div>
             </div>
         )

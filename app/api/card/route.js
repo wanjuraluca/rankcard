@@ -105,7 +105,7 @@ async function renderOverallCard(profile, accountList) {
 
             <div style={{ display: "flex", gap: 14, marginTop: 40 }}>
                 {[
-                    { value: avgRankScore != null ? Math.round(avgRankScore).toLocaleString() : "—", label: "Rank Score", accent: true },
+                    { value: avgRankScore != null ? Math.round(avgRankScore).toLocaleString("en-US") : "—", label: "Rank Score", accent: true },
                     { value: avgWinRate != null ? `${Math.round(avgWinRate)}%` : "—", label: "Avg Win Rate" },
                     { value: avgKda != null ? avgKda.toFixed(2) : "—", label: "Avg KDA" },
                     { value: String(accountList.length), label: "Games Connected" },
@@ -218,7 +218,7 @@ async function renderGameCard(profile, accountList, platform) {
 
             <div style={{ display: "flex", gap: 14, marginTop: 28 }}>
                 {[
-                    { value: stats.rankScore != null ? Math.round(stats.rankScore).toLocaleString() : "—", label: "Rank Score" },
+                    { value: stats.rankScore != null ? Math.round(stats.rankScore).toLocaleString("en-US") : "—", label: "Rank Score" },
                     { value: stats.winRate != null ? `${Math.round(stats.winRate)}%` : "—", label: "Win Rate" },
                     { value: stats.kda != null ? stats.kda.toFixed(2) : "—", label: "Avg KDA" },
                 ].map((stat) => (

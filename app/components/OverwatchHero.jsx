@@ -7,7 +7,7 @@ const ROLE_LABELS = { tank: "Tank", damage: "Damage", support: "Support", open: 
 const ROLES = ["tank", "damage", "support", "open"]
 
 function formatNumber(value) {
-    return value == null ? "—" : Math.round(value).toLocaleString()
+    return value == null ? "—" : Math.round(value).toLocaleString("en-US")
 }
 
 // Career stats report time in seconds — most values here run into the

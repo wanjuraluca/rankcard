@@ -82,7 +82,7 @@ export default function RankHistoryChart({ username }) {
                 bodyFont: { weight: "bold" },
                 callbacks: {
                     title: (items) => items[0].label,
-                    label: (item) => `  Rank Score: ${item.raw.toLocaleString()}`,
+                    label: (item) => `  Rank Score: ${item.raw.toLocaleString("en-US")}`,
                 },
             },
         },

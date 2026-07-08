@@ -11,7 +11,7 @@ export default function CountUp({ value, decimals = 0, suffix = "", localize = f
 
   const format = (n) => {
     const rounded = decimals ? n.toFixed(decimals) : Math.round(n)
-    return (localize ? Number(rounded).toLocaleString() : String(rounded)) + suffix
+    return (localize ? Number(rounded).toLocaleString("en-US") : String(rounded)) + suffix
   }
 
   useEffect(() => {

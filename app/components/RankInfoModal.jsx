@@ -35,8 +35,8 @@ export default function RankInfoModal({ score, onClose }) {
                         </div>
                         {displayScore != null && (
                             <div className="text-right flex-shrink-0">
-                                <p className="text-accent text-3xl font-extrabold">{displayScore.toLocaleString()}</p>
-                                <p className="text-text-secondary text-xs">/ {MAX_SCORE.toLocaleString()}</p>
+                                <p className="text-accent text-3xl font-extrabold">{displayScore.toLocaleString("en-US")}</p>
+                                <p className="text-text-secondary text-xs">/ {MAX_SCORE.toLocaleString("en-US")}</p>
                             </div>
                         )}
                     </div>
@@ -93,7 +93,7 @@ export default function RankInfoModal({ score, onClose }) {
                                         {tier.name}
                                         {isCurrent && <span className="ml-2 text-[11px] font-normal opacity-70">← you are here</span>}
                                     </span>
-                                    <span className="text-text-secondary text-[11px] font-mono">{tier.min.toLocaleString()}+</span>
+                                    <span className="text-text-secondary text-[11px] font-mono">{tier.min.toLocaleString("en-US")}+</span>
                                 </div>
                             )
                         })}
@@ -103,7 +103,7 @@ export default function RankInfoModal({ score, onClose }) {
                 {/* Footer explanation */}
                 <div className="px-4 pb-5">
                     <p className="text-text-secondary text-[11px] leading-relaxed border-t border-hairline pt-4">
-                        Your <span className="text-text-primary">Rank Score</span> is a cross-game percentile: each connected game's rank is converted into "top X% of players worldwide", then mapped to a 0–{MAX_SCORE.toLocaleString()} scale. The overall score is the average across all your games, so a Challenger in League and a Radiant in Valorant land near each other, even though the tier names are different.
+                        Your <span className="text-text-primary">Rank Score</span> is a cross-game percentile: each connected game's rank is converted into "top X% of players worldwide", then mapped to a 0–{MAX_SCORE.toLocaleString("en-US")} scale. The overall score is the average across all your games, so a Challenger in League and a Radiant in Valorant land near each other, even though the tier names are different.
                     </p>
                 </div>
 

@@ -68,9 +68,9 @@ function PlayerRow({ player, isYou }) {
             <span className="text-right font-mono text-[11px] text-text-secondary">{kda}</span>
             <span className="text-right font-mono text-[11px] text-text-secondary">{player.soloKills}</span>
             <span className="text-right font-mono text-[11px] text-text-secondary">{player.finalHits}</span>
-            <span className="text-right font-mono text-[11px] text-text-secondary">{player.damage.toLocaleString()}</span>
-            <span className="text-right font-mono text-[11px] text-text-secondary">{player.damageTaken.toLocaleString()}</span>
-            <span className="text-right font-mono text-[11px] text-text-secondary">{player.healing > 0 ? player.healing.toLocaleString() : "—"}</span>
+            <span className="text-right font-mono text-[11px] text-text-secondary">{player.damage.toLocaleString("en-US")}</span>
+            <span className="text-right font-mono text-[11px] text-text-secondary">{player.damageTaken.toLocaleString("en-US")}</span>
+            <span className="text-right font-mono text-[11px] text-text-secondary">{player.healing > 0 ? player.healing.toLocaleString("en-US") : "—"}</span>
             <span className="text-right font-mono text-[11px] text-text-secondary">{player.accuracy != null ? `${player.accuracy}%` : "—"}</span>
         </div>
     )

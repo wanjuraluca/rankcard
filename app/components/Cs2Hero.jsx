@@ -148,7 +148,7 @@ export default function Cs2Hero({ account, accentColor = "#4b9fff" }) {
                                 {band.name}
                             </p>
                             <p className="text-text-secondary text-sm mt-1">
-                                {premierRating.toLocaleString()} Premier Rating
+                                {premierRating.toLocaleString("en-US")} Premier Rating
                                 {winRate != null && <> · {winRate}% WR</>}
                             </p>
                             <div className="h-2 bg-hairline rounded-full mt-3 overflow-hidden">
@@ -158,8 +158,8 @@ export default function Cs2Hero({ account, accentColor = "#4b9fff" }) {
                                 />
                             </div>
                             <div className="flex justify-between text-text-secondary text-[10px] mt-1">
-                                <span>{band.min.toLocaleString()}</span>
-                                <span>{(band.min + 5000).toLocaleString()}</span>
+                                <span>{band.min.toLocaleString("en-US")}</span>
+                                <span>{(band.min + 5000).toLocaleString("en-US")}</span>
                             </div>
                         </>
                     ) : (
