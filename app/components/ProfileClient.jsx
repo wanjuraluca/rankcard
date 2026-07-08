@@ -382,14 +382,14 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                             onClick={() => setShowFollowList("followers")}
                             className="text-xs text-text-secondary hover:text-text-primary transition-colors"
                         >
-                            <span className="text-text-primary font-semibold">{followerCount.toLocaleString()}</span> followers
+                            <span className="text-text-primary font-semibold">{followerCount.toLocaleString("en-US")}</span> followers
                         </button>
                         <button
                             type="button"
                             onClick={() => setShowFollowList("following")}
                             className="text-xs text-text-secondary hover:text-text-primary transition-colors"
                         >
-                            <span className="text-text-primary font-semibold">{followingCount.toLocaleString()}</span> following
+                            <span className="text-text-primary font-semibold">{followingCount.toLocaleString("en-US")}</span> following
                         </button>
                     </div>
                     {liveGame && (
@@ -403,7 +403,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                 <div className="flex items-center gap-2 sm:flex-shrink-0 flex-wrap sm:flex-nowrap relative">
                     <span className="flex items-center gap-1 text-xs text-text-secondary" title="Total profile views">
                         <Eye size={13} className="opacity-70" />
-                        {viewCount.toLocaleString()}
+                        {viewCount.toLocaleString("en-US")}
                     </span>
                     {authChecked && !isOwnProfile && viewerUserId && (
                         <button
@@ -425,22 +425,27 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                 </div>
             </div>
 
-            {/* Card-centric layout: the signature RankCard is a sticky sidebar
-                on desktop and sits above the tab content on mobile. */}
-            <div className="mt-3 flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-4 lg:items-start">
-            <aside className="lg:order-2 lg:sticky lg:top-4">
-                <SignatureCard
-                    username={data.username}
-                    avatarUrl={data.avatar_url}
-                    isPro={isPro}
-                    accounts={accountList}
-                    gameStats={gameStats}
-                    avgRankScore={avgRankScore}
-                    onShare={handleShareProfile}
-                    shareCopied={shareCopied}
-                />
-            </aside>
-            <div className="lg:order-1 min-w-0">
+            {/* Card-centric layout: the signature RankCard is a sticky sidebar,
+                but only alongside the Overall tab — per-game tabs (match
+                history, scoreboards) need the full width, and reserving the
+                340px column for them anyway just leaves it empty next to the
+                tab bar (the card has nothing more relevant to show there). */}
+            <div className={activeTab === "overall" ? "mt-3 flex flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-4 lg:items-start" : "mt-3"}>
+            {activeTab === "overall" && (
+                <aside className="lg:order-2 lg:sticky lg:top-4">
+                    <SignatureCard
+                        username={data.username}
+                        avatarUrl={data.avatar_url}
+                        isPro={isPro}
+                        accounts={accountList}
+                        gameStats={gameStats}
+                        avgRankScore={avgRankScore}
+                        onShare={handleShareProfile}
+                        shareCopied={shareCopied}
+                    />
+                </aside>
+            )}
+            <div className={activeTab === "overall" ? "lg:order-1 min-w-0" : ""}>
 
             {/* Tab Bar */}
             <div className="flex gap-2 flex-wrap">
@@ -505,7 +510,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                         )}
                                         {isPro && seasonHigh != null && (
                                             <p className="text-text-secondary text-[10px] mt-1">
-                                                Season high: <span className="text-text-primary font-semibold">{seasonHigh.toLocaleString()}</span>
+                                                Season high: <span className="text-text-primary font-semibold">{seasonHigh.toLocaleString("en-US")}</span>
                                             </p>
                                         )}
                                     </>
@@ -699,6 +704,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
 
                 </div>
             )}
+            </div>
 
             {showEmbedBadgeModal && (
                 <EmbedBadgeModal
@@ -766,7 +772,6 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                 )
             })()}
 
-            </div>
             </div>
 
             {/* Add Game Modal */}
