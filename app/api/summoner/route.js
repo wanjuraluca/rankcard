@@ -19,7 +19,7 @@ import { detectPlatform } from '@/lib/riotPlatform'
 function withStaleArrayGuard(previous, fresh) {
   if (!previous) return fresh
   const guarded = { ...fresh }
-  for (const key of ['matchHistory', 'valorantMatchHistory', 'tftMatchHistory', 'rankData', 'tftData']) {
+  for (const key of ['matchHistory', 'valorantMatchHistory', 'tftMatchHistory', 'rankData', 'tftData', 'valorantMmrHistory', 'cs2MatchHistory', 'mrMatchHistory']) {
     const hadGoodData = Array.isArray(previous[key]) && previous[key].length > 0
     const freshIsBroken = !Array.isArray(guarded[key]) || guarded[key].length === 0
     if (hadGoodData && freshIsBroken) {
@@ -32,7 +32,7 @@ function withStaleArrayGuard(previous, fresh) {
   // without this a real rank would flash to "Unranked" for a full
   // DB_CACHE_STALE_MS window. Keep the previous value if we had one and the
   // fresh fetch came back empty.
-  for (const key of ['valorantData', 'owRanks', 'mrRank', 'cs2Profile']) {
+  for (const key of ['valorantData', 'owRanks', 'mrRank', 'cs2Profile', 'owStats', 'mrOverallStats', 'mrStats']) {
     if (previous[key] && !guarded[key]) {
       guarded[key] = previous[key]
     }
