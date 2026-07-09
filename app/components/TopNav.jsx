@@ -39,6 +39,19 @@ export default function TopNav({ accountMenu }) {
                 setViewerAvatarUrl(profile?.avatar_url ?? null)
             }
             setAuthChecked(true)
+
+            // Once-per-calendar-day activity ping, powers DAU/WAU/MAU on
+            // /admin. RLS on activity_days only allows inserting your own
+            // row, so this can't be used to inflate someone else's activity.
+            if (data?.user?.id) {
+                const today = new Date().toISOString().slice(0, 10)
+                if (localStorage.getItem("rc_last_activity_ping") !== today) {
+                    supabase
+                        .from("activity_days")
+                        .upsert({ user_id: data.user.id, day: today }, { onConflict: "user_id,day", ignoreDuplicates: true })
+                        .then(() => localStorage.setItem("rc_last_activity_ping", today))
+                }
+            }
         })
     }, [accountMenu])
 

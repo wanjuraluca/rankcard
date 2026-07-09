@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react"
 import { supabase } from "@/lib/supabase"
 import { platformConfig } from "@/lib/platforms"
 import TopNav from "@/app/components/TopNav"
+import AdminBarChart from "@/app/components/AdminBarChart"
 import { Search } from "lucide-react"
 
 function formatDate(iso) {
@@ -126,6 +127,75 @@ export default function AdminPage() {
                     <StatCard label="Signups (30d)" value={stats.signupsLast30d.toLocaleString("en-US")} />
                     <StatCard label="Active LFG posts" value={stats.activeLfgPosts.toLocaleString("en-US")} />
                 </div>
+
+                <div className="flex items-center gap-2 mb-2.5">
+                    <p className="text-text-muted text-xs uppercase tracking-widest">Engagement</p>
+                    <div className="flex-1 h-px bg-hairline" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                    <StatCard label="Active today (DAU)" value={stats.dau.toLocaleString("en-US")} accent />
+                    <StatCard label="Active this week (WAU)" value={stats.wau.toLocaleString("en-US")} />
+                    <StatCard label="Active last 30d (MAU)" value={stats.mau.toLocaleString("en-US")} />
+                    <StatCard label="Stickiness (DAU/MAU)" value={`${(stats.stickiness * 100).toFixed(0)}%`} />
+                </div>
+                <div className="bg-surface border border-hairline rounded-2xl p-4 mb-6">
+                    <p className="text-text-secondary text-xs mb-2">Daily active users, last 14 days</p>
+                    <AdminBarChart points={stats.activityByDay} tooltipLabel="Active users" />
+                </div>
+
+                <div className="flex items-center gap-2 mb-2.5">
+                    <p className="text-text-muted text-xs uppercase tracking-widest">Growth</p>
+                    <div className="flex-1 h-px bg-hairline" />
+                </div>
+                <div className="bg-surface border border-hairline rounded-2xl p-4 mb-6">
+                    <p className="text-text-secondary text-xs mb-2">Signups, last 30 days</p>
+                    <AdminBarChart points={stats.signupsByDay} tooltipLabel="Signups" />
+                </div>
+
+                <div className="flex items-center gap-2 mb-2.5">
+                    <p className="text-text-muted text-xs uppercase tracking-widest">Monetization funnel</p>
+                    <div className="flex-1 h-px bg-hairline" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+                    <StatCard label="Reached checkout, didn't convert" value={stats.abandonedCheckout.toLocaleString("en-US")} />
+                    <StatCard label="Signups with 0 connected accounts" value={stats.zeroAccountUsers.toLocaleString("en-US")} />
+                    <StatCard label="Avg. accounts per user" value={stats.avgAccountsPerUser.toFixed(1)} />
+                </div>
+
+                <div className="flex items-center gap-2 mb-2.5">
+                    <p className="text-text-muted text-xs uppercase tracking-widest">Social & content</p>
+                    <div className="flex-1 h-px bg-hairline" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                    <StatCard label="Total profile views" value={stats.totalViews.toLocaleString("en-US")} />
+                    <StatCard label="Total follows" value={stats.totalFollows.toLocaleString("en-US")} />
+                    <StatCard label="LFG posts (all time)" value={stats.totalLfgPosts.toLocaleString("en-US")} />
+                    <StatCard label="Discord servers using bot" value={stats.discordServers.toLocaleString("en-US")} />
+                </div>
+
+                {stats.topViewed.length > 0 && (
+                    <>
+                        <div className="flex items-center gap-2 mb-2.5">
+                            <p className="text-text-muted text-xs uppercase tracking-widest">Most viewed profiles</p>
+                            <div className="flex-1 h-px bg-hairline" />
+                        </div>
+                        <div className="bg-surface border border-hairline rounded-2xl overflow-hidden mb-6">
+                            {stats.topViewed.map((p, i) => (
+                                <a
+                                    key={p.username}
+                                    href={`/${p.username}`}
+                                    className={`flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors ${i !== 0 ? "border-t border-hairline" : ""}`}
+                                >
+                                    <div className="w-7 h-7 rounded-full bg-background border border-hairline flex-shrink-0 overflow-hidden">
+                                        {p.avatar_url && <img src={p.avatar_url} alt={p.username} className="w-full h-full object-cover" />}
+                                    </div>
+                                    <span className="text-sm text-text-primary flex-1 truncate">{p.username}</span>
+                                    <span className="text-text-secondary text-xs flex-shrink-0">{p.view_count.toLocaleString("en-US")} views</span>
+                                </a>
+                            ))}
+                        </div>
+                    </>
+                )}
 
                 <div className="flex items-center gap-2 mb-2.5">
                     <p className="text-text-muted text-xs uppercase tracking-widest">Connected games</p>
