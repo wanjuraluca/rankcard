@@ -29,6 +29,7 @@ import ConfirmDialog from "./ConfirmDialog"
 import RankInfoModal from "./RankInfoModal"
 import ThemeModal from "./ThemeModal"
 import RankHistoryChart from "./RankHistoryChart"
+import SeasonBadges from "./SeasonBadges"
 import FollowListModal from "./FollowListModal"
 import { getRankTier } from "@/lib/rankScore"
 
@@ -660,6 +661,13 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     <div className="bg-surface border border-hairline rounded-2xl p-4">
                         <RankHistoryChart username={data.username} />
                     </div>
+
+                    {/* Season History Badges */}
+                    <div className="flex items-center gap-2 mt-5 mb-2.5">
+                        <p className="text-text-secondary text-[11px] font-semibold uppercase tracking-[0.14em]">Season History</p>
+                        <div className="flex-1 h-px bg-hairline" />
+                    </div>
+                    <SeasonBadges username={data.username} />
 
                     {/* Export Card */}
                     {isOwnProfile && (

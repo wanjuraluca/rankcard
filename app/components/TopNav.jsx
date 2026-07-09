@@ -109,6 +109,8 @@ export default function TopNav({ accountMenu }) {
 
     function notificationText(n) {
         if (n.type === "follow") return `${n.actor?.username ?? "Someone"} followed you`
+        if (n.type === "new_friend") return `You and ${n.actor?.username ?? "someone"} are now friends`
+        if (n.type === "referral_signup") return `${n.actor?.username ?? "Someone"} signed up using your link`
         return "New notification"
     }
 

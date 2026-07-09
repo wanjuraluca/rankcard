@@ -66,6 +66,14 @@ export async function POST(request) {
             .insert({ user_id: user.id, username, avatar_url: avatarUrl, referred_by: referredBy || null })
 
     if (writeError) {
+        // The ilike check above closes the race window in the common case,
+        // but two concurrent signups can still both pass it — the DB's
+        // unique index on lower(username) is what actually decides the
+        // winner, so the loser needs the same friendly message here instead
+        // of a generic 500.
+        if (writeError.code === "23505") {
+            return Response.json({ error: "This username is already taken." }, { status: 409 })
+        }
         return Response.json({ error: "Could not create your profile." }, { status: 500 })
     }
 

@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin"
+import { detectPlatform } from "@/lib/riotPlatform"
 
 // Called daily by Vercel Cron (see vercel.json). Fetches the current Solo/Duo
 // rank for every connected League of Legends account and stores a snapshot,
@@ -49,8 +50,9 @@ export async function GET(request) {
 
 async function snapshotAccount(account) {
     try {
+        const platform = await detectPlatform(account.puuid)
         const response = await fetch(
-            `https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/${account.puuid}`,
+            `https://${platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/${account.puuid}`,
             { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
         )
         const rankData = await response.json()
@@ -85,8 +87,9 @@ async function snapshotAccount(account) {
 // queue per day (see queue_type column / UNIQUE constraint).
 async function snapshotTftAccount(account) {
     try {
+        const platform = await detectPlatform(account.puuid)
         const response = await fetch(
-            `https://euw1.api.riotgames.com/tft/league/v1/by-puuid/${account.puuid}`,
+            `https://${platform}.api.riotgames.com/tft/league/v1/by-puuid/${account.puuid}`,
             { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
         )
         const tftData = await response.json()

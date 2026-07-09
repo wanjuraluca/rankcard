@@ -2,6 +2,7 @@ import { after } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { getLeagueScore, getValorantScore, getCs2Score, getTftScore, getOverwatchScore, getMarvelRivalsScore, estimateMarvelRivalsRankFromScore } from '@/lib/rankScore'
 import { markServiceDown, markServiceUp } from '@/lib/serviceStatus'
+import { detectPlatform } from '@/lib/riotPlatform'
 
 // A background cache refresh occasionally hits a transient Riot/Henrik
 // hiccup (rate limit, brief 5xx, or an expired dev key — "Unknown apikey",
@@ -101,12 +102,37 @@ const requestCache = new Map()
 // always go live since they're an explicit, infrequent user action.
 const DB_CACHE_STALE_MS = 30 * 60 * 1000
 
+// accountId is only ever meant to be the caller's own connected_accounts.id,
+// used purely as the account_cache key (see ProfileClient.jsx's fetch call —
+// it always sends id/platform/name/tag from the same row). But since it's a
+// client-supplied query param, nothing stopped someone from passing a
+// different (real) accountId alongside an arbitrary platform/name/tag,
+// silently overwriting a stranger's cached rank data with whatever that
+// request fetched live. Confirm the id actually belongs to this
+// platform/name/tag before trusting it for either the cache read or write.
+async function verifyAccountOwnership(accountId, platform, name, tag) {
+  const { data: row } = await supabaseAdmin
+    .from('connected_accounts')
+    .select('platform, platform_username, platform_tag')
+    .eq('id', accountId)
+    .maybeSingle()
+  if (!row) return false
+  return (
+    row.platform === platform &&
+    row.platform_username?.toLowerCase() === name?.toLowerCase() &&
+    (row.platform_tag ?? '').toLowerCase() === (tag ?? '').toLowerCase()
+  )
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const name = searchParams.get('name')
   const tag = searchParams.get('tag')
   const platform = searchParams.get('platform')
-  const accountId = searchParams.get('accountId')
+  let accountId = searchParams.get('accountId')
+  if (accountId && !(await verifyAccountOwnership(accountId, platform, name, tag))) {
+    accountId = null
+  }
   // Reused for both games' mode filters since a single request only ever
   // targets one game — Valorant's is a mode slug (e.g. "competitive"),
   // League's is a numeric Riot queue ID (e.g. 420 for Ranked Solo/Duo).
@@ -210,24 +236,6 @@ export async function GET(request) {
 // on that. Left unguarded, that throw crashes the *entire* request (all of
 // League+Valorant+TFT, since they're fetched together) instead of degrading
 // gracefully like the Overwatch/CS2 paths already do.
-// Riot's account-v1 (by-riot-id) is scoped to a continent (europe/americas/asia),
-// not a platform shard — so it resolves fine for EUW, EUNE, TR and RU accounts
-// alike. But league-v4/tft-v4's by-puuid endpoints need the exact platform
-// (euw1/eun1/tr1/ru), and hardcoding euw1 silently returns [] (looks like "no
-// rank") for anyone actually playing on EUNE/TR/RU — even though their match
-// history still loads fine since match-v5 is continent-routed. Match IDs are
-// prefixed with the platform (e.g. "EUN1_12345..."), so derive it from a
-// cheap single-match-id lookup instead of assuming euw1.
-async function detectPlatform(puuid) {
-  const response = await fetch(
-    `https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=1`,
-    { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
-  )
-  const ids = await safeJson(response)
-  const prefix = Array.isArray(ids) && ids[0]?.split('_')[0]
-  return prefix ? prefix.toLowerCase() : 'euw1'
-}
-
 async function safeJson(response) {
   try {
     return await response.json()

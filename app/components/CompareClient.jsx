@@ -4,7 +4,7 @@ import { platformConfig } from "@/lib/platforms"
 import { extractGameStats, average } from "@/lib/gameStats"
 import { getRankTier } from "@/lib/rankScore"
 
-const PLATFORMS = ["League of Legends", "Valorant", "CSGO"]
+const PLATFORMS = ["League of Legends", "Valorant", "CSGO", "TFT", "Overwatch", "Marvel Rivals"]
 
 function Avatar({ url, username, size = 56 }) {
     return (
