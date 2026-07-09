@@ -4,18 +4,24 @@ import { getLeagueScore, getValorantScore, getCs2Score, getTftScore, getOverwatc
 import { markServiceDown, markServiceUp } from '@/lib/serviceStatus'
 
 // A background cache refresh occasionally hits a transient Riot/Henrik
-// hiccup (rate limit, brief 5xx) and gets back an empty match-history array
-// where a real one existed a moment ago. Without this guard, that empty
+// hiccup (rate limit, brief 5xx, or an expired dev key — "Unknown apikey",
+// 401) and gets back either an empty match-history array or, for rankData/
+// tftData specifically, a JSON error object like {"status":{"status_code":
+// 401,...}} instead of an array — Riot's error responses are still valid
+// JSON, so nothing upstream throws on this. Without this guard, that broken
 // result gets written straight into account_cache and served as truth for
-// up to DB_CACHE_STALE_MS — "All Modes" would flash from 8 games to 0/2
-// until the next refresh happens to succeed. Keep the previous non-empty
-// value for any of these arrays instead of trusting a fetch that came back
-// suspiciously emptier than what we already had.
+// up to DB_CACHE_STALE_MS: a real "Platinum IV" flashes to "Unranked" until
+// the next refresh happens to succeed. Keep the previous good value for any
+// of these fields instead of trusting a fetch that came back non-array
+// (rankData/tftData must always be arrays when valid, per extractGameStats)
+// or suspiciously emptier than what we already had.
 function withStaleArrayGuard(previous, fresh) {
   if (!previous) return fresh
   const guarded = { ...fresh }
-  for (const key of ['matchHistory', 'valorantMatchHistory', 'tftMatchHistory']) {
-    if (Array.isArray(previous[key]) && previous[key].length > 0 && Array.isArray(guarded[key]) && guarded[key].length === 0) {
+  for (const key of ['matchHistory', 'valorantMatchHistory', 'tftMatchHistory', 'rankData', 'tftData']) {
+    const hadGoodData = Array.isArray(previous[key]) && previous[key].length > 0
+    const freshIsBroken = !Array.isArray(guarded[key]) || guarded[key].length === 0
+    if (hadGoodData && freshIsBroken) {
       guarded[key] = previous[key]
     }
   }
