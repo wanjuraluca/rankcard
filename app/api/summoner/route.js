@@ -25,6 +25,17 @@ function withStaleArrayGuard(previous, fresh) {
       guarded[key] = previous[key]
     }
   }
+  // Same idea for the single-object rank fields (Valorant/Overwatch/Marvel
+  // Rivals/CS2): a transient failure normally comes back as null instead of
+  // throwing (see fetchOverwatchData's OVERWATCH_EMPTY_RESULT, etc.), so
+  // without this a real rank would flash to "Unranked" for a full
+  // DB_CACHE_STALE_MS window. Keep the previous value if we had one and the
+  // fresh fetch came back empty.
+  for (const key of ['valorantData', 'owRanks', 'mrRank', 'cs2Profile']) {
+    if (previous[key] && !guarded[key]) {
+      guarded[key] = previous[key]
+    }
+  }
   return guarded
 }
 
@@ -88,7 +99,7 @@ const requestCache = new Map()
 // what made profiles feel slow (several sequential Riot/Henrik/Leetify calls
 // every single visit). Mode-filtered requests (user picked "Ranked Flex" etc.)
 // always go live since they're an explicit, infrequent user action.
-const DB_CACHE_STALE_MS = 5 * 60 * 1000
+const DB_CACHE_STALE_MS = 30 * 60 * 1000
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
@@ -199,6 +210,24 @@ export async function GET(request) {
 // on that. Left unguarded, that throw crashes the *entire* request (all of
 // League+Valorant+TFT, since they're fetched together) instead of degrading
 // gracefully like the Overwatch/CS2 paths already do.
+// Riot's account-v1 (by-riot-id) is scoped to a continent (europe/americas/asia),
+// not a platform shard — so it resolves fine for EUW, EUNE, TR and RU accounts
+// alike. But league-v4/tft-v4's by-puuid endpoints need the exact platform
+// (euw1/eun1/tr1/ru), and hardcoding euw1 silently returns [] (looks like "no
+// rank") for anyone actually playing on EUNE/TR/RU — even though their match
+// history still loads fine since match-v5 is continent-routed. Match IDs are
+// prefixed with the platform (e.g. "EUN1_12345..."), so derive it from a
+// cheap single-match-id lookup instead of assuming euw1.
+async function detectPlatform(puuid) {
+  const response = await fetch(
+    `https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=1`,
+    { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
+  )
+  const ids = await safeJson(response)
+  const prefix = Array.isArray(ids) && ids[0]?.split('_')[0]
+  return prefix ? prefix.toLowerCase() : 'euw1'
+}
+
 async function safeJson(response) {
   try {
     return await response.json()
@@ -217,10 +246,11 @@ async function fetchLeagueOnlyData(name, tag, mode) {
     { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
   )
   const account = (await safeJson(response)) ?? {}
+  const platform = await detectPlatform(account.puuid)
 
   const [rankRes, matchHistory, ddragonVersion] = await Promise.all([
     fetch(
-      `https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/${account.puuid}`,
+      `https://${platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/${account.puuid}`,
       { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
     ),
     fetchMatchHistory(account.puuid, mode),
@@ -261,12 +291,15 @@ async function fetchSummonerData(name, tag, mode) {
   // endpoints only recognize their own puuid, so use that, not Riot's.
   const valorantPuuid = valorantAccountData?.data?.puuid ?? account.puuid
 
+  // League/TFT's platform shard (euw1/eun1/tr1/ru) isn't known yet at this
+  // point — kick off detection now so it resolves alongside everything else
+  // below instead of adding a fully sequential round-trip.
+  const platformPromise = detectPlatform(account.puuid)
+
   // Stage 2: everything here only depends on Stage 1's results, not on each
   // other — fire them all at once instead of one giant sequential waterfall.
   const [
-    rankRes,
     valorantRes,
-    tftRes,
     matchHistory,
     ddragonVersion,
     valorantMatchHistory,
@@ -274,22 +307,26 @@ async function fetchSummonerData(name, tag, mode) {
     tftMatchHistory,
   ] = await Promise.all([
     fetch(
-      `https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/${account.puuid}`,
-      { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
-    ),
-    fetch(
       `https://api.henrikdev.xyz/valorant/v3/by-puuid/mmr/${valorantRegion}/pc/${valorantPuuid}`,
       { headers: { 'Authorization': process.env.VAL_API_KEY } }
-    ),
-    fetch(
-      `https://euw1.api.riotgames.com/tft/league/v1/by-puuid/${account.puuid}`,
-      { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
     ),
     fetchMatchHistory(account.puuid, mode),
     fetchDdragonVersion(),
     fetchValorantMatchHistory(valorantPuuid, valorantRegion, mode),
     fetchValorantMmrHistory(valorantPuuid, valorantRegion),
     fetchTftMatchHistory(account.puuid),
+  ])
+
+  const platform = await platformPromise
+  const [rankRes, tftRes] = await Promise.all([
+    fetch(
+      `https://${platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/${account.puuid}`,
+      { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
+    ),
+    fetch(
+      `https://${platform}.api.riotgames.com/tft/league/v1/by-puuid/${account.puuid}`,
+      { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
+    ),
   ])
 
   const rankData = await safeJson(rankRes)
