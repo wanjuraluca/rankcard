@@ -25,9 +25,12 @@ export default function AccountMenu({ isPro, stripeCustomerId, username, avatarU
         setOpen(false)
         setPortalLoading(true)
         try {
+            const { data: sessionData } = await supabase.auth.getSession()
+            const accessToken = sessionData?.session?.access_token
+
             const res = await fetch("/api/stripe/portal", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
                 body: JSON.stringify({ username }),
             })
             const data = await res.json()

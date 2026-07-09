@@ -61,8 +61,9 @@ export default function UpgradeModal({ onClose, onUpgraded }) {
 
         const { data: sessionData } = await supabase.auth.getSession()
         const username = sessionData?.session?.user?.user_metadata?.username
+        const accessToken = sessionData?.session?.access_token
 
-        if (!username) {
+        if (!username || !accessToken) {
             setError("You must be logged in to upgrade.")
             setLoading(false)
             return
@@ -70,7 +71,7 @@ export default function UpgradeModal({ onClose, onUpgraded }) {
 
         const res = await fetch("/api/stripe/checkout", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
             body: JSON.stringify({ username }),
         })
 
