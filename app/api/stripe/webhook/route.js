@@ -13,6 +13,18 @@ export async function POST(request) {
         return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     }
 
+    // Stripe can and does redeliver the same event (retries after a timeout,
+    // manual resend from the dashboard, etc.) — event.id is stable across
+    // redeliveries, so claiming it here via a unique insert is what actually
+    // guards against double-processing, not just trusting each event arrives
+    // once. A duplicate insert means we've already handled this exact event.
+    const { error: dedupeError } = await supabaseAdmin
+        .from("processed_webhook_events")
+        .insert({ event_id: event.id })
+    if (dedupeError) {
+        return NextResponse.json({ received: true, duplicate: true })
+    }
+
     const session = event.data.object
 
     if (event.type === "checkout.session.completed") {

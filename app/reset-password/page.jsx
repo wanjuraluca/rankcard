@@ -12,6 +12,13 @@ export default function ResetPassword() {
 
   function friendlyError(message) {
     if (message.toLowerCase().includes("password")) return "Password must be at least 6 characters."
+    // A stale/reused/expired recovery link lands here with a session-related
+    // error (e.g. "Auth session missing!", "Email link is invalid or has
+    // expired") that used to show as-is with no way forward — point them
+    // back to requesting a fresh link instead of a dead end.
+    if (message.toLowerCase().includes("session") || message.toLowerCase().includes("expired") || message.toLowerCase().includes("invalid")) {
+      return "This reset link has expired or already been used. Request a new one from the sign-in page."
+    }
     return message
   }
 
@@ -90,6 +97,18 @@ export default function ResetPassword() {
                 {error && (
                   <div className="rounded-lg border border-negative/40 bg-negative/10 px-3.5 py-2.5 text-sm text-negative">
                     {error}
+                    {error.startsWith("This reset link has expired") && (
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          onClick={() => router.push("/auth")}
+                          className="cursor-pointer font-semibold underline hover:text-white"
+                        >
+                          Go to sign in
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
 

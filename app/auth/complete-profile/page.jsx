@@ -68,6 +68,21 @@ export default function CompleteProfile() {
     const data = await res.json()
     setSubmitting(false)
     if (!res.ok) {
+      // Landing here with a profile that already exists (stale bookmark,
+      // back-button after finishing signup) used to just show an error with
+      // no way forward — the suggested username above isn't even necessarily
+      // theirs, so look up their real one and send them there instead.
+      if (res.status === 409 && data.error === "You already have a profile.") {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const userId = sessionData?.session?.user?.id
+        const { data: existing } = userId
+          ? await supabase.from("profiles").select("username").eq("user_id", userId).maybeSingle()
+          : { data: null }
+        if (existing?.username) {
+          router.replace("/" + existing.username)
+          return
+        }
+      }
       setError(data.error || "Could not create your profile.")
       return
     }
