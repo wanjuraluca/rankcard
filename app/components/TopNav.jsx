@@ -14,6 +14,9 @@ export default function TopNav({ accountMenu }) {
     const [searching, setSearching] = useState(false)
     const [suggestionsOpen, setSuggestionsOpen] = useState(false)
     const [notifOpen, setNotifOpen] = useState(false)
+    const [notifications, setNotifications] = useState([])
+    const [unreadCount, setUnreadCount] = useState(0)
+    const [notifLoaded, setNotifLoaded] = useState(false)
     const [friendsOpen, setFriendsOpen] = useState(false)
     const [friends, setFriends] = useState([])
     const [friendsLoaded, setFriendsLoaded] = useState(false)
@@ -67,6 +70,55 @@ export default function TopNav({ accountMenu }) {
             setFriends(data.users ?? [])
             setFriendsLoaded(true)
         }
+    }
+
+    async function fetchNotifications() {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData?.session?.access_token
+        if (!token) return
+        const res = await fetch("/api/notifications", { headers: { Authorization: `Bearer ${token}` } })
+        if (!res.ok) return
+        const data = await res.json()
+        setNotifications(data.notifications ?? [])
+        setUnreadCount(data.unreadCount ?? 0)
+        setNotifLoaded(true)
+    }
+
+    // Poll every 60s, same convention as StatusBanner's outage check — this
+    // codebase doesn't use Supabase Realtime anywhere, no reason to introduce
+    // it just for the notification badge.
+    useEffect(() => {
+        if (!authChecked || !viewerUsername) return
+        fetchNotifications()
+        const interval = setInterval(fetchNotifications, 60_000)
+        return () => clearInterval(interval)
+    }, [authChecked, viewerUsername])
+
+    async function toggleNotifications() {
+        const opening = !notifOpen
+        setNotifOpen(opening)
+        if (opening && unreadCount > 0) {
+            const { data: sessionData } = await supabase.auth.getSession()
+            const token = sessionData?.session?.access_token
+            if (!token) return
+            await fetch("/api/notifications", { method: "PATCH", headers: { Authorization: `Bearer ${token}` } })
+            setUnreadCount(0)
+            setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+        }
+    }
+
+    function notificationText(n) {
+        if (n.type === "follow") return `${n.actor?.username ?? "Someone"} followed you`
+        return "New notification"
+    }
+
+    async function clearNotifications() {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData?.session?.access_token
+        if (!token) return
+        await fetch("/api/notifications", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } })
+        setNotifications([])
+        setUnreadCount(0)
     }
 
     useEffect(() => {
@@ -228,21 +280,52 @@ export default function TopNav({ accountMenu }) {
                     </div>
                 )}
 
-                <div className="relative" ref={notifRef}>
-                    <button
-                        onClick={() => setNotifOpen(v => !v)}
-                        title="Notifications"
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
-                    >
-                        <Bell size={18} />
-                    </button>
-                    {notifOpen && (
-                        <div className="absolute top-full right-0 mt-1.5 w-64 bg-surface border border-hairline rounded-2xl shadow-lg p-2 z-50">
-                            <p className="text-text-muted text-xs uppercase tracking-widest px-2 py-1.5">Notifications</p>
-                            <p className="text-text-secondary text-sm px-2 py-2">No new notifications.</p>
-                        </div>
-                    )}
-                </div>
+                {authChecked && viewerUsername && (
+                    <div className="relative" ref={notifRef}>
+                        <button
+                            onClick={toggleNotifications}
+                            title="Notifications"
+                            className="relative w-8 h-8 rounded-lg flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+                        >
+                            <Bell size={18} />
+                            {unreadCount > 0 && (
+                                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-accent" />
+                            )}
+                        </button>
+                        {notifOpen && (
+                            <div className="absolute top-full right-0 mt-1.5 w-72 bg-surface border border-hairline rounded-2xl shadow-lg p-2 z-50 max-h-80 overflow-y-auto">
+                                <p className="text-text-muted text-xs uppercase tracking-widest px-2 py-1.5">Notifications</p>
+                                {notifLoaded && notifications.length === 0 && (
+                                    <p className="text-text-secondary text-sm px-2 py-2">No new notifications.</p>
+                                )}
+                                {notifications.map(n => (
+                                    <a
+                                        key={n.id}
+                                        href={n.actor?.username ? `/${n.actor.username}` : "#"}
+                                        onClick={() => setNotifOpen(false)}
+                                        className={`flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors ${!n.read ? "bg-white/[0.03]" : ""}`}
+                                    >
+                                        <div className="w-6 h-6 rounded-full bg-background border border-hairline flex-shrink-0 overflow-hidden">
+                                            {n.actor?.avatarUrl && <img src={n.actor.avatarUrl} alt={n.actor.username} className="w-full h-full object-cover" />}
+                                        </div>
+                                        <span className="text-sm text-text-primary truncate">{notificationText(n)}</span>
+                                    </a>
+                                ))}
+                                {notifications.length > 0 && (
+                                    <>
+                                        <div className="w-[85%] mx-auto border-t border-hairline my-1.5" />
+                                        <button
+                                            onClick={clearNotifications}
+                                            className="w-full text-center text-xs font-semibold text-text-secondary hover:text-white bg-transparent hover:bg-red-500/90 px-2 py-1.5 rounded-lg transition-colors"
+                                        >
+                                            Clear notifications
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
                 {authChecked && (
                     accountMenu ? (
                         <AccountMenu
