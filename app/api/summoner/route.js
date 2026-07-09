@@ -1209,8 +1209,8 @@ function extractScore(data, platform) {
         : null
     }
     if (platform === 'CSGO') {
-      return data.cs2Data?.premier_score != null
-        ? getCs2Score(data.cs2Data.premier_score)
+      return data.cs2Profile?.ranks?.premier != null
+        ? getCs2Score(data.cs2Profile.ranks.premier)
         : null
     }
     if (platform === 'TFT') {
