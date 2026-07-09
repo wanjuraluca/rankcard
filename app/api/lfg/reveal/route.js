@@ -45,26 +45,22 @@ export async function POST(request) {
 
         if (!isPro) {
             const today = new Date().toISOString().slice(0, 10)
-            const { data: revealsToday } = await supabaseAdmin
-                .from("lfg_discord_reveals")
-                .select("target_post_id")
-                .eq("viewer_user_id", viewerUserId)
-                .eq("revealed_on", today)
+            // Atomic claim via a DB function (serialized per-viewer with an
+            // advisory lock) — a plain read-count-then-upsert here let two
+            // concurrent reveal requests for different posts both read the
+            // same pre-upsert count and both slip past the daily limit.
+            const { data: allowed, error: claimError } = await supabaseAdmin.rpc("claim_lfg_reveal", {
+                p_viewer_user_id: viewerUserId,
+                p_target_post_id: targetPostId,
+                p_day: today,
+                p_limit: FREE_DAILY_REVEAL_LIMIT,
+            })
 
-            const revealedPostIds = new Set((revealsToday ?? []).map(r => r.target_post_id))
-            const alreadyRevealedThisPost = revealedPostIds.has(targetPostId)
-
-            if (!alreadyRevealedThisPost && revealedPostIds.size >= FREE_DAILY_REVEAL_LIMIT) {
-                return NextResponse.json({ allowed: false })
+            if (claimError) {
+                return NextResponse.json({ error: "Something went wrong." }, { status: 500 })
             }
-
-            if (!alreadyRevealedThisPost) {
-                await supabaseAdmin
-                    .from("lfg_discord_reveals")
-                    .upsert(
-                        { viewer_user_id: viewerUserId, target_post_id: targetPostId, revealed_on: today },
-                        { onConflict: "viewer_user_id,target_post_id,revealed_on", ignoreDuplicates: true }
-                    )
+            if (!allowed) {
+                return NextResponse.json({ allowed: false })
             }
         }
 

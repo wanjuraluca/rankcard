@@ -38,6 +38,26 @@ export async function POST(request) {
         }
     }
 
+    // Covers renewal-payment failures (status flips to past_due/unpaid) and
+    // any other status change Stripe reports outside of the two events above
+    // — without this, a failed renewal left is_pro true until Stripe
+    // eventually (if ever) sent a separate subscription.deleted.
+    if (event.type === "customer.subscription.updated") {
+        const customerId = session.customer
+        const isActive = ["active", "trialing"].includes(session.status)
+        const { data: profile } = await supabaseAdmin
+            .from("profiles")
+            .select("user_id")
+            .eq("stripe_customer_id", customerId)
+            .maybeSingle()
+        if (profile) {
+            await supabaseAdmin
+                .from("profiles")
+                .update({ is_pro: isActive, stripe_subscription_id: session.id })
+                .eq("user_id", profile.user_id)
+        }
+    }
+
     if (event.type === "customer.subscription.deleted") {
         const customerId = session.customer
         const { data: profile } = await supabaseAdmin
