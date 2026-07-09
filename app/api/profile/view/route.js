@@ -16,6 +16,15 @@ export async function POST(request) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
     const key = `${ip}:${username}`
     const now = Date.now()
+
+    // Sweep expired entries on every call so the map can't grow unbounded
+    // for the life of the warm serverless instance — cheap since it never
+    // holds more than ~one cooldown window's worth of unique IP:username
+    // pairs at a time.
+    for (const [k, ts] of recentViews) {
+        if (now - ts >= VIEW_COOLDOWN_MS) recentViews.delete(k)
+    }
+
     const last = recentViews.get(key)
     if (last && now - last < VIEW_COOLDOWN_MS) {
         return NextResponse.json({ ok: true, skipped: true })
