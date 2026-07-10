@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   },
   description: "Connect League, TFT, Valorant, CS2, Overwatch and Marvel Rivals into one clean, shareable profile with real ranks and deep stats.",
   icons: {
-    icon: "/Icons/favicon.png?v=3",
+    icon: "/Icons/favicon.png?v=4",
   },
   openGraph: {
     type: "website",
