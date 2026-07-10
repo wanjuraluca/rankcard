@@ -2,7 +2,7 @@ import { after } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { getLeagueScore, getValorantScore, getCs2Score, getTftScore, getOverwatchScore, getMarvelRivalsScore, estimateMarvelRivalsRankFromScore } from '@/lib/rankScore'
 import { markServiceDown, markServiceUp } from '@/lib/serviceStatus'
-import { detectPlatform } from '@/lib/riotPlatform'
+import { detectRouting } from '@/lib/riotPlatform'
 
 // A background cache refresh occasionally hits a transient Riot/Henrik
 // hiccup (rate limit, brief 5xx, or an expired dev key — "Unknown apikey",
@@ -254,14 +254,14 @@ async function fetchLeagueOnlyData(name, tag, mode) {
     { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
   )
   const account = (await safeJson(response)) ?? {}
-  const platform = await detectPlatform(account.puuid)
+  const { continent, platform } = await detectRouting(account.puuid)
 
   const [rankRes, matchHistory, ddragonVersion] = await Promise.all([
     fetch(
       `https://${platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/${account.puuid}`,
       { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
     ),
-    fetchMatchHistory(account.puuid, mode),
+    fetchMatchHistory(account.puuid, mode, continent),
     fetchDdragonVersion(),
   ])
   const rankData = await safeJson(rankRes)
@@ -304,10 +304,10 @@ async function fetchSummonerData(name, tag, mode) {
   // endpoints only recognize their own puuid, so use that, not Riot's.
   const valorantPuuid = valorantAccountData?.data?.puuid ?? account.puuid
 
-  // League/TFT's platform shard (euw1/eun1/tr1/ru) isn't known yet at this
-  // point — kick off detection now so it resolves alongside everything else
-  // below instead of adding a fully sequential round-trip.
-  const platformPromise = detectPlatform(account.puuid)
+  // League/TFT's platform shard (euw1/eun1/tr1/ru) AND continent isn't known
+  // yet at this point — kick off detection now so it resolves alongside
+  // everything else below instead of adding a fully sequential round-trip.
+  const routingPromise = detectRouting(account.puuid)
 
   // Stage 2: everything here only depends on Stage 1's results, not on each
   // other — fire them all at once instead of one giant sequential waterfall.
@@ -323,6 +323,10 @@ async function fetchSummonerData(name, tag, mode) {
       `https://api.henrikdev.xyz/valorant/v3/by-puuid/mmr/${valorantRegion}/pc/${valorantPuuid}`,
       { headers: { 'Authorization': process.env.VAL_API_KEY } }
     ),
+    // Fired against the europe default without waiting on routingPromise —
+    // correct for the vast majority (EU) of players, and costs them zero
+    // extra latency. Re-fetched below only for the non-EU minority this
+    // guessed wrong for.
     fetchMatchHistory(account.puuid, mode),
     fetchDdragonVersion(),
     fetchValorantMatchHistory(valorantPuuid, valorantRegion, mode),
@@ -330,7 +334,7 @@ async function fetchSummonerData(name, tag, mode) {
     fetchTftMatchHistory(account.puuid),
   ])
 
-  const platform = await platformPromise
+  const { continent, platform } = await routingPromise
   const [rankRes, tftRes] = await Promise.all([
     fetch(
       `https://${platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/${account.puuid}`,
@@ -341,6 +345,15 @@ async function fetchSummonerData(name, tag, mode) {
       { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
     ),
   ])
+
+  // The europe-default match history fetch above comes back empty for any
+  // player whose games aren't stored under europe's match-v5 cluster (e.g.
+  // a Singapore/SG2 account) — not because they have no matches, but
+  // because we asked the wrong continent. Re-fetch once with the continent
+  // detectRouting actually found before giving up on match history.
+  const finalMatchHistory = matchHistory.length === 0 && continent !== 'europe'
+    ? await fetchMatchHistory(account.puuid, mode, continent)
+    : matchHistory
 
   const rankData = await safeJson(rankRes)
   const valorantData = await safeJson(valorantRes)
@@ -356,7 +369,7 @@ async function fetchSummonerData(name, tag, mode) {
     rankData,
     tftData,
     valorantData,
-    matchHistory,
+    matchHistory: finalMatchHistory,
     ddragonVersion,
     valorantMatchHistory,
     valorantMmrHistory,
@@ -1098,10 +1111,10 @@ function calculateImpactScore(participant, allParticipants) {
   return Math.round(Math.min(1, Math.max(0, raw)) * 100)
 }
 
-async function fetchMatchHistory(puuid, queueId) {
+async function fetchMatchHistory(puuid, queueId, continent = 'europe') {
   const queueQuery = queueId ? `&queue=${queueId}` : ''
   const idsResponse = await fetch(
-    `https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=8${queueQuery}`,
+    `https://${continent}.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=8${queueQuery}`,
     {
       headers: {
         'X-Riot-Token': process.env.RIOT_API_KEY
@@ -1114,7 +1127,7 @@ async function fetchMatchHistory(puuid, queueId) {
   const matches = await Promise.all(
     matchIds.map(async (matchId) => {
       const matchResponse = await fetch(
-        `https://europe.api.riotgames.com/lol/match/v5/matches/${matchId}`,
+        `https://${continent}.api.riotgames.com/lol/match/v5/matches/${matchId}`,
         {
           headers: {
             'X-Riot-Token': process.env.RIOT_API_KEY
