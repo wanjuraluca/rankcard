@@ -71,9 +71,17 @@ export default function AddGameModal({ onClose, onConnected, existingAccounts = 
                 const res = await fetch(`/api/summoner?platform=${selectedGame}&name=${username}&tag=${tag}`)
                 const data = await res.json()
 
-                // If no puuid comes back, the account doesn't exist
+                // A clean 404 on the Riot ID lookup really is "no such
+                // account" — anything else (401 bad/expired key, 429, 5xx,
+                // or the field being missing entirely from a thrown fetch)
+                // is a problem on our end, not a typo, so don't tell users
+                // to double-check a name/tag that was probably fine.
                 if (!data.puuid) {
-                    setErrorMsg("Account not found. Check the name and tag.")
+                    setErrorMsg(
+                        data.accountLookupStatus && data.accountLookupStatus !== 404
+                            ? "Something went wrong on our end. Please try again in a moment."
+                            : "Account not found. Check the name and tag."
+                    )
                     setLoading(false)
                     return
                 }

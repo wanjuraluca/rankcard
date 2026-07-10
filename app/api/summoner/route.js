@@ -266,7 +266,12 @@ async function fetchLeagueOnlyData(name, tag, mode) {
   ])
   const rankData = await safeJson(rankRes)
 
-  return { puuid: account.puuid, rankData, matchHistory, ddragonVersion }
+  // Surfaces *why* puuid is missing when it is — a real "no such Riot ID"
+  // is a clean 404, but a bad/expired RIOT_API_KEY or a Riot outage comes
+  // back as 401/403/5xx on this same lookup and looked identical to the
+  // client before this, so users got told to double-check a name/tag that
+  // was actually fine.
+  return { puuid: account.puuid, accountLookupStatus: response.status, rankData, matchHistory, ddragonVersion }
 }
 
 // CS2 has no Riot account, so it skips the entire Riot/Henrik flow below and
@@ -343,6 +348,10 @@ async function fetchSummonerData(name, tag, mode) {
 
   return {
     puuid: account.puuid,
+    // See fetchLeagueOnlyData's identical field for why this exists — lets
+    // the client tell "no such Riot ID" (404) apart from an upstream/key
+    // failure (401/403/5xx) instead of showing the same generic message.
+    accountLookupStatus: response.status,
     valorantPuuid,
     rankData,
     tftData,
