@@ -328,10 +328,24 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
     // to show. If matchHistory has entries, fall through and render the stats/
     // champions/match list below with an "Unranked" rank section instead of
     // hiding everything just because Solo/Duo specifically is unplayed.
+    //
+    // This can also fire while a non-default mode filter is active (a live
+    // Riot API failure clears both rankEntry and matchHistory the same way a
+    // genuinely brand-new account would) — without an escape hatch back to
+    // "All Modes" here, the whole hero silently vanishes with no way back
+    // short of reloading the page.
     if (!rankEntry && matchHistory.length === 0) {
         return (
             <div className="bg-surface border border-hairline rounded-2xl p-6 text-center">
                 <p className="text-text-secondary text-sm">No games found yet.</p>
+                {modeFilter && (
+                    <button
+                        onClick={() => selectMode('')}
+                        className="text-accent-soft hover:text-accent text-xs font-semibold mt-2"
+                    >
+                        Reset to All Modes
+                    </button>
+                )}
             </div>
         );
     }
