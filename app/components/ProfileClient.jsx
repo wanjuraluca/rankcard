@@ -17,6 +17,7 @@ import { storeReferral } from "@/lib/referral"
 import RankBadge from "./RankBadge"
 import AnimatedNumber from "./AnimatedNumber"
 import SignatureCard from "./SignatureCard"
+import AdBanner from "./AdBanner"
 import RankHero from "./RankHero"
 import ValorantHero from "./ValorantHero"
 import Cs2Hero from "./Cs2Hero"
@@ -444,6 +445,11 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         onShare={handleShareProfile}
                         shareCopied={shareCopied}
                     />
+                    {!isPro && (
+                        <div className="mt-3">
+                            <AdBanner slot="2211565056" />
+                        </div>
+                    )}
                 </aside>
             )}
             <div className={activeTab === "overall" ? "lg:order-1 min-w-0" : ""}>
@@ -651,6 +657,12 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                 </div>
                             )}
                         </>
+                    )}
+
+                    {!isPro && (
+                        <div className="mt-5">
+                            <AdBanner slot="7967554691" />
+                        </div>
                     )}
 
                     {/* Rank History Chart */}
