@@ -173,12 +173,20 @@ export default async function Image({ params }) {
                                     }}
                                 >
                                     {emblem?.type === "image" ? (
+                                        // Satori (next/og's renderer) handles a CSS transform: scale()
+                                        // on an <img> unreliably — it cropped Riot's ranked-emblem PNGs
+                                        // in half instead of zooming in centered, unlike the identical
+                                        // transform in RankBadge/RankHero which render in a real browser
+                                        // (and a background-image swap in place of it rendered nothing
+                                        // at all). Rendering the <img> itself oversized inside a
+                                        // fixed-size, centered, overflow:hidden box gets the same
+                                        // "zoomed in" crop via plain layout instead of a transform.
                                         <div style={{ display: "flex", width: emblemSize, height: emblemSize, alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
                                             <img
                                                 src={emblem.url}
-                                                width={emblemSize}
-                                                height={emblemSize}
-                                                style={emblem.scale ? { objectFit: "contain", transform: `scale(4.5) translateY(${rpx(4)}px)` } : { objectFit: "contain" }}
+                                                width={emblem.scale ? emblemSize * 4.5 : emblemSize}
+                                                height={emblem.scale ? emblemSize * 4.5 : emblemSize}
+                                                style={{ objectFit: "contain" }}
                                             />
                                         </div>
                                     ) : emblem?.type === "badge" ? (

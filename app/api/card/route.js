@@ -131,12 +131,17 @@ async function renderOverallCard(profile, accountList) {
                             return (
                                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, backgroundColor: "#15151f", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 999, padding: "6px 16px 6px 6px" }}>
                                     {emblem?.type === "image" ? (
+                                        // See opengraph-image.jsx's identical fix — Satori crops an
+                                        // <img> with transform: scale() in half, and a background-image
+                                        // swap rendered nothing at all. Oversizing the <img> itself
+                                        // inside a fixed, centered, overflow:hidden box crops it via
+                                        // plain layout instead.
                                         <div style={{ display: "flex", width: 28, height: 28, alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
                                             <img
                                                 src={emblem.url}
-                                                width={28}
-                                                height={28}
-                                                style={emblem.scale ? { objectFit: "contain", transform: "scale(4.5) translateY(2px)" } : { objectFit: "contain" }}
+                                                width={emblem.scale ? 126 : 28}
+                                                height={emblem.scale ? 126 : 28}
+                                                style={{ objectFit: "contain" }}
                                             />
                                         </div>
                                     ) : emblem?.type === "badge" ? (
