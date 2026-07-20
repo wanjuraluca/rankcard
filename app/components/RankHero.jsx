@@ -205,6 +205,12 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
     const [modeMenuOpen, setModeMenuOpen] = useState(false)
     const [matchesLoading, setMatchesLoading] = useState(false)
     const scrollYBeforeToggle = useRef(null)
+    // The unfiltered ("All Modes") fetch is DB-cached server-side and rarely
+    // fails; a specific mode filter always goes live (see route.js) and can
+    // hit a real Riot outage/bad key. Keep the last good unfiltered result
+    // around so a failed mode-filtered fetch can fall back to filtering data
+    // we already have client-side instead of showing an empty dead end.
+    const allModesData = useRef({ rankEntry: null, matchHistory: [] })
 
     function toggleMatch(matchId) {
         scrollYBeforeToggle.current = window.scrollY
@@ -236,9 +242,24 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
             // Guard with Array.isArray: on a Riot error (rate limit / bad key)
             // rankData is an error object, not an array — .find would throw and
             // leave the hero stuck on "Loading rank...".
-            const entry = Array.isArray(data.rankData) ? data.rankData.find((queue) => queue.queueType === "RANKED_SOLO_5x5") : null;
-            setRankEntry(entry ?? null)
-            setMatchHistory(data.matchHistory ?? [])
+            const requestFailed = !Array.isArray(data.rankData)
+            const entry = requestFailed ? null : data.rankData.find((queue) => queue.queueType === "RANKED_SOLO_5x5") ?? null;
+
+            if (!modeFilter && !requestFailed) {
+                allModesData.current = { rankEntry: entry, matchHistory: data.matchHistory ?? [] }
+            }
+
+            if (modeFilter && requestFailed) {
+                // Live fetch for this mode failed — fall back to filtering
+                // the last known-good unfiltered match list ourselves rather
+                // than showing an empty/dead-end state. Rank itself doesn't
+                // vary by mode, so that can just reuse the cached value too.
+                setRankEntry(allModesData.current.rankEntry)
+                setMatchHistory(allModesData.current.matchHistory.filter(m => String(m.queueId) === modeFilter))
+            } else {
+                setRankEntry(entry)
+                setMatchHistory(data.matchHistory ?? [])
+            }
             setDdragonVersion(data.ddragonVersion ?? null)
             setYourPuuid(data.puuid ?? null)
             setLoading(false)
