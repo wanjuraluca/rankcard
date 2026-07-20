@@ -8,7 +8,7 @@ import DiscordTagEditor from "./DiscordTagEditor"
 import EmbedBadgeModal from "./EmbedBadgeModal"
 import Footer from "./Footer"
 import { useState, useEffect } from "react"
-import { Eye, Share2, UserPlus, UserCheck, Check, X, Sparkles, ArrowLeft } from "lucide-react"
+import { Eye, Share2, UserPlus, UserCheck, Check, X, Sparkles, ArrowLeft, Trophy } from "lucide-react"
 import { platformConfig } from "@/lib/platforms"
 import { extractGameStats, average } from "@/lib/gameStats"
 import { getGameEmblem } from "@/lib/rankEmblem"
@@ -83,6 +83,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
     const [showFollowList, setShowFollowList] = useState(null) // "followers" | "following" | null
     const [friends, setFriends] = useState([])
     const [onlineFriends, setOnlineFriends] = useState({})
+    const [rankUps, setRankUps] = useState([])
 
     useEffect(() => {
         const ref = new URLSearchParams(window.location.search).get("r")
@@ -240,6 +241,41 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
             setGameStats(prev => ({ ...prev, [account.id]: { ...stats, emblem } }))
         })
     }, [accountList])
+
+    // Rank-up detection: remember each connected account's last-seen rank in
+    // localStorage and celebrate when a later visit finds a higher one. Owner
+    // only — visitors shouldn't get a stale diff from someone else's device.
+    // Stats stream in per account, so this runs on every gameStats change and
+    // diffs incrementally; the snapshot is updated as soon as a rank is seen,
+    // which also means a celebration shows exactly once per climb.
+    useEffect(() => {
+        if (!authChecked || !isOwnProfile) return
+        const storageKey = `rc_last_ranks_${data.username}`
+        let stored = {}
+        try { stored = JSON.parse(localStorage.getItem(storageKey)) ?? {} } catch { /* corrupted snapshot — start fresh */ }
+
+        let storedChanged = false
+        const newlyUp = []
+        for (const [accountId, stats] of Object.entries(gameStats)) {
+            if (!stats?.tierLabel || stats.rankScore == null) continue
+            const prev = stored[accountId]
+            if (prev && stats.rankScore > prev.rankScore && stats.tierLabel !== prev.tierLabel) {
+                const account = accountList.find(a => String(a.id) === accountId)
+                if (account) newlyUp.push({ accountId, platform: account.platform, from: prev.tierLabel, to: stats.tierLabel })
+            }
+            if (!prev || prev.tierLabel !== stats.tierLabel || prev.rankScore !== stats.rankScore) {
+                stored[accountId] = { tierLabel: stats.tierLabel, rankScore: stats.rankScore }
+                storedChanged = true
+            }
+        }
+        if (storedChanged) localStorage.setItem(storageKey, JSON.stringify(stored))
+        if (newlyUp.length > 0) {
+            setRankUps(prev => {
+                const seen = new Set(prev.map(u => u.accountId))
+                return [...prev, ...newlyUp.filter(u => !seen.has(u.accountId))]
+            })
+        }
+    }, [gameStats, authChecked, isOwnProfile])
 
     const statsList = Object.values(gameStats)
     const avgWinRate = average(statsList.map(s => s?.winRate))
@@ -435,6 +471,40 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     </button>
                 </div>
             </div>
+
+            {/* Rank-up celebration — the profile owner's "share this moment" prompt */}
+            {rankUps.length > 0 && (
+                <div className="mt-3 bg-surface border border-accent/40 rounded-2xl p-4 flex items-start gap-3 shadow-[0_0_30px_rgba(177,108,255,0.15)]">
+                    <div className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-accent-tint border border-accent/40">
+                        <Trophy size={18} className="text-accent-soft" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-text-primary text-sm font-bold">You ranked up!</p>
+                        <div className="mt-0.5 flex flex-col gap-0.5">
+                            {rankUps.map(u => (
+                                <p key={u.accountId} className="text-text-secondary text-xs">
+                                    <span className="text-text-primary font-semibold">{platformConfig[u.platform]?.shortName ?? u.platform}</span>
+                                    {" · "}{u.from} <span className="text-accent-soft font-semibold">→ {u.to}</span>
+                                </p>
+                            ))}
+                        </div>
+                        <button
+                            onClick={handleShareProfile}
+                            className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-black transition-all hover:text-white active:scale-95"
+                        >
+                            {shareCopied ? <Check size={13} /> : <Share2 size={13} />}
+                            {shareCopied ? "Link copied" : "Share the climb"}
+                        </button>
+                    </div>
+                    <button
+                        onClick={() => setRankUps([])}
+                        className="text-text-secondary hover:text-text-primary active:scale-90 transition-transform"
+                        aria-label="Dismiss"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+            )}
 
             {/* Card-centric layout: the signature RankCard is a sticky sidebar,
                 but only alongside the Overall tab — per-game tabs (match
@@ -671,11 +741,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     )}
 
                     {authChecked && !viewerIsPro && (
-                        <AdBanner
-                            slot="7967554691"
-                            className="mt-5"
-                            onUpgrade={() => viewerUserId ? setShowUpgradeModal(true) : (window.location.href = "/auth")}
-                        />
+                        <AdBanner slot="7967554691" className="mt-5" houseAd={false} />
                     )}
 
                     {/* Rank History Chart */}

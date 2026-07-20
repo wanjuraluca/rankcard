@@ -10,7 +10,9 @@ import { Sparkles } from "lucide-react"
    data-ad-status ("filled" / "unfilled"); if that never appears the
    script itself was blocked. Collapsing unfilled units and showing own
    content in their place is explicitly allowed by AdSense policy. */
-export default function AdBanner({ slot, onUpgrade, className = "" }) {
+/* houseAd: only one slot per page should pitch Pro when ads don't fill —
+   the others collapse to nothing instead of repeating the same card. */
+export default function AdBanner({ slot, onUpgrade, houseAd = true, className = "" }) {
     const insRef = useRef(null)
     const pushed = useRef(false)
     // "pending" → keep the slot invisible (no gap), then either "filled" or "house"
@@ -46,6 +48,9 @@ export default function AdBanner({ slot, onUpgrade, className = "" }) {
         const timer = setTimeout(() => { if (!check()) setAdState("house") }, 5000)
         return () => { observer.disconnect(); clearTimeout(timer) }
     }, [])
+
+    // No fill and no house ad wanted → give the space back entirely
+    if (adState === "house" && !houseAd) return null
 
     return (
         <div className={className}>
