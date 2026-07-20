@@ -79,6 +79,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
     const [followerCount, setFollowerCount] = useState(initialFollowerCount)
     const [followLoading, setFollowLoading] = useState(false)
     const [viewerUserId, setViewerUserId] = useState(null)
+    const [viewerIsPro, setViewerIsPro] = useState(false)
     const [showFollowList, setShowFollowList] = useState(null) // "followers" | "following" | null
     const [friends, setFriends] = useState([])
     const [onlineFriends, setOnlineFriends] = useState({})
@@ -161,7 +162,15 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
             setViewerUsername(username)
             if (user && username) {
                 setViewerUserId(user.id)
-                if (user.id !== data.user_id) {
+                if (user.id === data.user_id) {
+                    setViewerIsPro(data.is_pro)
+                } else {
+                    const { data: viewerProfile } = await supabase
+                        .from("profiles")
+                        .select("is_pro")
+                        .eq("user_id", user.id)
+                        .maybeSingle()
+                    setViewerIsPro(!!viewerProfile?.is_pro)
                     const { data: followRow } = await supabase
                         .from("follows")
                         .select("id")
@@ -445,7 +454,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         onShare={handleShareProfile}
                         shareCopied={shareCopied}
                     />
-                    {!isPro && (
+                    {authChecked && !viewerIsPro && (
                         <div className="mt-3">
                             <AdBanner slot="2211565056" />
                         </div>
@@ -659,7 +668,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         </>
                     )}
 
-                    {!isPro && (
+                    {authChecked && !viewerIsPro && (
                         <div className="mt-5">
                             <AdBanner slot="7967554691" />
                         </div>
