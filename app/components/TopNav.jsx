@@ -49,7 +49,15 @@ export default function TopNav({ accountMenu }) {
                     supabase
                         .from("activity_days")
                         .upsert({ user_id: data.user.id, day: today }, { onConflict: "user_id,day", ignoreDuplicates: true })
-                        .then(() => localStorage.setItem("rc_last_activity_ping", today))
+                        .then(({ error }) => {
+                            // Only remember today as "pinged" on success — a
+                            // silent failure (e.g. missing table grant) used
+                            // to get masked forever because this ran
+                            // unconditionally, so activity_days stayed empty
+                            // with no way to notice short of querying it.
+                            if (error) { console.error("activity ping failed:", error.message); return }
+                            localStorage.setItem("rc_last_activity_ping", today)
+                        })
                 }
             }
         })
