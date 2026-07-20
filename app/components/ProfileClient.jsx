@@ -455,9 +455,11 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         shareCopied={shareCopied}
                     />
                     {authChecked && !viewerIsPro && (
-                        <div className="mt-3">
-                            <AdBanner slot="2211565056" />
-                        </div>
+                        <AdBanner
+                            slot="2211565056"
+                            className="mt-3"
+                            onUpgrade={() => viewerUserId ? setShowUpgradeModal(true) : (window.location.href = "/auth")}
+                        />
                     )}
                 </aside>
             )}
@@ -669,9 +671,11 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                     )}
 
                     {authChecked && !viewerIsPro && (
-                        <div className="mt-5">
-                            <AdBanner slot="7967554691" />
-                        </div>
+                        <AdBanner
+                            slot="7967554691"
+                            className="mt-5"
+                            onUpgrade={() => viewerUserId ? setShowUpgradeModal(true) : (window.location.href = "/auth")}
+                        />
                     )}
 
                     {/* Rank History Chart */}
