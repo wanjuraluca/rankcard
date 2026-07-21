@@ -3,14 +3,21 @@
 // (10x Riot calls per match is too expensive to fire for every card in the
 // list up front) — see MatchDetail.jsx, which POSTs here once on first
 // expand and caches the result for the component's lifetime.
+import { detectPlatform } from '@/lib/riotPlatform'
+
 export async function POST(request) {
   const body = await request.json().catch(() => null)
   const puuids = Array.isArray(body?.puuids) ? body.puuids : []
-  const platform = body?.platform || 'euw1'
 
   if (puuids.length === 0) {
     return Response.json({ ranks: {} })
   }
+
+  // league-v4 is platform-shard-routed. The client sent no platform (so this
+  // defaulted to euw1 and every non-EUW scoreboard came back rankless) — all
+  // players in a match share the searched player's shard, so derive it once
+  // from the first puuid. Same region-hardcode class as the other fixes.
+  const platform = await detectPlatform(puuids[0])
 
   const results = await Promise.allSettled(
     puuids.map(async (puuid) => {

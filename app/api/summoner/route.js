@@ -331,7 +331,9 @@ async function fetchSummonerData(name, tag, mode) {
     fetchDdragonVersion(),
     fetchValorantMatchHistory(valorantPuuid, valorantRegion, mode),
     fetchValorantMmrHistory(valorantPuuid, valorantRegion),
-    fetchTftMatchHistory(account.puuid),
+    // Pass the in-flight routing so TFT match history uses the player's real
+    // continent — hardcoding europe left non-EU players' TFT history empty.
+    fetchTftMatchHistory(account.puuid, routingPromise),
   ])
 
   const { continent, platform } = await routingPromise
@@ -1009,9 +1011,13 @@ function buildTftParticipantView(participant, iconMaps) {
   }
 }
 
-async function fetchTftMatchHistory(puuid) {
+async function fetchTftMatchHistory(puuid, routingPromise) {
+  // TFT match-v1 is continent-routed like LoL's — await the shared routing
+  // detection (already in flight) so non-EU players' TFT match history isn't
+  // silently empty from an europe-only query.
+  const continent = (await routingPromise)?.continent ?? 'europe'
   const idsResponse = await fetch(
-    `https://europe.api.riotgames.com/tft/match/v1/matches/by-puuid/${puuid}/ids?count=10`,
+    `https://${continent}.api.riotgames.com/tft/match/v1/matches/by-puuid/${puuid}/ids?count=10`,
     { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
   )
   const matchIds = await safeJson(idsResponse)
@@ -1023,7 +1029,7 @@ async function fetchTftMatchHistory(puuid) {
     matchIds.map(async (matchId) => {
       try {
         const res = await fetch(
-          `https://europe.api.riotgames.com/tft/match/v1/matches/${matchId}`,
+          `https://${continent}.api.riotgames.com/tft/match/v1/matches/${matchId}`,
           { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
         )
         const match = await res.json()

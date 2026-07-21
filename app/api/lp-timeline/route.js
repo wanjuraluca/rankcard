@@ -16,6 +16,8 @@
 // it's capped at MAX_COUNT games, not an unbounded "full history" fetch —
 // see the count clamp below.
 
+import { detectRouting } from '@/lib/riotPlatform'
+
 const RANKED_SOLO_QUEUE_ID = 420
 const DEFAULT_COUNT = 30
 const MAX_COUNT = 30
@@ -31,7 +33,6 @@ const requestCache = new Map()
 export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const puuid = searchParams.get('puuid')
-  const platform = searchParams.get('platform') || 'euw1'
   const requestedCount = parseInt(searchParams.get('count'), 10)
   // Never trust the client for how many Riot calls we're about to fan out —
   // clamp to MAX_COUNT no matter what's passed in the query string.
@@ -43,15 +44,20 @@ export async function GET(request) {
     return Response.json({ points: [], totalFetched: 0, error: 'Missing puuid' }, { status: 200 })
   }
 
-  const cacheKey = `${puuid}:${platform}:${count}`.toLowerCase()
+  const cacheKey = `${puuid}:${count}`.toLowerCase()
   const cached = requestCache.get(cacheKey)
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
     return Response.json(cached.data)
   }
 
+  // match-v5 is continent-routed. Hardcoding `europe` here returned an empty
+  // timeline for any non-EU player (same region-hardcode class as the summoner/
+  // live-game fixes) — derive the right continent from the puuid instead.
+  const { continent } = await detectRouting(puuid)
+
   try {
     const idsResponse = await fetch(
-      `https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=${count}&queue=${RANKED_SOLO_QUEUE_ID}`,
+      `https://${continent}.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids?start=0&count=${count}&queue=${RANKED_SOLO_QUEUE_ID}`,
       { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
     )
 
@@ -72,7 +78,7 @@ export async function GET(request) {
       matchIds.map(async (matchId) => {
         try {
           const matchResponse = await fetch(
-            `https://europe.api.riotgames.com/lol/match/v5/matches/${matchId}`,
+            `https://${continent}.api.riotgames.com/lol/match/v5/matches/${matchId}`,
             { headers: { 'X-Riot-Token': process.env.RIOT_API_KEY } }
           )
           if (!matchResponse.ok) return null
