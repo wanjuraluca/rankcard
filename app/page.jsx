@@ -9,6 +9,7 @@ import { Link2, Trophy, Share2, ShieldCheck, RefreshCw, Ban, Star } from "lucide
 import { platformConfig } from "@/lib/platforms";
 import { supabase } from "@/lib/supabase";
 import { extractGameStats, average } from "@/lib/gameStats";
+import { getRankTier } from "@/lib/rankScore";
 
 const SHOWCASE_USERNAME = "DinDjarin"
 
@@ -114,8 +115,29 @@ const HERO_EXAMPLE_CARDS = [
   { platform: "Overwatch", username: "ShadowVex", tag: "2178", tier: "Diamond", division: "2", winRate: 61, emblem: "https://static.playoverwatch.com/images/pages/career/icons/rank/Rank_DiamondTier.bc8c5d6005f916c62c51728087aeb26f4facaa9b.png" },
 ]
 
+// Compact top-5 for the landing page's social-proof section — same data the
+// full /leaderboard page ranks by (season_high, filled by real profile visits
+// plus the snapshot backfill).
+async function getTopPlayers() {
+  const { data } = await supabase
+    .from("profiles")
+    .select("username, avatar_url, is_pro, season_high")
+    .not("username", "is", null)
+    .neq("username", "")
+    .not("season_high", "is", null)
+    .order("season_high", { ascending: false })
+    .limit(5)
+  return data ?? []
+}
+
+const MEDAL_STYLES = [
+  "text-[#ffd166] bg-[#ffd166]/10 border-[#ffd166]/40",
+  "text-[#9ca3af] bg-[#9ca3af]/10 border-[#9ca3af]/40",
+  "text-[#a0683e] bg-[#a0683e]/10 border-[#a0683e]/40",
+]
+
 export default async function Home() {
-  const showcase = await getShowcaseProfile()
+  const [showcase, topPlayers] = await Promise.all([getShowcaseProfile(), getTopPlayers()])
 
   return <main className="bg-background min-h-screen relative">
     <ScrollProgress />
@@ -381,6 +403,69 @@ export default async function Home() {
         </a>
       </Reveal>
     </section>
+
+    {/* Leaderboard teaser — real users, real scores, live social proof */}
+    {topPlayers.length >= 3 && (
+      <section className="relative z-10 px-4 sm:px-8 py-16 sm:py-20 flex flex-col items-center">
+        <Reveal className="flex flex-col items-center">
+          <span className="text-text-muted text-xs sm:text-sm font-bold uppercase tracking-widest">The ladder is live</span>
+          <h2 className="text-2xl sm:text-4xl text-white font-bold mt-3 text-center max-w-2xl">
+            One ladder. Every game. Where do you land?
+          </h2>
+        </Reveal>
+        <div className="w-full max-w-xl mt-10 sm:mt-12 flex flex-col gap-1.5">
+          {topPlayers.map((player, i) => {
+            const rankInfo = getRankTier(player.season_high)
+            return (
+              <Reveal key={player.username} delay={i * 90}>
+                <a
+                  href={`/${player.username}`}
+                  className="flex items-center gap-3 bg-surface border border-hairline rounded-2xl px-4 py-3 hover:border-accent/40 hover:-translate-y-0.5 transition-all"
+                >
+                  <span
+                    className={`grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg border text-xs font-extrabold ${
+                      MEDAL_STYLES[i] ?? "text-text-secondary bg-background border-hairline"
+                    }`}
+                  >
+                    {i + 1}
+                  </span>
+                  <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-background border border-hairline">
+                    {player.avatar_url && (
+                      <img src={player.avatar_url} alt={player.username} className="h-full w-full object-cover" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-text-primary">
+                      <span className="truncate">{player.username}</span>
+                      {player.is_pro && (
+                        <span className="flex-shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-accent-tint text-accent-soft border border-accent/40">PRO</span>
+                      )}
+                    </p>
+                    {rankInfo && (
+                      <p className="text-[11px] font-semibold" style={{ color: rankInfo.tier.color }}>
+                        {rankInfo.tier.name} · Top {rankInfo.topPercent.toFixed(1)}%
+                      </p>
+                    )}
+                  </div>
+                  <p className="flex-shrink-0 text-accent text-lg font-extrabold">
+                    {player.season_high.toLocaleString("en-US")}
+                  </p>
+                </a>
+              </Reveal>
+            )
+          })}
+        </div>
+        <Reveal delay={topPlayers.length * 90}>
+          <a
+            href="/leaderboard"
+            className="mt-8 inline-flex items-center gap-2 border border-accent/50 rounded-lg px-5 py-2.5 text-sm font-semibold text-text-primary hover:bg-accent-tint hover:border-accent active:scale-95 transition-all"
+          >
+            <Trophy size={15} className="text-accent-soft" />
+            See the full leaderboard
+          </a>
+        </Reveal>
+      </section>
+    )}
 
     {/* FAQ */}
     <section id="faq" className="relative z-10 px-4 sm:px-8 py-16 sm:py-20 flex flex-col items-center scroll-mt-20">
