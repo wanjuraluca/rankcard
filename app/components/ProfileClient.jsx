@@ -428,7 +428,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
             )}
 
             {/* Banner */}
-            <BannerUpload username={data.username} bannerUrl={data.banner_url} editable={isOwnProfile && isPro} />
+            <BannerUpload username={data.username} bannerUrl={data.banner_url} editable={isOwnProfile && isPro} isPro={isPro} />
 
             {/* Profile Strip */}
             <div className="bg-surface border border-hairline rounded-b-2xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center">

@@ -4,10 +4,12 @@ import { Camera } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import ImageCropModal from "./ImageCropModal"
 
-// Banner is already Pro-only (see ProfileClient's editable={isOwnProfile &&
-// isPro}), so unlike AvatarUpload there's no separate GIF gate needed here —
-// anyone who can open this editor at all is already Pro.
-export default function BannerUpload({ username, bannerUrl, editable }) {
+// Banner is a Pro feature. `editable` gates uploading (owner + Pro); `isPro`
+// gates DISPLAY (the profile owner's Pro status) — a downgraded user keeps
+// their banner_url in the DB but it stops showing until they resubscribe,
+// same "cosmetic reverts, data kept" behaviour as Discord Nitro. Without this
+// the custom banner stayed visible forever after Pro lapsed.
+export default function BannerUpload({ username, bannerUrl, editable, isPro = false }) {
     const [banner, setBanner] = useState(bannerUrl)
     const [error, setError] = useState("")
     const [pendingFile, setPendingFile] = useState(null)
@@ -62,16 +64,20 @@ export default function BannerUpload({ username, bannerUrl, editable }) {
         uploadFile(blob, "jpg")
     }
 
+    // Only the owner's Pro status unlocks showing the custom image; otherwise
+    // fall back to the default gradient strip every profile has.
+    const showBanner = isPro && banner
+
     return (
         <div
             onClick={handleClickInput}
-            className={`relative h-[140px] rounded-t-2xl border border-hairline border-b-0 overflow-hidden group ${editable ? "cursor-pointer" : ""}`}
-            style={!banner ? { background: "radial-gradient(ellipse 55% 130% at 20% 60%, rgba(177,108,255,0.45), transparent 60%)" } : undefined}
+            className={`relative aspect-[4/1] rounded-t-2xl border border-hairline border-b-0 overflow-hidden group ${editable ? "cursor-pointer" : ""}`}
+            style={!showBanner ? { background: "radial-gradient(ellipse 55% 130% at 20% 60%, rgba(177,108,255,0.45), transparent 60%)" } : undefined}
         >
             {editable && (
                 <input ref={fileInput} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
             )}
-            {banner && (
+            {showBanner && (
                 <img src={banner} className="absolute inset-0 w-full h-full object-cover" />
             )}
             {editable && (
@@ -89,7 +95,7 @@ export default function BannerUpload({ username, bannerUrl, editable }) {
                 <ImageCropModal
                     file={pendingFile}
                     shape="rect"
-                    aspect={1200 / 140}
+                    aspect={4}
                     onCancel={() => setPendingFile(null)}
                     onCropped={handleCropped}
                 />
