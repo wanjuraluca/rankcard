@@ -25,6 +25,11 @@ export async function POST(request) {
         return NextResponse.json({ received: true, duplicate: true })
     }
 
+    // If processing throws after the claim above, the event is already marked
+    // done — Stripe's retry would hit the dedupe guard and be dropped, leaving
+    // e.g. is_pro unset despite a real payment. Release the claim on failure so
+    // the retry can re-process it.
+    try {
     const session = event.data.object
 
     if (event.type === "checkout.session.completed") {
@@ -74,4 +79,8 @@ export async function POST(request) {
     }
 
     return NextResponse.json({ received: true })
+    } catch {
+        await supabaseAdmin.from("processed_webhook_events").delete().eq("event_id", event.id)
+        return NextResponse.json({ error: "Processing failed" }, { status: 500 })
+    }
 }

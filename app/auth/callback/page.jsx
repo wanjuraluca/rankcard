@@ -16,6 +16,15 @@ export default function AuthCallback() {
         return
       }
 
+      // Logging back in cancels a pending account deletion. OAuth users came
+      // through here and never had it reset, so a Discord/Google user who
+      // changed their mind still got deleted by the 14-day cron. Goes through
+      // the server route (admin client), same as the password login path.
+      await fetch("/api/account/cancel-deletion", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
+      })
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("username, referred_by")

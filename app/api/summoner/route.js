@@ -1226,9 +1226,13 @@ function extractScore(data, platform) {
       return solo ? getLeagueScore(solo.tier, solo.rank) : null
     }
     if (platform === 'Valorant') {
-      return data.valorantData?.currenttierpatched
-        ? getValorantScore(data.valorantData.currenttierpatched)
-        : null
+      // valorantData is Henrik's v3 by-puuid/mmr response — the current tier
+      // is nested at data.current.tier.name (same path gameStats.js reads for
+      // the live profile score). The old `currenttierpatched` field only
+      // exists on the *mmr-history* v1 shape, so it was always undefined here
+      // and Valorant accounts never got a rank_history row (empty rating chart).
+      const valTier = data.valorantData?.data?.current?.tier?.name
+      return valTier ? getValorantScore(valTier) : null
     }
     if (platform === 'CSGO') {
       return data.cs2Profile?.ranks?.premier != null

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { detectPlatform } from "@/lib/riotPlatform"
 
 const QUEUE_LABELS = {
     420: "Ranked Solo/Duo",
@@ -6,14 +7,6 @@ const QUEUE_LABELS = {
     450: "ARAM",
     400: "Normal",
     700: "Clash",
-}
-
-const PLATFORM_HOSTS = {
-    euw1: "euw1",
-    eun1: "eun1",
-    na1: "na1",
-    kr: "kr",
-    br1: "br1",
 }
 
 // Valorant and CS2 have no public live-match-status API — Riot doesn't expose
@@ -28,7 +21,6 @@ const SPECTATOR_PATH = {
 export async function GET(request) {
     const { searchParams } = new URL(request.url)
     const puuid = searchParams.get("puuid")
-    const platform = searchParams.get("platform") ?? "euw1"
     const game = searchParams.get("game") ?? "lol"
 
     if (!puuid) return NextResponse.json({ inGame: false })
@@ -36,7 +28,11 @@ export async function GET(request) {
     const path = SPECTATOR_PATH[game]
     if (!path) return NextResponse.json({ inGame: false })
 
-    const host = PLATFORM_HOSTS[platform] ?? "euw1"
+    // Spectator-v5 is platform-shard-routed. The caller can't reliably know the
+    // shard (ProfileClient hardcoded euw1, so non-EUW players never showed as
+    // in-game — the same region-hardcode class as the summoner/snapshot/discord
+    // fixes), so derive it from the puuid itself, like every other Riot call.
+    const host = await detectPlatform(puuid)
 
     try {
         const res = await fetch(

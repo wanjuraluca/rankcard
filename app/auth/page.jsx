@@ -153,18 +153,19 @@ async function handleSubmit(e) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) setError(friendlyError(error.message))
     else {
+      // Logging back in cancels a pending deletion — via the server route
+      // (admin client), so it can't silently fail against a column GRANT the
+      // way a client-side profiles update can.
+      await fetch("/api/account/cancel-deletion", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
+      })
+
       const { data: profile } = await supabase
         .from("profiles")
-        .select("username, deletion_requested_at")
+        .select("username")
         .eq("user_id", data.user.id)
         .single()
-
-      if (profile.deletion_requested_at) {
-        await supabase
-          .from("profiles")
-          .update({ deletion_requested_at: null })
-          .eq("user_id", data.user.id)
-      }
 
       router.push("/" + profile.username)
     }
