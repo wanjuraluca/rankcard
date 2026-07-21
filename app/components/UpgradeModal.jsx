@@ -1,9 +1,14 @@
 "use client"
 import { useState } from "react"
-import { Palette, ImageIcon, LayoutGrid, Swords, Zap, Users, Infinity, TrendingUp, Radio, X } from "lucide-react"
+import { Palette, ImageIcon, LayoutGrid, Swords, Zap, Users, Infinity, TrendingUp, Radio, X, ShieldOff } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
 const features = [
+    {
+        icon: ShieldOff,
+        title: "Ad-free everywhere",
+        description: "Browse every profile on RankCard without any ads, on any device you're signed in on.",
+    },
     {
         icon: Infinity,
         title: "Unlimited duo requests",
