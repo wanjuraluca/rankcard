@@ -84,6 +84,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
     const [friends, setFriends] = useState([])
     const [onlineFriends, setOnlineFriends] = useState({})
     const [rankUps, setRankUps] = useState([])
+    const [ladder, setLadder] = useState(null)
 
     useEffect(() => {
         const ref = new URLSearchParams(window.location.search).get("r")
@@ -277,6 +278,23 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
         }
     }, [gameStats, authChecked, isOwnProfile])
 
+    // Ladder position: how many players sit above this profile's season_high
+    // (competition ranking — ties share a position), plus the next player up
+    // for the owner's "points behind" nudge. Read-only anon queries, so this
+    // runs for visitors too — the placement is public status, like the score.
+    useEffect(() => {
+        if (seasonHigh == null) return
+        let cancelled = false
+        ;(async () => {
+            const [{ count }, { data: nextUp }] = await Promise.all([
+                supabase.from("profiles").select("*", { count: "exact", head: true }).gt("season_high", seasonHigh),
+                supabase.from("profiles").select("username, season_high").gt("season_high", seasonHigh).order("season_high", { ascending: true }).limit(1),
+            ])
+            if (!cancelled) setLadder({ position: (count ?? 0) + 1, nextUp: nextUp?.[0] ?? null })
+        })()
+        return () => { cancelled = true }
+    }, [seasonHigh])
+
     const statsList = Object.values(gameStats)
     const avgWinRate = average(statsList.map(s => s?.winRate))
     const avgRankScore = average(statsList.map(s => s?.rankScore))
@@ -287,7 +305,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
         const lolAccount = accountList.find(a => a.platform === "League of Legends")
         if (!lolAccount?.puuid) return
 
-        fetch(`/api/live-game?puuid=${lolAccount.puuid}&platform=euw1`)
+        fetch(`/api/live-game?puuid=${lolAccount.puuid}`)
             .then(r => r.json())
             .then(d => setLiveGame(d.inGame ? d : null))
     }, [accountList, isPro])
@@ -534,6 +552,26 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                         onShare={handleShareProfile}
                         shareCopied={shareCopied}
                     />
+                    {ladder && (
+                        <a
+                            href="/leaderboard"
+                            className="mt-3 flex items-center gap-3 bg-surface border border-hairline rounded-2xl px-4 py-3 hover:border-accent/40 hover:-translate-y-0.5 transition-all"
+                        >
+                            <div className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg bg-accent-tint border border-accent/40">
+                                <Trophy size={16} className="text-accent-soft" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-text-primary text-sm font-bold">#{ladder.position} on the RankCard ladder</p>
+                                <p className="text-text-secondary text-[11px]">
+                                    {isOwnProfile && ladder.nextUp
+                                        ? `${(ladder.nextUp.season_high - seasonHigh).toLocaleString("en-US")} points behind ${ladder.nextUp.username}`
+                                        : isOwnProfile
+                                            ? "Top of the ladder — defend it"
+                                            : "See the full leaderboard →"}
+                                </p>
+                            </div>
+                        </a>
+                    )}
                     {authChecked && !viewerIsPro && (
                         <AdBanner
                             slot="2211565056"
