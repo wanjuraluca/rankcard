@@ -19,6 +19,7 @@ export default async function sitemap() {
   const staticEntries = [
     { url: SITE_URL, changeFrequency: "weekly", priority: 1 },
     { url: `${SITE_URL}/find`, changeFrequency: "hourly", priority: 0.8 },
+    { url: `${SITE_URL}/leaderboard`, changeFrequency: "hourly", priority: 0.8 },
     { url: `${SITE_URL}/impressum`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${SITE_URL}/datenschutz`, changeFrequency: "yearly", priority: 0.2 },
   ]

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Search, Users, ArrowLeftRight, Bell, Contact, X } from "lucide-react"
+import { Search, Users, ArrowLeftRight, Bell, Contact, X, Trophy } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import AccountMenu from "./AccountMenu"
 
@@ -169,7 +169,19 @@ export default function TopNav({ accountMenu }) {
                 <p className="text-text-secondary text-xs px-2 py-2">Searching...</p>
             )}
             {!searching && results.length === 0 && (
-                <p className="text-text-secondary text-xs px-2 py-2">No profiles found.</p>
+                <div className="px-2 py-2">
+                    <p className="text-text-secondary text-xs">No profiles found.</p>
+                    {/* Same rule as signup — only offer names that could actually be registered */}
+                    {/^[a-zA-Z0-9_]{3,20}$/.test(query.trim()) && (
+                        <a
+                            href={`/${query.trim()}`}
+                            onClick={() => { setSuggestionsOpen(false); setMobileSearchOpen(false) }}
+                            className="mt-1 block text-xs text-accent-soft font-semibold hover:text-accent transition-colors"
+                        >
+                            {query.trim()} is still free — claim it →
+                        </a>
+                    )}
+                </div>
             )}
             {results.map(r => (
                 <a
@@ -269,6 +281,13 @@ export default function TopNav({ accountMenu }) {
                     className="flex items-center gap-1.5 text-text-secondary bg-surface border border-hairline text-xs font-semibold w-8 h-8 sm:w-auto sm:px-3 sm:py-2 rounded-lg hover:text-text-primary transition-colors justify-center"
                 >
                     <ArrowLeftRight size={14} /> <span className="hidden sm:inline">Compare</span>
+                </a>
+                <a
+                    href="/leaderboard"
+                    title="Leaderboard"
+                    className="flex items-center gap-1.5 text-text-secondary bg-surface border border-hairline text-xs font-semibold w-8 h-8 sm:w-auto sm:px-3 sm:py-2 rounded-lg hover:text-text-primary transition-colors justify-center"
+                >
+                    <Trophy size={14} /> <span className="hidden sm:inline">Leaderboard</span>
                 </a>
                 {authChecked && viewerUsername && (
                     <div className="relative" ref={friendsRef}>

@@ -297,7 +297,17 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
         const rounded = Math.round(avgRankScore)
         if (seasonHigh != null && rounded <= seasonHigh) return
         setSeasonHigh(rounded)
-        supabase.from("profiles").update({ season_high: rounded }).eq("username", data.username)
+        // Via API route, not a direct table update — RLS has no UPDATE policy
+        // on profiles, so the old client-side write silently never persisted.
+        supabase.auth.getSession().then(({ data: sessionData }) => {
+            const token = sessionData?.session?.access_token
+            if (!token) return
+            fetch("/api/profile/season-high", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ score: rounded }),
+            })
+        })
     }, [avgRankScore, isOwnProfile])
 
     useEffect(() => {
