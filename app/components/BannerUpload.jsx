@@ -52,6 +52,12 @@ export default function BannerUpload({ username, bannerUrl, editable, isPro = fa
         // Animated GIF banners bypass cropping entirely (Pro-only editor,
         // no non-Pro gate needed here) — same reasoning as AvatarUpload.
         if (file.type === "image/gif") {
+            // GIFs skip the crop/re-encode step, so cap the raw size here —
+            // the storage bucket itself has no limit configured.
+            if (file.size > 10 * 1024 * 1024) {
+                setError("GIF is too large. Max 10 MB.")
+                return
+            }
             uploadFile(file, "gif")
             return
         }

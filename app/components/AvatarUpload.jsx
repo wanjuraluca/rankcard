@@ -49,6 +49,12 @@ export default function AvatarUpload( {username, avatarUrl, editable, isPro} ) {
         // other image rather than blocked outright, so this never bricks the
         // upload flow, it just quietly drops the animation for free accounts.
         if (file.type === "image/gif" && isPro) {
+            // GIFs skip the crop/re-encode step, so cap the raw size here —
+            // the storage bucket itself has no limit configured.
+            if (file.size > 10 * 1024 * 1024) {
+                setError("GIF is too large. Max 10 MB.")
+                return
+            }
             uploadFile(file, "gif")
             return
         }

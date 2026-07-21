@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { Palette, ImageIcon, LayoutGrid, Swords, Zap, Users, Infinity, TrendingUp, Radio, X, ShieldOff } from "lucide-react"
+import { Palette, ImageIcon, LayoutGrid, Swords, Zap, Users, Infinity, TrendingUp, Radio, X, ShieldOff, Film } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
 const features = [
@@ -42,7 +42,12 @@ const features = [
     {
         icon: ImageIcon,
         title: "Custom profile banner",
-        description: "Upload your own banner image instead of the default gradient.",
+        description: "Upload your own banner instead of the default gradient. Animated GIFs supported.",
+    },
+    {
+        icon: Film,
+        title: "Animated GIF avatar",
+        description: "Set a GIF as your profile picture and it plays everywhere your avatar shows up.",
     },
     {
         icon: LayoutGrid,
