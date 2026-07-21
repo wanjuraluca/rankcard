@@ -2,6 +2,11 @@ import { notFound } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { platformConfig } from "@/lib/platforms"
 import ProfileClient from "../components/ProfileClient"
+import ClaimUsername from "../components/ClaimUsername"
+
+// Same rule as signup (complete-profile) — anything else can never be a
+// real profile, so it gets a plain 404 instead of the claim pitch.
+const USERNAME_PATTERN = /^[a-zA-Z0-9_]{3,20}$/
 
 export async function generateMetadata({ params }) {
   const { username } = await params
@@ -12,6 +17,15 @@ export async function generateMetadata({ params }) {
     .maybeSingle()
 
   if (!profile) {
+    if (USERNAME_PATTERN.test(username)) {
+      // Claim pitch page — useful for the visitor, but a soft 404 for
+      // crawlers, so keep it out of the index.
+      return {
+        title: `${username} is still available`,
+        description: `rankcard.app/${username} hasn't been claimed yet. Connect your games and make it yours.`,
+        robots: { index: false, follow: false },
+      }
+    }
     return { title: "Profile not found" }
   }
 
@@ -52,9 +66,14 @@ export default async function Profile({ params }) {
     .eq("username", username)
     .maybeSingle()
 
-  // Unknown username → clean 404 instead of a 500 crash on profile.user_id
-  // (also what search engines should see for a dead link, not a server error).
-  if (!profile) notFound()
+  // Unknown but valid username → "claim this name" pitch instead of a dead
+  // 404 (noindex via generateMetadata, so crawlers don't index the soft 404).
+  // Invalid names can never become profiles → clean 404, not a 500 crash
+  // on profile.user_id.
+  if (!profile) {
+    if (USERNAME_PATTERN.test(username)) return <ClaimUsername username={username} />
+    notFound()
+  }
 
   const { data: accounts } = await supabase
     .from("connected_accounts")
