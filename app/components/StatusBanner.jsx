@@ -9,7 +9,7 @@ const SERVICE_LABELS = {
 // Only worth surfacing on profile pages (the dynamic `/[username]` route) —
 // showing it on the landing page scares off first-time visitors before
 // they've even seen what the product does.
-const NON_PROFILE_ROUTES = new Set(["", "auth", "admin", "agb", "compare", "datenschutz", "find", "impressum", "reset-password"])
+const NON_PROFILE_ROUTES = new Set(["", "auth", "admin", "agb", "compare", "datenschutz", "find", "impressum", "leaderboard", "reset-password"])
 
 export default function StatusBanner() {
   const [down, setDown] = useState([])
