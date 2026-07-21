@@ -1,7 +1,9 @@
 import TopNav from "../components/TopNav"
 import Footer from "../components/Footer"
+import LeaderboardYou from "../components/LeaderboardYou"
 import { supabase } from "@/lib/supabase"
 import { getRankTier } from "@/lib/rankScore"
+import { platformConfig } from "@/lib/platforms"
 import { Trophy } from "lucide-react"
 
 export const metadata = {
@@ -22,7 +24,7 @@ const MEDAL_STYLES = [
 export default async function Leaderboard() {
     const { data: profiles } = await supabase
         .from("profiles")
-        .select("username, avatar_url, is_pro, season_high")
+        .select("user_id, username, avatar_url, is_pro, season_high")
         .not("username", "is", null)
         .neq("username", "")
         .not("season_high", "is", null)
@@ -30,6 +32,19 @@ export default async function Leaderboard() {
         .limit(100)
 
     const entries = profiles ?? []
+
+    const { data: accounts } = entries.length
+        ? await supabase
+              .from("connected_accounts")
+              .select("user_id, platform")
+              .in("user_id", entries.map(p => p.user_id))
+        : { data: [] }
+
+    const gamesByUser = {}
+    for (const account of accounts ?? []) {
+        ;(gamesByUser[account.user_id] ??= new Set()).add(account.platform)
+    }
+    const platformOrder = Object.keys(platformConfig)
 
     return (
         <>
@@ -47,17 +62,21 @@ export default async function Leaderboard() {
                     </div>
                 </div>
 
+                <LeaderboardYou />
+
                 <div className="mt-5 flex flex-col gap-1.5">
                     {entries.length === 0 && (
                         <p className="text-text-secondary text-sm">No ranked players yet. Connect a game to be the first.</p>
                     )}
                     {entries.map((profile, i) => {
                         const rankInfo = getRankTier(profile.season_high)
+                        const games = platformOrder.filter(p => gamesByUser[profile.user_id]?.has(p))
                         return (
                             <a
                                 key={profile.username}
                                 href={`/${profile.username}`}
-                                className="flex items-center gap-3 bg-surface border border-hairline rounded-2xl px-4 py-3 hover:border-accent/40 hover:-translate-y-0.5 transition-all"
+                                data-lb-username={profile.username.toLowerCase()}
+                                className="group flex items-center gap-3 bg-surface border border-hairline rounded-2xl px-4 py-3 hover:border-accent/40 hover:-translate-y-0.5 transition-all"
                             >
                                 <span
                                     className={`grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg border text-xs font-extrabold ${
@@ -84,6 +103,33 @@ export default async function Leaderboard() {
                                         </p>
                                     )}
                                 </div>
+                                {games.length > 0 && (
+                                    <div className="hidden sm:flex flex-shrink-0 items-center gap-2">
+                                        {games.map(platform => {
+                                            const config = platformConfig[platform]
+                                            return config.imageUrl ? (
+                                                <img
+                                                    key={platform}
+                                                    src={config.imageUrl}
+                                                    alt={config.shortName}
+                                                    title={config.name}
+                                                    className="h-3.5 w-3.5 opacity-50 group-hover:opacity-100 transition-opacity"
+                                                    style={{ transform: `scale(${config.logoScale ?? 1})` }}
+                                                />
+                                            ) : (
+                                                <svg
+                                                    key={platform}
+                                                    role="img"
+                                                    viewBox="0 0 24 24"
+                                                    className="h-3.5 w-3.5 fill-current text-text-secondary opacity-60 group-hover:opacity-100 transition-opacity"
+                                                >
+                                                    <title>{config.name}</title>
+                                                    <path d={config.icon.path} fillRule={config.icon.fillRule ?? "nonzero"} />
+                                                </svg>
+                                            )
+                                        })}
+                                    </div>
+                                )}
                                 <p className="flex-shrink-0 text-accent text-lg font-extrabold">
                                     {profile.season_high.toLocaleString("en-US")}
                                 </p>
