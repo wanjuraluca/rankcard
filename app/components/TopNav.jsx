@@ -178,7 +178,7 @@ export default function TopNav({ accountMenu }) {
                             onClick={() => { setSuggestionsOpen(false); setMobileSearchOpen(false) }}
                             className="mt-1 block text-xs text-accent-soft font-semibold hover:text-accent transition-colors"
                         >
-                            {query.trim()} is still free — claim it →
+                            {query.trim()} is still free. Claim it →
                         </a>
                     )}
                 </div>

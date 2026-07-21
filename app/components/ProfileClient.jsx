@@ -566,7 +566,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                                     {isOwnProfile && ladder.nextUp
                                         ? `${(ladder.nextUp.season_high - seasonHigh).toLocaleString("en-US")} points behind ${ladder.nextUp.username}`
                                         : isOwnProfile
-                                            ? "Top of the ladder — defend it"
+                                            ? "Top of the ladder. Defend it."
                                             : "See the full leaderboard →"}
                                 </p>
                             </div>

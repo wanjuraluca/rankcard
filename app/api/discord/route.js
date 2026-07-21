@@ -87,7 +87,7 @@ async function handleSetup(interaction) {
             { guild_id: guildId, game: "League of Legends", tier, role_id: roleId },
             { onConflict: "guild_id,game,tier" }
         )
-    if (error) return ephemeral("Couldn't save that mapping — please try again.")
+    if (error) return ephemeral("Couldn't save that mapping. Please try again.")
 
     return ephemeral(`✅ League of Legends **${tier}** → <@&${roleId}>\nMembers who linked RankCard and are at this rank get the role on the next sync.`)
 }

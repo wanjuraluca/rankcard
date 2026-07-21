@@ -6,7 +6,7 @@ import { Trophy } from "lucide-react"
 
 export const metadata = {
     title: "Leaderboard",
-    description: "The highest cross-game Rank Scores on RankCard — one ladder across League, TFT, Valorant, CS2, Overwatch and Marvel Rivals.",
+    description: "The highest cross-game Rank Scores on RankCard. One ladder across League, TFT, Valorant, CS2, Overwatch and Marvel Rivals.",
 }
 
 // Season-high scores only move when a player visits their own profile, so
@@ -49,7 +49,7 @@ export default async function Leaderboard() {
 
                 <div className="mt-5 flex flex-col gap-1.5">
                     {entries.length === 0 && (
-                        <p className="text-text-secondary text-sm">No ranked players yet — connect a game to be the first.</p>
+                        <p className="text-text-secondary text-sm">No ranked players yet. Connect a game to be the first.</p>
                     )}
                     {entries.map((profile, i) => {
                         const rankInfo = getRankTier(profile.season_high)

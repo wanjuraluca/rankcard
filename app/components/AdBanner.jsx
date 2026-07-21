@@ -74,7 +74,7 @@ export default function AdBanner({ slot, onUpgrade, houseAd = true, className = 
                     </div>
                     <p className="text-text-primary text-sm font-semibold mt-2">Browse RankCard ad-free</p>
                     <p className="text-text-secondary text-xs mt-1">
-                        No ads anywhere, custom themes, live in-game status and more — 2,99 €/month.
+                        No ads anywhere, custom themes, live in-game status and more. Just 2,99 €/month.
                     </p>
                     <p className="text-accent-soft text-xs font-semibold mt-2 group-hover:translate-x-0.5 transition-transform">
                         Upgrade to Pro →

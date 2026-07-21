@@ -24,7 +24,7 @@ export default function SeasonBadges({ username }) {
         return (
             <div className="bg-surface border border-hairline rounded-2xl p-4">
                 <p className="text-text-secondary text-sm text-center py-4">
-                    Not enough data yet. Season badges fill in automatically as each split completes — check back in a few months.
+                    Not enough data yet. Season badges fill in automatically as each split completes. Check back in a few months.
                 </p>
             </div>
         )
