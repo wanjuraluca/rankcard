@@ -608,9 +608,9 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                                         {match.lpDelta != null && (
                                             <p
                                                 className={`text-[10px] sm:text-xs font-bold flex-shrink-0 ${match.lpDelta > 0 ? "text-positive" : "text-negative"}`}
-                                                title={match.lpDeltaIsEstimate ? "Estimated LP change (Riot doesn't expose the real per-match value)" : undefined}
+                                                title={match.lpDeltaIsEstimate ? "Approximate LP change. Riot doesn't expose the real per-match value, and rank is only snapshotted once a day, so per-game LP is a typical-gain estimate, not exact." : undefined}
                                             >
-                                                {match.lpDelta > 0 ? "▲" : "▼"} {match.lpDelta > 0 ? "+" : ""}{match.lpDelta} LP
+                                                {match.lpDelta > 0 ? "▲" : "▼"} {match.lpDeltaIsEstimate ? "~" : (match.lpDelta > 0 ? "+" : "")}{Math.abs(match.lpDelta)} LP
                                             </p>
                                         )}
                                         <p className={`text-xs sm:text-sm font-bold flex-shrink-0 ${isArena ? (match.placement === 1 ? "text-positive" : "text-text-secondary") : (match.win ? "text-positive" : "text-negative")}`}>
