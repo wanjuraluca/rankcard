@@ -49,7 +49,7 @@ export async function GET(request) {
         { data: guildConfigs },
         { data: activityRows },
     ] = await Promise.all([
-        supabaseAdmin.from("profiles").select("username, avatar_url, is_pro, created_at, stripe_customer_id, discord_user_id, view_count, user_id").not("username", "is", null).order("created_at", { ascending: false }),
+        supabaseAdmin.from("profiles").select("username, avatar_url, is_pro, created_at, stripe_customer_id, discord_user_id, discord_tag, view_count, season_high, bio, theme, user_id").not("username", "is", null).order("created_at", { ascending: false }),
         supabaseAdmin.from("connected_accounts").select("user_id, platform"),
         supabaseAdmin.from("lfg_posts").select("*", { count: "exact", head: true }).gt("expires_at", new Date().toISOString()),
         supabaseAdmin.from("lfg_posts").select("*", { count: "exact", head: true }),

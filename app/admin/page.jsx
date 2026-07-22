@@ -5,7 +5,8 @@ import { supabase } from "@/lib/supabase"
 import { platformConfig } from "@/lib/platforms"
 import TopNav from "@/app/components/TopNav"
 import AdminBarChart from "@/app/components/AdminBarChart"
-import { Search } from "lucide-react"
+import AdminUserEditor from "@/app/components/AdminUserEditor"
+import { Search, ExternalLink, Pencil } from "lucide-react"
 
 function formatDate(iso) {
     if (!iso) return "—"
@@ -45,6 +46,31 @@ export default function AdminPage() {
     const [search, setSearch] = useState("")
     const [proFilter, setProFilter] = useState("all")
     const [timeRange, setTimeRange] = useState("all")
+    const [editing, setEditing] = useState(null) // the signup row being edited
+
+    // Merge an editor save back into the in-memory stats so the row (and the
+    // Pro/view totals it feeds) reflect the change without a full reload.
+    function applyUserUpdate(username, updated) {
+        setStats(prev => {
+            if (!prev) return prev
+            const before = prev.recentSignups.find(p => p.username === username)
+            const recentSignups = prev.recentSignups.map(p =>
+                p.username === username ? { ...p, ...updated } : p
+            )
+            // Adjust the Pro total by the delta (recentSignups may be a subset
+            // of all profiles, so don't recompute it from that list).
+            let totalPro = prev.totalPro
+            if (before && before.is_pro !== updated.is_pro) {
+                totalPro += updated.is_pro ? 1 : -1
+            }
+            return {
+                ...prev,
+                recentSignups,
+                totalPro,
+                conversionRate: prev.totalUsers ? totalPro / prev.totalUsers : 0,
+            }
+        })
+    }
 
     useEffect(() => {
         (async () => {
@@ -252,11 +278,10 @@ export default function AdminPage() {
                         <p className="text-text-secondary text-sm p-4">No signups match these filters.</p>
                     )}
                     {filteredSignups.map((p, i) => (
-                        <a
+                        <div
                             key={p.username}
-                            href={`/${p.username}`}
                             title={formatDate(p.created_at)}
-                            className={`flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors ${i !== 0 ? "border-t border-hairline" : ""}`}
+                            className={`group flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors ${i !== 0 ? "border-t border-hairline" : ""}`}
                         >
                             <div className="w-7 h-7 rounded-full bg-background border border-hairline flex-shrink-0 overflow-hidden">
                                 {p.avatar_url && <img src={p.avatar_url} alt={p.username} className="w-full h-full object-cover" />}
@@ -265,11 +290,37 @@ export default function AdminPage() {
                             {p.is_pro && (
                                 <span className="text-[10px] font-bold text-accent-soft flex-shrink-0">PRO</span>
                             )}
-                            <span className="text-text-secondary text-xs flex-shrink-0">{timeAgo(p.created_at)}</span>
-                        </a>
+                            <span className="text-text-secondary text-xs flex-shrink-0 tabular-nums">{p.view_count?.toLocaleString("en-US") ?? 0} views</span>
+                            <span className="text-text-secondary text-xs flex-shrink-0 w-16 text-right">{timeAgo(p.created_at)}</span>
+                            <button
+                                onClick={() => setEditing(p)}
+                                title="Edit user"
+                                className="flex-shrink-0 grid place-items-center h-7 w-7 rounded-lg border border-hairline text-text-secondary hover:border-accent hover:text-accent transition-colors"
+                            >
+                                <Pencil size={13} />
+                            </button>
+                            <a
+                                href={`/${p.username}`}
+                                title="View profile"
+                                className="flex-shrink-0 grid place-items-center h-7 w-7 rounded-lg border border-hairline text-text-secondary hover:border-accent hover:text-accent transition-colors"
+                            >
+                                <ExternalLink size={13} />
+                            </a>
+                        </div>
                     ))}
                 </div>
             </div>
+
+            {editing && (
+                <AdminUserEditor
+                    user={editing}
+                    onClose={() => setEditing(null)}
+                    onSaved={(updated) => {
+                        applyUserUpdate(editing.username, updated)
+                        setEditing(null)
+                    }}
+                />
+            )}
         </div>
     )
 }
