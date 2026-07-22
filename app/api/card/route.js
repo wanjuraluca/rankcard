@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase"
 import { platformConfig } from "@/lib/platforms"
 import { extractGameStats, average } from "@/lib/gameStats"
 import { getGameEmblem } from "@/lib/rankEmblem"
+import { resolveStaticAvatar } from "@/lib/avatarPoster"
 
 const SIZE = { width: 1200, height: 630 }
 
@@ -42,9 +43,13 @@ export async function GET(request) {
 
     const accountList = accounts ?? []
 
+    // GIF avatars can't be decoded by Satori — swap to the static poster (or
+    // null → placeholder ring). PNGs/JPEGs pass through unchanged.
+    const avatarSrc = await resolveStaticAvatar(profile.avatar_url)
+
     const image = platform
-        ? await renderGameCard(profile, accountList, platform)
-        : await renderOverallCard(profile, accountList)
+        ? await renderGameCard(profile, accountList, platform, avatarSrc)
+        : await renderOverallCard(profile, accountList, avatarSrc)
 
     if (!image) {
         return Response.json({ error: "No data found for this card." }, { status: 404 })
@@ -57,7 +62,7 @@ export async function GET(request) {
     })
 }
 
-async function renderOverallCard(profile, accountList) {
+async function renderOverallCard(profile, accountList, avatarSrc) {
     const statsList = await Promise.all(
         accountList.map(async (account) => {
             const apiData = await getCachedData(account.id)
@@ -83,8 +88,8 @@ async function renderOverallCard(profile, accountList) {
             }}
         >
             <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-                {profile.avatar_url ? (
-                    <img src={profile.avatar_url} width={100} height={100} style={{ borderRadius: "50%", border: "3px solid #b16cff", objectFit: "cover" }} />
+                {avatarSrc ? (
+                    <img src={avatarSrc} width={100} height={100} style={{ borderRadius: "50%", border: "3px solid #b16cff", objectFit: "cover" }} />
                 ) : (
                     <div style={{ width: 100, height: 100, borderRadius: "50%", border: "3px solid #b16cff", backgroundColor: "#15151f" }} />
                 )}
@@ -170,7 +175,7 @@ async function renderOverallCard(profile, accountList) {
     )
 }
 
-async function renderGameCard(profile, accountList, platform) {
+async function renderGameCard(profile, accountList, platform, avatarSrc) {
     const account = accountList.find(a => a.platform === platform)
     const config = platformConfig[platform]
     if (!account || !config) return null
@@ -195,8 +200,8 @@ async function renderGameCard(profile, accountList, platform) {
             }}
         >
             <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-                {profile.avatar_url ? (
-                    <img src={profile.avatar_url} width={92} height={92} style={{ borderRadius: "50%", border: `3px solid ${config.color}`, objectFit: "cover" }} />
+                {avatarSrc ? (
+                    <img src={avatarSrc} width={92} height={92} style={{ borderRadius: "50%", border: `3px solid ${config.color}`, objectFit: "cover" }} />
                 ) : (
                     <div style={{ width: 92, height: 92, borderRadius: "50%", border: `3px solid ${config.color}`, backgroundColor: "#15151f" }} />
                 )}

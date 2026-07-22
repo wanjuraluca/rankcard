@@ -4,6 +4,7 @@ import { platformConfig } from "@/lib/platforms"
 import { extractGameStats, average } from "@/lib/gameStats"
 import { getGameEmblem } from "@/lib/rankEmblem"
 import { getRankTier } from "@/lib/rankScore"
+import { resolveStaticAvatar } from "@/lib/avatarPoster"
 
 export const size = { width: 1200, height: 630 }
 export const contentType = "image/png"
@@ -62,6 +63,9 @@ export default async function Image({ params }) {
         .sort((a, b) => (b.stats?.rankScore ?? -1) - (a.stats?.rankScore ?? -1))
 
     const displayName = profile?.username ?? username
+    // GIF avatars can't be decoded by Satori — resolve to the static poster
+    // (or null → placeholder ring). PNGs/JPEGs pass through unchanged.
+    const avatarSrc = await resolveStaticAvatar(profile?.avatar_url)
 
     return new ImageResponse(
         (
@@ -81,9 +85,9 @@ export default async function Image({ params }) {
                 {/* Header: avatar + name/bio */}
                 <div style={{ display: "flex", alignItems: "center", gap: px(24) }}>
                     <div style={{ display: "flex", flex: 1, alignItems: "center", gap: px(24) }}>
-                    {profile?.avatar_url ? (
+                    {avatarSrc ? (
                         <img
-                            src={profile.avatar_url}
+                            src={avatarSrc}
                             width={px(100)}
                             height={px(100)}
                             style={{
