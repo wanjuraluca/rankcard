@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase"
 import { platformConfig } from "@/lib/platforms"
 import ProfileClient from "../components/ProfileClient"
 import ClaimUsername from "../components/ClaimUsername"
+import { resolveDisplayAvatar } from "@/lib/avatarPoster"
 
 // Same rule as signup (complete-profile) — anything else can never be a
 // real profile, so it gets a plain 404 instead of the claim pitch.
@@ -90,12 +91,17 @@ export default async function Profile({ params }) {
     .select("*", { count: "exact", head: true })
     .eq("follower_id", profile.user_id)
 
+  // GIF avatars are Pro-only — a non-Pro owner's GIF renders as a static
+  // first-frame instead of animating (see resolveDisplayAvatar).
+  const avatarDisplayUrl = await resolveDisplayAvatar(profile.avatar_url, profile.is_pro)
+
   return (
     <ProfileClient
       data={profile}
       accounts={accounts}
       followerCount={followerCount ?? 0}
       followingCount={followingCount ?? 0}
+      avatarDisplayUrl={avatarDisplayUrl}
     />
   )
 }

@@ -4,8 +4,12 @@ import { Camera } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import ImageCropModal from "./ImageCropModal"
 
-export default function AvatarUpload( {username, avatarUrl, editable, isPro} ) {
-    const [avatar, setAvatar] = useState(avatarUrl)
+export default function AvatarUpload( {username, avatarUrl, displayUrl, editable, isPro} ) {
+    // `displayUrl` is what to actually render — for a non-Pro owner with a GIF
+    // avatar it's a static first-frame (GIFs are Pro-only); otherwise it equals
+    // avatarUrl. After a fresh upload we switch to the new file directly (a
+    // non-Pro upload is always a flattened JPG, so it never animates anyway).
+    const [avatar, setAvatar] = useState(displayUrl ?? avatarUrl)
     const [error, setError] = useState("")
     const [pendingFile, setPendingFile] = useState(null)
     const fileInput = useRef(null)
