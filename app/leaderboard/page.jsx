@@ -4,7 +4,6 @@ import LeaderboardYou from "../components/LeaderboardYou"
 import { supabase } from "@/lib/supabase"
 import { getRankTier } from "@/lib/rankScore"
 import { platformConfig } from "@/lib/platforms"
-import { resolveDisplayAvatar } from "@/lib/avatarPoster"
 import { Trophy } from "lucide-react"
 
 export const metadata = {
@@ -47,11 +46,6 @@ export default async function Leaderboard() {
     }
     const platformOrder = Object.keys(platformConfig)
 
-    // GIF avatars are Pro-only — non-Pro owners show a static first-frame.
-    await Promise.all(entries.map(async (e) => {
-        e.displayAvatar = await resolveDisplayAvatar(e.avatar_url, e.is_pro)
-    }))
-
     return (
         <>
             <TopNav />
@@ -92,8 +86,8 @@ export default async function Leaderboard() {
                                     {i + 1}
                                 </span>
                                 <div className="h-9 w-9 flex-shrink-0 overflow-hidden rounded-full bg-background border border-hairline">
-                                    {profile.displayAvatar && (
-                                        <img src={profile.displayAvatar} alt={profile.username} className="h-full w-full object-cover" />
+                                    {profile.avatar_url && (
+                                        <img src={profile.avatar_url} alt={profile.username} className="h-full w-full object-cover" />
                                     )}
                                 </div>
                                 <div className="min-w-0 flex-1">

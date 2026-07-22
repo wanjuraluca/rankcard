@@ -51,7 +51,7 @@ const gameTabs = [
     { key: "marvelrivals", platform: "Marvel Rivals" },
 ]
 
-export default function ProfileClient({ data, accounts, followerCount: initialFollowerCount = 0, followingCount = 0, avatarDisplayUrl }) {
+export default function ProfileClient({ data, accounts, followerCount: initialFollowerCount = 0, followingCount = 0 }) {
 
     const [activeTab, setActiveTab] = useState("overall")
     const [showModal, setShowModal] = useState(false)
@@ -369,7 +369,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                 isPro,
                 stripeCustomerId: data.stripe_customer_id,
                 username: data.username,
-                avatarUrl: avatarDisplayUrl ?? data.avatar_url,
+                avatarUrl: data.avatar_url,
                 onUpgradeClick: () => setShowUpgradeModal(true),
                 onThemeClick: () => setShowThemeModal(true),
                 onEmbedBadgeClick: () => setShowEmbedBadgeModal(true),
@@ -433,7 +433,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
             {/* Profile Strip */}
             <div className="bg-surface border border-hairline rounded-b-2xl p-4 flex flex-col sm:flex-row gap-4 sm:items-center">
                 <div className="-mt-16 self-start relative">
-                    <AvatarUpload username={data.username} avatarUrl={data.avatar_url} displayUrl={avatarDisplayUrl} editable={isOwnProfile} isPro={isPro} />
+                    <AvatarUpload username={data.username} avatarUrl={data.avatar_url} editable={isOwnProfile} isPro={isPro} />
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -544,7 +544,7 @@ export default function ProfileClient({ data, accounts, followerCount: initialFo
                 <aside className="lg:order-2 lg:sticky lg:top-4">
                     <SignatureCard
                         username={data.username}
-                        avatarUrl={avatarDisplayUrl ?? data.avatar_url}
+                        avatarUrl={data.avatar_url}
                         isPro={isPro}
                         accounts={accountList}
                         gameStats={gameStats}
