@@ -15,8 +15,7 @@ export default function AvatarUpload( {username, avatarUrl, editable, isPro} ) {
     }
 
     async function uploadFile(fileOrBlob, ext) {
-        const base = `${username}/${Date.now()}`
-        const fileName = `${base}.${ext}`
+        const fileName = `${username}/${Date.now()}.${ext}`
         setError("")
 
         const { error: uploadError } = await supabase.storage
@@ -26,23 +25,6 @@ export default function AvatarUpload( {username, avatarUrl, editable, isPro} ) {
         if (uploadError) {
             setError("Couldn't upload image. Try a smaller file.")
             return
-        }
-
-        // Satori (og:image / card exports) can't decode animated GIFs, so also
-        // store a static first-frame poster at the same path with a .jpg
-        // extension — the renderers load that instead. See lib/avatarPoster.js.
-        if (ext === "gif") {
-            try {
-                const poster = await firstFramePoster(fileOrBlob)
-                if (poster) {
-                    await supabase.storage
-                        .from("avatars")
-                        .upload(`${base}.jpg`, poster, { upsert: true, contentType: "image/jpeg" })
-                }
-            } catch {
-                // A missing poster just means the shared preview falls back to
-                // the placeholder ring — not worth failing the whole upload.
-            }
         }
 
         const { data } = supabase.storage
@@ -55,32 +37,6 @@ export default function AvatarUpload( {username, avatarUrl, editable, isPro} ) {
             .eq("username", username)
 
         setAvatar(data.publicUrl)
-    }
-
-    // Draw the GIF's first frame to a square canvas and return a JPEG blob,
-    // center-cropped to mirror the `object-fit: cover` the avatar uses.
-    function firstFramePoster(fileOrBlob) {
-        return new Promise((resolve) => {
-            const url = URL.createObjectURL(fileOrBlob)
-            const img = new Image()
-            img.onload = () => {
-                const size = Math.min(img.naturalWidth, img.naturalHeight) || 256
-                const canvas = document.createElement("canvas")
-                canvas.width = size
-                canvas.height = size
-                const ctx = canvas.getContext("2d")
-                const sx = (img.naturalWidth - size) / 2
-                const sy = (img.naturalHeight - size) / 2
-                ctx.drawImage(img, sx, sy, size, size, 0, 0, size, size)
-                URL.revokeObjectURL(url)
-                canvas.toBlob((b) => resolve(b), "image/jpeg", 0.9)
-            }
-            img.onerror = () => {
-                URL.revokeObjectURL(url)
-                resolve(null)
-            }
-            img.src = url
-        })
     }
 
     function handleFileChange(e) {
