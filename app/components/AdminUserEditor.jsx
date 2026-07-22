@@ -2,12 +2,12 @@
 
 import { useState } from "react"
 import { supabase } from "@/lib/supabase"
-import { X, Check } from "lucide-react"
+import { X, Check, Trash2 } from "lucide-react"
 
 // Admin-only inline editor for a single profile. Writes go through
 // /api/admin/user (service-role, field-whitelisted) — never straight to the
 // DB from the client, so the same auth + validation guards every change.
-export default function AdminUserEditor({ user, onClose, onSaved }) {
+export default function AdminUserEditor({ user, onClose, onSaved, onDeleted }) {
     const [isPro, setIsPro] = useState(!!user.is_pro)
     const [viewCount, setViewCount] = useState(String(user.view_count ?? 0))
     const [seasonHigh, setSeasonHigh] = useState(user.season_high == null ? "" : String(user.season_high))
@@ -15,6 +15,40 @@ export default function AdminUserEditor({ user, onClose, onSaved }) {
     const [discordTag, setDiscordTag] = useState(user.discord_tag ?? "")
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState("")
+    const [showDelete, setShowDelete] = useState(false)
+    const [deleteConfirm, setDeleteConfirm] = useState("")
+    const [deleting, setDeleting] = useState(false)
+
+    async function handleDelete() {
+        setDeleting(true)
+        setError("")
+
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData?.session?.access_token
+        if (!token) {
+            setError("Session expired. Reload and sign in again.")
+            setDeleting(false)
+            return
+        }
+
+        try {
+            const res = await fetch("/api/admin/user", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ username: user.username }),
+            })
+            const data = await res.json()
+            if (!res.ok) {
+                setError(data.error || "Could not delete.")
+                setDeleting(false)
+                return
+            }
+            onDeleted(user.username)
+        } catch {
+            setError("Network error. Try again.")
+            setDeleting(false)
+        }
+    }
 
     async function handleSave() {
         setSaving(true)
@@ -124,6 +158,46 @@ export default function AdminUserEditor({ user, onClose, onSaved }) {
                             className="w-full bg-background border border-hairline rounded-lg px-3 py-2 text-sm text-text-primary outline-none focus:border-accent resize-none"
                         />
                     </Field>
+                </div>
+
+                {/* Danger zone */}
+                <div className="mt-5 pt-4 border-t border-hairline">
+                    {!showDelete ? (
+                        <button
+                            onClick={() => setShowDelete(true)}
+                            className="flex items-center gap-2 text-negative text-xs font-semibold hover:underline"
+                        >
+                            <Trash2 size={13} />
+                            Delete this user permanently
+                        </button>
+                    ) : (
+                        <div className="rounded-xl border border-negative/40 bg-negative/5 p-3">
+                            <p className="text-xs text-text-secondary">
+                                This permanently removes <span className="font-semibold text-text-primary">{user.username}</span>, their connected games and login. This can't be undone. Type the username to confirm.
+                            </p>
+                            <input
+                                value={deleteConfirm}
+                                onChange={(e) => setDeleteConfirm(e.target.value)}
+                                placeholder={user.username}
+                                className="mt-2 w-full bg-background border border-hairline rounded-lg px-3 py-2 text-sm text-text-primary outline-none focus:border-negative"
+                            />
+                            <div className="flex gap-2 mt-2">
+                                <button
+                                    onClick={() => { setShowDelete(false); setDeleteConfirm("") }}
+                                    className="flex-1 rounded-lg border border-hairline py-2 text-xs font-semibold text-text-secondary hover:text-text-primary transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleDelete}
+                                    disabled={deleting || deleteConfirm !== user.username}
+                                    className="flex-1 rounded-lg bg-negative py-2 text-xs font-bold text-white transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    {deleting ? "Deleting..." : "Delete forever"}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {error && <p className="text-negative text-sm mt-4">{error}</p>}

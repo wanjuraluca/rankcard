@@ -105,3 +105,52 @@ export async function PATCH(request) {
 
     return Response.json({ profile: data })
 }
+
+// Permanently deletes a profile: its connected accounts, the profiles row, and
+// the underlying auth user — the same teardown the deletion-grace-period cron
+// runs (app/api/cron/delete-account), just triggered immediately by an admin.
+export async function DELETE(request) {
+    const auth = await requireAdmin(request)
+    if (auth.error) return auth.error
+
+    let body
+    try {
+        body = await request.json()
+    } catch {
+        return Response.json({ error: "Invalid JSON." }, { status: 400 })
+    }
+
+    const { username } = body
+    if (!username || typeof username !== "string") {
+        return Response.json({ error: "username is required." }, { status: 400 })
+    }
+
+    // Guard against wiping an admin account by accident/abuse.
+    if (isAdminUsername(username)) {
+        return Response.json({ error: "Admin accounts can't be deleted here." }, { status: 400 })
+    }
+
+    const { data: profile } = await supabaseAdmin
+        .from("profiles")
+        .select("user_id, username")
+        .eq("username", username)
+        .maybeSingle()
+
+    if (!profile) return Response.json({ error: "Profile not found." }, { status: 404 })
+
+    try {
+        await supabaseAdmin.from("connected_accounts").delete().eq("user_id", profile.user_id)
+        await supabaseAdmin.from("profiles").delete().eq("user_id", profile.user_id)
+
+        const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(profile.user_id)
+        // A missing auth user (e.g. a seeded/demo profile with no auth row) is
+        // fine — the profile is already gone, which is the point.
+        if (authError && !/not found|does not exist/i.test(authError.message)) {
+            return Response.json({ error: authError.message }, { status: 500 })
+        }
+    } catch (err) {
+        return Response.json({ error: err.message }, { status: 500 })
+    }
+
+    return Response.json({ success: true, username: profile.username })
+}

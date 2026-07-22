@@ -72,6 +72,24 @@ export default function AdminPage() {
         })
     }
 
+    // Drop a deleted user from the list and roll back the totals it fed.
+    function applyUserDelete(username) {
+        setStats(prev => {
+            if (!prev) return prev
+            const removed = prev.recentSignups.find(p => p.username === username)
+            const recentSignups = prev.recentSignups.filter(p => p.username !== username)
+            const totalUsers = Math.max(0, prev.totalUsers - 1)
+            const totalPro = prev.totalPro - (removed?.is_pro ? 1 : 0)
+            return {
+                ...prev,
+                recentSignups,
+                totalUsers,
+                totalPro,
+                conversionRate: totalUsers ? totalPro / totalUsers : 0,
+            }
+        })
+    }
+
     useEffect(() => {
         (async () => {
             const { data: sessionData } = await supabase.auth.getSession()
@@ -317,6 +335,10 @@ export default function AdminPage() {
                     onClose={() => setEditing(null)}
                     onSaved={(updated) => {
                         applyUserUpdate(editing.username, updated)
+                        setEditing(null)
+                    }}
+                    onDeleted={(username) => {
+                        applyUserDelete(username)
                         setEditing(null)
                     }}
                 />
