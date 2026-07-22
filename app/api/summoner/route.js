@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabaseAdmin'
 import { getLeagueScore, getValorantScore, getCs2Score, getTftScore, getOverwatchScore, getMarvelRivalsScore, estimateMarvelRivalsRankFromScore } from '@/lib/rankScore'
 import { markServiceDown, markServiceUp } from '@/lib/serviceStatus'
 import { detectRouting } from '@/lib/riotPlatform'
+import { toLadderValue } from '@/lib/rankLadder'
 
 // A background cache refresh occasionally hits a transient Riot/Henrik
 // hiccup (rate limit, brief 5xx, or an expired dev key — "Unknown apikey",
@@ -82,6 +83,94 @@ async function snapshotLpHistoryLive(platform, accountId, data) {
     }
   } catch {
     // Best-effort — never let LP-history snapshotting break the profile fetch.
+  }
+}
+
+// Real per-game LP tracking (League Solo/Duo). Riot never exposes a match's LP
+// delta, so we measure it the same way the LP chart measures day-to-day change:
+// remember the LP right after the last game we saw (the "anchor"), and when
+// exactly one new ranked game has appeared since, the change in current LP is
+// that game's real delta — even across a promotion (Plat IV 90 -> Plat III 20 =
+// +30), thanks to the absolute ladder scale. If several games happened between
+// two profile views we can't split them, so we just re-anchor and those stay
+// estimates. Best-effort + forward-only; no-ops silently until the match_lp
+// table exists.
+async function trackMatchLpLive(platform, accountId, data) {
+  if (platform !== 'League of Legends' || !accountId) return
+  try {
+    const soloDuo = Array.isArray(data.rankData)
+      ? data.rankData.find(e => e.queueType === 'RANKED_SOLO_5x5')
+      : null
+    if (!soloDuo) return
+    const currentLp = toLadderValue(soloDuo.tier, soloDuo.rank, soloDuo.leaguePoints)
+    if (currentLp == null) return
+
+    const ranked = (Array.isArray(data.matchHistory) ? data.matchHistory : [])
+      .filter(m => m.queueId === RANKED_SOLO_QUEUE_ID && m.matchId && m.gameEndTimestamp != null)
+      .sort((a, b) => b.gameEndTimestamp - a.gameEndTimestamp)
+    if (ranked.length === 0) return
+
+    const latest = ranked[0]
+
+    const { data: anchor, error } = await supabaseAdmin
+      .from('match_lp')
+      .select('match_id, lp_after')
+      .eq('connected_account_id', accountId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (error) return // table missing / not reachable — silently skip
+
+    // Already recorded the latest game — nothing new to measure.
+    if (anchor && anchor.match_id === latest.matchId) return
+
+    // How many ranked games are newer than the anchor (i.e. happened since)?
+    const anchorIndex = anchor ? ranked.findIndex(m => m.matchId === anchor.match_id) : -1
+    const newGamesCount = anchorIndex === -1 ? ranked.length : anchorIndex
+
+    // Exactly one new game since a known anchor LP -> its delta is measurable.
+    const lpDelta = (anchor && anchor.lp_after != null && newGamesCount === 1)
+      ? currentLp - anchor.lp_after
+      : null
+
+    await supabaseAdmin.from('match_lp').upsert({
+      connected_account_id: accountId,
+      match_id: latest.matchId,
+      lp_after: currentLp,
+      lp_delta: lpDelta
+    }, { onConflict: 'connected_account_id,match_id' })
+  } catch {
+    // Best-effort — never let LP tracking break the profile fetch.
+  }
+}
+
+// Overlays any real, measured per-game LP deltas onto the match history so the
+// UI shows the true value (no "~") for games we've tracked, keeping the
+// typical-gain estimate for the rest. Mutates data.matchHistory in place.
+async function mergeRealLpDeltas(platform, accountId, data) {
+  if (platform !== 'League of Legends' || !accountId) return
+  try {
+    const matches = Array.isArray(data.matchHistory) ? data.matchHistory : []
+    const ids = matches.map(m => m.matchId).filter(Boolean)
+    if (ids.length === 0) return
+
+    const { data: rows, error } = await supabaseAdmin
+      .from('match_lp')
+      .select('match_id, lp_delta')
+      .eq('connected_account_id', accountId)
+      .in('match_id', ids)
+      .not('lp_delta', 'is', null)
+    if (error || !rows?.length) return
+
+    const byId = new Map(rows.map(r => [r.match_id, r.lp_delta]))
+    for (const m of matches) {
+      if (byId.has(m.matchId)) {
+        m.lpDelta = byId.get(m.matchId)
+        m.lpDeltaIsEstimate = false
+      }
+    }
+  } catch {
+    // Best-effort — fall back to the estimates already on each match.
   }
 }
 
@@ -192,6 +281,10 @@ export async function GET(request) {
         // background after the response is sent so the next visit is fresh.
         after(async () => {
           const fresh = withStaleArrayGuard(row.data, await fetchLive())
+          // Measure the latest game's real LP delta, then overlay all known
+          // deltas before caching so the cached copy already carries them.
+          await trackMatchLpLive(platform, accountId, fresh)
+          await mergeRealLpDeltas(platform, accountId, fresh)
           await supabaseAdmin
             .from('account_cache')
             .upsert({ account_id: accountId, data: fresh, updated_at: new Date().toISOString() })
@@ -210,6 +303,12 @@ export async function GET(request) {
   }
 
   const data = await fetchLive()
+  // Measure the latest game's real LP delta and overlay all known deltas so
+  // this response (and the cache below) shows true per-game LP where we have it.
+  if (accountId && !mode) {
+    await trackMatchLpLive(platform, accountId, data)
+    await mergeRealLpDeltas(platform, accountId, data)
+  }
   requestCache.set(cacheKey, { data, timestamp: Date.now() })
 
   if (accountId && !mode) {
