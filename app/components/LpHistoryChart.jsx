@@ -74,21 +74,49 @@ function toLadderValue(tier, rank, leaguePoints) {
     return entry.floor + (leaguePoints ?? 0)
 }
 
+function titleCase(tier) {
+    return tier.charAt(0) + tier.slice(1).toLowerCase()
+}
+
+// Inverse of toLadderValue: turn an absolute ladder value back into a readable
+// "Platinum III · 30 LP" string, for tooltips and axis labels. TIER_LADDER is
+// ordered ascending by floor, so the player's tier/division is the highest
+// entry whose floor is at or below the value.
+function fromLadderValue(value) {
+    if (typeof value !== "number") return null
+    let entry = TIER_LADDER[0]
+    for (const e of TIER_LADDER) {
+        if (e.floor <= value) entry = e
+        else break
+    }
+    const lp = Math.max(0, Math.round(value - entry.floor))
+    const name = APEX_TIERS.includes(entry.tier)
+        ? titleCase(entry.tier)
+        : `${titleCase(entry.tier)} ${entry.rank}`
+    return { name, lp, text: `${name} · ${lp} LP` }
+}
+
 // Riot's API never exposes the LP delta of a past match, so we can't recover
-// exact historical LP. We reconstruct an approximate trail by walking
-// backwards from the current (real) LP value using a typical LP-per-game
-// estimate — clearly labeled as an estimate in the UI, never presented as fact.
-function buildEstimatedPoints(rankedMatches, currentLeaguePoints) {
+// exact historical LP. We reconstruct an approximate trail by walking backwards
+// from a known anchor (the earliest real tracked snapshot, or the current live
+// value) using a typical LP-per-game estimate — clearly labeled as an estimate
+// in the UI, never presented as fact.
+//
+// Values are on the absolute ladder scale (buildTierLadder), so the walk
+// crosses promotion/demotion boundaries smoothly: winning up from Plat IV 90 LP
+// to Plat III 5 LP is a continuous climb, not a jump from 90 down to 5. This is
+// the whole fix for "a promotion showed up as an LP loss".
+function buildEstimatedPoints(rankedMatches, anchorValue, anchorTimestamp) {
     const sorted = [...rankedMatches].sort((a, b) => b.timestamp - a.timestamp)
 
-    let runningLp = currentLeaguePoints
-    const points = [{ timestamp: Date.now(), lp: runningLp, delta: null, champion: null, win: null, matchId: null, isEstimated: true }]
+    let running = anchorValue
+    const points = [{ timestamp: anchorTimestamp, value: running, delta: null, champion: null, win: null, matchId: null, isEstimated: true }]
 
     for (const match of sorted) {
         const delta = match.win ? ESTIMATED_LP_GAIN : -ESTIMATED_LP_LOSS
-        const lpBefore = Math.max(0, Math.round(runningLp - delta))
-        points.push({ timestamp: match.timestamp, lp: lpBefore, delta, champion: match.champion ?? null, win: match.win, matchId: match.matchId ?? null, isEstimated: true })
-        runningLp = lpBefore
+        const valueBefore = Math.max(0, Math.round(running - delta))
+        points.push({ timestamp: match.timestamp, value: valueBefore, delta, champion: match.champion ?? null, win: match.win, matchId: match.matchId ?? null, isEstimated: true })
+        running = valueBefore
     }
 
     return points.reverse() // oldest first
@@ -133,7 +161,7 @@ export default function LpHistoryChart({
         async function fetchHistory() {
             const { data } = await supabase
                 .from("lp_history")
-                .select("recorded_on, league_points")
+                .select("recorded_on, league_points, tier, rank")
                 .eq("connected_account_id", accountId)
                 .order("recorded_on", { ascending: true })
 
@@ -173,91 +201,144 @@ export default function LpHistoryChart({
     // callback, which calls setTooltip(), which re-renders — a feedback loop
     // that made the chart lag/flicker under the mouse.
     const derived = useMemo(() => {
-        // matchHistory (the short, detail-rich list already fetched by RankHero)
-        // takes priority for any match that appears in both sources, since it
-        // carries champion/full context for the tooltip. The extended timeline
-        // only fills in games further back that matchHistory doesn't cover.
-        const shortRankedMatches = matchHistory
-            .filter(m => m.queueId === RANKED_SOLO_QUEUE_ID)
-            .map(m => ({ matchId: m.matchId, win: m.win, timestamp: m.gameEndTimestamp, champion: m.champion }))
+        // The absolute "ladder position" of the player's current rank. When we
+        // have it (tier known) every point is plotted on this one continuous
+        // scale, so a promotion climbs smoothly instead of snapping back to the
+        // new division's low LP. If tier is missing (freshly unranked) we fall
+        // back to plotting raw within-division LP, same as before.
+        const currentAbs = toLadderValue(tier, rank, currentLeaguePoints)
+        const useLadder = currentAbs != null
+        const valueOf = (t, r, lp) => (useLadder ? toLadderValue(t, r, lp) : lp)
 
-        const knownMatchIds = new Set(shortRankedMatches.map(m => m.matchId))
-        const extendedMatches = timelinePoints
-            .filter(p => !knownMatchIds.has(p.matchId))
-            .map(p => ({ matchId: p.matchId, win: p.win, timestamp: p.timestamp, champion: null }))
-
-        const rankedMatches = [...shortRankedMatches, ...extendedMatches]
-
-        const estimatedPoints = buildEstimatedPoints(rankedMatches, currentLeaguePoints)
-
+        // Real tracked daily snapshots — the accurate part of the history. Each
+        // row carries its own tier/rank, so a past Gold IV day and a current
+        // Plat II day land at their true positions on the ladder.
         const history = trackedHistory ?? []
-        const trackedPoints = history.map((entry, i) => ({
-            timestamp: new Date(entry.recorded_on).getTime(),
-            lp: entry.league_points,
-            delta: i === 0 ? null : entry.league_points - history[i - 1].league_points,
-            champion: null,
-            win: null,
-            matchId: null,
-            isEstimated: false
-        }))
+        const trackedPoints = history
+            .map((entry) => ({
+                timestamp: new Date(entry.recorded_on).getTime(),
+                value: valueOf(entry.tier, entry.rank, entry.league_points),
+                tier: entry.tier, rank: entry.rank, lp: entry.league_points,
+                delta: null, champion: null, win: null, matchId: null, isEstimated: false
+            }))
+            .filter(p => typeof p.value === "number")
+        trackedPoints.forEach((p, i) => {
+            p.delta = i === 0 ? null : Math.round(p.value - trackedPoints[i - 1].value)
+        })
 
-        const points = [...estimatedPoints, ...trackedPoints]
-        const estimatedCount = estimatedPoints.length
-        // Games actually covered by the win/loss-based estimate (excludes the
-        // synthetic "now" point at index 0, and excludes tracked/daily-snapshot
-        // points which aren't per-game). This is the real, honest count shown in
-        // the "Last N games" label below — never hardcoded to 100.
-        const gamesCovered = estimatedCount > 0 ? estimatedCount - 1 : 0
+        // Real tracked daily snapshots are the accurate source. Once at least two
+        // exist we show only the real line — clean and exact, the way u.gg/op.gg
+        // do it. The win/loss estimate is only a bootstrap for brand-new accounts
+        // that don't have a couple of days of tracking yet, so a promotion in the
+        // real data reads as an honest upward step (and the net LP is real),
+        // instead of being averaged against a fabricated estimate.
+        const hasEnoughTracked = trackedPoints.length >= 2
+
+        let points = []
+        let gamesCovered = 0
+
+        if (hasEnoughTracked) {
+            points = [...trackedPoints]
+            // Cap with the live value when it's newer than the last snapshot, so
+            // the chart ends on the real "right now" rank (today's games show up
+            // before the daily cron records them).
+            if (useLadder && points.length > 0) {
+                const last = points[points.length - 1]
+                if (last.value !== currentAbs) {
+                    points.push({
+                        timestamp: Date.now(), value: currentAbs, tier, rank, lp: currentLeaguePoints,
+                        delta: Math.round(currentAbs - last.value), champion: null, win: null, matchId: null, isEstimated: false
+                    })
+                }
+            }
+        } else if (typeof currentAbs === "number") {
+            // Bootstrap: reconstruct a recent trail by walking back from the live
+            // value over recent ranked games. matchHistory (short, detail-rich) is
+            // preferred; the extended timeline only fills games it doesn't cover.
+            const shortRankedMatches = matchHistory
+                .filter(m => m.queueId === RANKED_SOLO_QUEUE_ID)
+                .map(m => ({ matchId: m.matchId, win: m.win, timestamp: m.gameEndTimestamp, champion: m.champion }))
+            const knownMatchIds = new Set(shortRankedMatches.map(m => m.matchId))
+            const extendedMatches = timelinePoints
+                .filter(p => !knownMatchIds.has(p.matchId))
+                .map(p => ({ matchId: p.matchId, win: p.win, timestamp: p.timestamp, champion: null }))
+            const rankedMatches = [...shortRankedMatches, ...extendedMatches]
+
+            const estimatedPoints = buildEstimatedPoints(rankedMatches, currentAbs, Date.now())
+            gamesCovered = Math.max(0, estimatedPoints.length - 1)
+            points = estimatedPoints
+        }
+
+        // Human-readable rank text per point for the tooltip (estimated points
+        // only carry an absolute value, no raw LP field).
+        const describe = (v) => (useLadder ? (fromLadderValue(v)?.text ?? `${Math.round(v)} LP`) : `${Math.round(v)} LP`)
+        points.forEach(p => { p.rankText = describe(p.value) })
 
         const labels = points.map(p => formatFullDate(p.timestamp))
 
-        const estimatedData = points.map((p, i) => (i < estimatedCount ? p.lp : null))
-        const trackedData = points.map((p, i) => (i >= estimatedCount - 1 ? p.lp : null))
+        // Split the two visual styles by whether each point is estimated. The
+        // junction point (first tracked) is added to the estimated series too so
+        // the dashed and solid lines connect instead of leaving a gap.
+        const boundaryIndex = points.findIndex(p => !p.isEstimated)
+        const hasEstimatedSegment = points.some(p => p.isEstimated)
+        const estimatedData = points.map((p, i) =>
+            (p.isEstimated || (hasEstimatedSegment && i === boundaryIndex)) ? p.value : null)
+        const trackedData = points.map(p => (p.isEstimated ? null : p.value))
 
-        // Net LP change across the whole combined series (oldest plotted point
-        // vs. the current real LP), for the "▲/▼ N LP" summary.
+        // Net change across the whole series, on the absolute scale — now a real
+        // "how far did you climb", counting promotions instead of being fooled by
+        // per-division LP resets.
         const firstPoint = points[0] ?? null
         const lastPoint = points[points.length - 1] ?? null
-        const netLpChange = typeof firstPoint?.lp === "number" && typeof lastPoint?.lp === "number"
-            ? Math.round(lastPoint.lp - firstPoint.lp)
+        const netLpChange = typeof firstPoint?.value === "number" && typeof lastPoint?.value === "number"
+            ? Math.round(lastPoint.value - firstPoint.value)
             : null
 
-        // Tier reference lines. Prefer the precise ladder anchored on the real
-        // tier/rank (when RankHero passes it through); otherwise approximate a
-        // plausible division-sized band purely from the LP values being plotted
-        // (e.g. min/max of 0-100-ish -> draw the boundaries around that range).
-        const plottedLpValues = points.map(p => p.lp).filter(v => typeof v === "number")
-        const minLp = plottedLpValues.length ? Math.min(...plottedLpValues) : 0
-        const maxLp = plottedLpValues.length ? Math.max(...plottedLpValues) : 100
+        const plottedValues = points.map(p => p.value).filter(v => typeof v === "number")
+        const minLp = plottedValues.length ? Math.min(...plottedValues) : 0
+        const maxLp = plottedValues.length ? Math.max(...plottedValues) : 100
 
+        // Tier/division reference lines: the ladder floors inside the visible
+        // range, labelled by their real tier+division. On the absolute scale they
+        // line up exactly with the plotted data — no per-point re-projection.
         let referenceLines = []
-        if (tier && TIER_LADDER.some(e => e.tier === tier.toUpperCase())) {
-            const anchor = toLadderValue(tier, rank, currentLeaguePoints)
-            if (anchor != null) {
-                // Convert every plotted LP point onto ladder units relative to the
-                // anchor, so reference lines line up with the actual chart data
-                // even though the chart itself still plots raw within-division LP.
-                const bufferLp = 60
-                const ladderMin = anchor - (currentLeaguePoints - minLp) - bufferLp
-                const ladderMax = anchor + (maxLp - currentLeaguePoints) + bufferLp
-                referenceLines = TIER_LADDER
-                    .filter(e => e.floor >= ladderMin && e.floor <= ladderMax)
-                    .map(e => ({ label: e.label, lpValue: e.floor - anchor + currentLeaguePoints }))
-            }
+        if (useLadder) {
+            // A full division of padding so the tier lines bracketing the data
+            // always show (e.g. data sitting mid-division at Gold IV 59 LP still
+            // draws the Gold IV and Gold III boundaries around it).
+            const buffer = LP_PER_DIVISION
+            referenceLines = TIER_LADDER
+                .filter(e => e.floor >= minLp - buffer && e.floor <= maxLp + buffer)
+                .map(e => ({ label: e.label, lpValue: e.floor }))
         }
         if (referenceLines.length === 0) {
-            // Fallback: no tier/rank prop available — approximate boundaries
-            // purely from the visible LP range using the same 100-LP-per-division
-            // convention, unanchored to a specific real tier name.
-            const bufferLp = 30
-            const from = Math.floor((minLp - bufferLp) / LP_PER_DIVISION) * LP_PER_DIVISION
-            const to = Math.ceil((maxLp + bufferLp) / LP_PER_DIVISION) * LP_PER_DIVISION
+            // Fallback (no tier): plain LP grid lines around the visible raw range.
+            const buffer = 30
+            const from = Math.floor((minLp - buffer) / LP_PER_DIVISION) * LP_PER_DIVISION
+            const to = Math.ceil((maxLp + buffer) / LP_PER_DIVISION) * LP_PER_DIVISION
             for (let lpValue = from; lpValue <= to; lpValue += LP_PER_DIVISION) {
                 referenceLines.push({ label: `${lpValue} LP`, lpValue })
             }
         }
-        // Never show more than a handful at once — keep the grid readable.
-        referenceLines = referenceLines.slice(0, 6)
+        // Keep the grid readable — thin to the handful nearest the data's centre.
+        if (referenceLines.length > 6) {
+            const mid = (minLp + maxLp) / 2
+            referenceLines = [...referenceLines]
+                .sort((a, b) => Math.abs(a.lpValue - mid) - Math.abs(b.lpValue - mid))
+                .slice(0, 6)
+                .sort((a, b) => a.lpValue - b.lpValue)
+        }
+
+        // Fixed y-range spanning both the data and the reference lines, with a
+        // little headroom — shared by the chart scale and the left-edge tier
+        // labels so they line up exactly (Chart.js auto-scaling would drift, and
+        // would also clip reference lines that sit outside the raw data range).
+        const refFloors = referenceLines.map(l => l.lpValue)
+        const lo = Math.min(minLp, ...(refFloors.length ? refFloors : [minLp]))
+        const hi = Math.max(maxLp, ...(refFloors.length ? refFloors : [maxLp]))
+        const yPad = Math.max(15, (hi - lo) * 0.12)
+        const yMin = lo - yPad
+        const yMax = hi + yPad
 
         const referenceDatasets = referenceLines.map(line => ({
             label: `ref-${line.label}`,
@@ -304,10 +385,10 @@ export default function LpHistoryChart({
             ]
         }
 
-        return { points, labels, data, gamesCovered, trackedPointsCount: trackedPoints.length, netLpChange, referenceLines, minLp, maxLp }
+        return { points, labels, data, gamesCovered, trackedPointsCount: trackedPoints.length, netLpChange, referenceLines, minLp, maxLp, yMin, yMax, firstTimestamp: firstPoint?.timestamp ?? null }
     }, [matchHistory, timelinePoints, trackedHistory, currentLeaguePoints, tier, rank, accentColor])
 
-    const { points, labels, data, gamesCovered, trackedPointsCount, netLpChange, referenceLines, minLp, maxLp } = derived
+    const { points, labels, data, gamesCovered, trackedPointsCount, netLpChange, referenceLines, minLp, maxLp, yMin, yMax, firstTimestamp } = derived
 
     const options = useMemo(() => ({
         responsive: true,
@@ -353,9 +434,11 @@ export default function LpHistoryChart({
         },
         scales: {
             x: { display: false },
-            y: { display: false }
+            // Fixed range (not Chart.js auto-scale) so the tier labels on the
+            // left line up with the reference lines drawn inside the plot.
+            y: { display: false, min: yMin, max: yMax }
         }
-    }), [points, labels])
+    }), [points, labels, yMin, yMax])
 
     if (trackedHistory === null) {
         return <p className="text-text-secondary text-xs">Loading LP history...</p>
@@ -368,11 +451,13 @@ export default function LpHistoryChart({
         <div className="w-full">
             <div className="flex items-baseline justify-between mb-1.5">
                 <p className="text-text-secondary text-xs">
-                    Last {gamesCovered || trackedPointsCount} game{(gamesCovered || trackedPointsCount) === 1 ? "" : "s"}
+                    {gamesCovered > 0
+                        ? `Last ${gamesCovered} ranked game${gamesCovered === 1 ? "" : "s"}`
+                        : `Last ${trackedPointsCount} day${trackedPointsCount === 1 ? "" : "s"}`}
                 </p>
                 {netLpChange != null && (
-                    <p className={`text-xs font-bold ${netLpChange >= 0 ? "text-positive" : "text-negative"}`}>
-                        {netLpChange >= 0 ? "▲" : "▼"} {Math.abs(netLpChange)} LP
+                    <p className={`text-xs font-bold ${netLpChange > 0 ? "text-positive" : netLpChange < 0 ? "text-negative" : "text-text-secondary"}`}>
+                        {netLpChange > 0 ? "▲ " : netLpChange < 0 ? "▼ " : ""}{netLpChange === 0 ? "±0" : Math.abs(netLpChange)} LP
                     </p>
                 )}
             </div>
@@ -380,9 +465,8 @@ export default function LpHistoryChart({
                 {referenceLines.length > 0 && (
                     <div className="relative w-7 flex-shrink-0 h-full">
                         {referenceLines.map((line) => {
-                            const range = maxLp - minLp || 1
-                            const clamped = Math.min(Math.max(line.lpValue, minLp), maxLp)
-                            const topPct = 100 - ((clamped - minLp) / range) * 100
+                            const range = yMax - yMin || 1
+                            const topPct = 100 - ((line.lpValue - yMin) / range) * 100
                             return (
                                 <span
                                     key={line.label}
@@ -417,11 +501,11 @@ export default function LpHistoryChart({
                             <div className="whitespace-nowrap">
                                 <p className="text-text-primary text-xs font-bold">{tooltip.label}</p>
                                 <p className="text-text-primary text-xs">
-                                    {tooltip.point.lp} LP{tooltip.point.isEstimated ? <span className="text-text-secondary"> (estimated)</span> : null}
+                                    {tooltip.point.rankText}{tooltip.point.isEstimated ? <span className="text-text-secondary"> (estimated)</span> : null}
                                 </p>
-                                {tooltip.point.delta != null && (
+                                {tooltip.point.delta != null && tooltip.point.delta !== 0 && (
                                     <p className={`text-[11px] font-semibold ${tooltip.point.delta > 0 ? "text-positive" : "text-negative"}`}>
-                                        {tooltip.point.delta > 0 ? "+" : ""}{tooltip.point.delta} LP this game
+                                        {tooltip.point.delta > 0 ? "+" : ""}{tooltip.point.delta} LP{tooltip.point.win != null ? " this game" : ""}
                                     </p>
                                 )}
                                 {tooltip.point.win != null && (
@@ -435,13 +519,13 @@ export default function LpHistoryChart({
                 </div>
             </div>
             <div className="flex justify-between text-text-secondary text-[9px] mt-1">
-                <span>{gamesCovered || trackedPointsCount} games ago</span>
-                <span>Last game</span>
+                <span>{firstTimestamp ? formatFullDate(firstTimestamp) : "Start"}</span>
+                <span>Now</span>
             </div>
             <p className="text-text-secondary text-[10px] mt-1.5">
-                {trackedPointsCount < 2
-                    ? "Dashed = estimated from recent match results. Hover for details. We're now tracking your real LP daily."
-                    : "Dashed = estimated, solid = tracked daily since you connected this account. Hover for details."}
+                {gamesCovered > 0
+                    ? "Dashed = estimated from recent match results. We're now tracking your real LP daily. Hover for details."
+                    : "Real LP, tracked daily since you connected this account. Hover for details."}
             </p>
         </div>
     )

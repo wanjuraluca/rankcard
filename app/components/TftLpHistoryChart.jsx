@@ -63,24 +63,44 @@ function toLadderValue(tier, rank, leaguePoints) {
     return entry.floor + (leaguePoints ?? 0)
 }
 
-function buildEstimatedPoints(matchHistory, currentLeaguePoints) {
+function titleCase(tier) {
+    return tier.charAt(0) + tier.slice(1).toLowerCase()
+}
+
+// Inverse of toLadderValue: absolute ladder value -> "Platinum III · 30 LP".
+function fromLadderValue(value) {
+    if (typeof value !== "number") return null
+    let entry = TIER_LADDER[0]
+    for (const e of TIER_LADDER) {
+        if (e.floor <= value) entry = e
+        else break
+    }
+    const lp = Math.max(0, Math.round(value - entry.floor))
+    const name = APEX_TIERS.includes(entry.tier) ? titleCase(entry.tier) : `${titleCase(entry.tier)} ${entry.rank}`
+    return { name, lp, text: `${name} · ${lp} LP` }
+}
+
+// Walk backwards from a known anchor on the absolute ladder scale, so a
+// promotion (LP reset in the new division) reads as a continuous climb instead
+// of a drop. Estimate only, clearly labeled — TFT has no per-match LP delta.
+function buildEstimatedPoints(matchHistory, anchorValue, anchorTimestamp) {
     const sortedMatches = [...matchHistory].sort((a, b) => (b.game_datetime ?? 0) - (a.game_datetime ?? 0))
 
-    let runningLp = currentLeaguePoints
-    const points = [{ timestamp: Date.now(), lp: runningLp, delta: null, placement: null, topTrait: null, isEstimated: true }]
+    let running = anchorValue
+    const points = [{ timestamp: anchorTimestamp, value: running, delta: null, placement: null, topTrait: null, isEstimated: true }]
 
     for (const match of sortedMatches) {
         const delta = ESTIMATED_LP_BY_PLACEMENT[match.placement] ?? 0
-        const lpBefore = Math.max(0, Math.round(runningLp - delta))
+        const valueBefore = Math.max(0, Math.round(running - delta))
         points.push({
             timestamp: match.game_datetime,
-            lp: lpBefore,
+            value: valueBefore,
             delta,
             placement: match.placement,
             topTrait: match.topTraits?.[0] ?? null,
             isEstimated: true
         })
-        runningLp = lpBefore
+        running = valueBefore
     }
 
     return points.reverse() // oldest first
@@ -99,7 +119,7 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
         async function fetchHistory() {
             const { data } = await supabase
                 .from("tft_lp_history")
-                .select("recorded_on, league_points")
+                .select("recorded_on, league_points, tier, rank")
                 .eq("connected_account_id", accountId)
                 .eq("queue_type", queueType)
                 .order("recorded_on", { ascending: true })
@@ -117,59 +137,102 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
     const derived = useMemo(() => {
         if (trackedHistory === null) return null
 
-        const estimatedPoints = buildEstimatedPoints(matchHistory, currentLeaguePoints)
+        // Absolute ladder position of the current rank; when known, everything is
+        // plotted on this one continuous scale so promotions climb smoothly. Falls
+        // back to raw within-division LP if the tier is missing.
+        const currentAbs = toLadderValue(tier, rank, currentLeaguePoints)
+        const useLadder = currentAbs != null
+        const valueOf = (t, r, lp) => (useLadder ? toLadderValue(t, r, lp) : lp)
 
-        const trackedPoints = trackedHistory.map((entry, i) => ({
-            timestamp: new Date(entry.recorded_on).getTime(),
-            lp: entry.league_points,
-            delta: i === 0 ? null : entry.league_points - trackedHistory[i - 1].league_points,
-            placement: null,
-            topTrait: null,
-            isEstimated: false
-        }))
+        // Real tracked daily snapshots carry their own tier/rank, so each lands at
+        // its true ladder position.
+        const trackedPoints = trackedHistory
+            .map((entry) => ({
+                timestamp: new Date(entry.recorded_on).getTime(),
+                value: valueOf(entry.tier, entry.rank, entry.league_points),
+                tier: entry.tier, rank: entry.rank, lp: entry.league_points,
+                delta: null, placement: null, topTrait: null, isEstimated: false
+            }))
+            .filter(p => typeof p.value === "number")
+        trackedPoints.forEach((p, i) => {
+            p.delta = i === 0 ? null : Math.round(p.value - trackedPoints[i - 1].value)
+        })
 
-        const points = [...estimatedPoints, ...trackedPoints]
-        const estimatedCount = estimatedPoints.length
-        const gamesCovered = estimatedCount > 0 ? estimatedCount - 1 : 0
+        // Once at least two real snapshots exist, show only the accurate tracked
+        // line; the placement-based estimate is a bootstrap for brand-new accounts.
+        const hasEnoughTracked = trackedPoints.length >= 2
+        let points = []
+        let gamesCovered = 0
+
+        if (hasEnoughTracked) {
+            points = [...trackedPoints]
+            if (useLadder && points.length > 0) {
+                const last = points[points.length - 1]
+                if (last.value !== currentAbs) {
+                    points.push({
+                        timestamp: Date.now(), value: currentAbs, tier, rank, lp: currentLeaguePoints,
+                        delta: Math.round(currentAbs - last.value), placement: null, topTrait: null, isEstimated: false
+                    })
+                }
+            }
+        } else if (typeof currentAbs === "number") {
+            const estimatedPoints = buildEstimatedPoints(matchHistory, currentAbs, Date.now())
+            gamesCovered = Math.max(0, estimatedPoints.length - 1)
+            points = estimatedPoints
+        }
+
+        const describe = (v) => (useLadder ? (fromLadderValue(v)?.text ?? `${Math.round(v)} LP`) : `${Math.round(v)} LP`)
+        points.forEach(p => { p.rankText = describe(p.value) })
 
         const labels = points.map(p => formatFullDate(p.timestamp))
-        const estimatedData = points.map((p, i) => (i < estimatedCount ? p.lp : null))
-        const trackedData = points.map((p, i) => (i >= estimatedCount - 1 ? p.lp : null))
+        const estimatedData = points.map(p => (p.isEstimated ? p.value : null))
+        const trackedData = points.map(p => (p.isEstimated ? null : p.value))
 
-        const plottedLp = points.map(p => p.lp).filter(v => typeof v === "number")
-        const minLp = plottedLp.length ? Math.min(...plottedLp) : 0
-        const maxLp = plottedLp.length ? Math.max(...plottedLp) : 100
+        const plottedValues = points.map(p => p.value).filter(v => typeof v === "number")
+        const minLp = plottedValues.length ? Math.min(...plottedValues) : 0
+        const maxLp = plottedValues.length ? Math.max(...plottedValues) : 100
 
         const firstPoint = points[0] ?? null
         const lastPoint = points[points.length - 1] ?? null
-        const netLpChange = typeof firstPoint?.lp === "number" && typeof lastPoint?.lp === "number"
-            ? Math.round(lastPoint.lp - firstPoint.lp)
+        const netLpChange = typeof firstPoint?.value === "number" && typeof lastPoint?.value === "number"
+            ? Math.round(lastPoint.value - firstPoint.value)
             : null
 
-        // Reference lines: prefer the real tier ladder anchored on the current
-        // tier/rank so the guides read as rank boundaries (G IV, G III, ...);
-        // otherwise fall back to plain LP guide values from the visible range.
+        // Tier/division reference lines = ladder floors inside the visible range,
+        // labelled by real tier+division (they line up exactly on this scale).
         let referenceLines = []
-        if (tier && TIER_LADDER.some(e => e.tier === tier.toUpperCase())) {
-            const anchor = toLadderValue(tier, rank, currentLeaguePoints)
-            if (anchor != null) {
-                const bufferLp = 60
-                const ladderMin = anchor - (currentLeaguePoints - minLp) - bufferLp
-                const ladderMax = anchor + (maxLp - currentLeaguePoints) + bufferLp
-                referenceLines = TIER_LADDER
-                    .filter(e => e.floor >= ladderMin && e.floor <= ladderMax)
-                    .map(e => ({ label: e.label, lpValue: e.floor - anchor + currentLeaguePoints }))
-            }
+        if (useLadder) {
+            // A full division of padding so the bracketing tier lines always show
+            // even when the data sits mid-division far from a floor.
+            const buffer = LP_PER_DIVISION
+            referenceLines = TIER_LADDER
+                .filter(e => e.floor >= minLp - buffer && e.floor <= maxLp + buffer)
+                .map(e => ({ label: e.label, lpValue: e.floor }))
         }
         if (referenceLines.length === 0) {
-            const bufferLp = 30
-            const from = Math.floor((minLp - bufferLp) / LP_PER_DIVISION) * LP_PER_DIVISION
-            const to = Math.ceil((maxLp + bufferLp) / LP_PER_DIVISION) * LP_PER_DIVISION
+            const buffer = 30
+            const from = Math.floor((minLp - buffer) / LP_PER_DIVISION) * LP_PER_DIVISION
+            const to = Math.ceil((maxLp + buffer) / LP_PER_DIVISION) * LP_PER_DIVISION
             for (let lpValue = from; lpValue <= to; lpValue += LP_PER_DIVISION) {
                 referenceLines.push({ label: `${lpValue} LP`, lpValue })
             }
         }
-        referenceLines = referenceLines.slice(0, 6)
+        if (referenceLines.length > 6) {
+            const mid = (minLp + maxLp) / 2
+            referenceLines = [...referenceLines]
+                .sort((a, b) => Math.abs(a.lpValue - mid) - Math.abs(b.lpValue - mid))
+                .slice(0, 6)
+                .sort((a, b) => a.lpValue - b.lpValue)
+        }
+
+        // y-range spanning both data and reference lines (+ headroom), shared by
+        // the chart scale and the tier labels so they align and nothing clips.
+        const refFloors = referenceLines.map(l => l.lpValue)
+        const lo = Math.min(minLp, ...(refFloors.length ? refFloors : [minLp]))
+        const hi = Math.max(maxLp, ...(refFloors.length ? refFloors : [maxLp]))
+        const yPad = Math.max(15, (hi - lo) * 0.12)
+        const yMin = lo - yPad
+        const yMax = hi + yPad
 
         const referenceDatasets = referenceLines.map(line => ({
             label: `ref-${line.label}`,
@@ -216,7 +279,7 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
             ]
         }
 
-        return { points, labels, data, referenceLines, minLp, maxLp, gamesCovered, trackedCount: trackedPoints.length, netLpChange }
+        return { points, labels, data, referenceLines, minLp, maxLp, yMin, yMax, gamesCovered, trackedCount: trackedPoints.length, netLpChange, firstTimestamp: firstPoint?.timestamp ?? null }
     }, [trackedHistory, matchHistory, currentLeaguePoints, accentColor, tier, rank])
 
     const options = useMemo(() => {
@@ -258,7 +321,7 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
             },
             scales: {
                 x: { display: false },
-                y: { display: false }
+                y: { display: false, min: derived.yMin, max: derived.yMax }
             }
         }
     }, [derived])
@@ -267,18 +330,19 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
         return <p className="text-text-secondary text-xs">Loading LP history...</p>
     }
 
-    const { referenceLines, minLp, maxLp, gamesCovered, trackedCount, netLpChange, data } = derived
-    const gameLabelCount = gamesCovered || trackedCount
+    const { referenceLines, minLp, maxLp, yMin, yMax, gamesCovered, trackedCount, netLpChange, data, firstTimestamp } = derived
 
     return (
         <div className="w-full">
             <div className="flex items-baseline justify-between mb-1.5">
                 <p className="text-text-secondary text-xs">
-                    Last {gameLabelCount} game{gameLabelCount === 1 ? "" : "s"}
+                    {gamesCovered > 0
+                        ? `Last ${gamesCovered} game${gamesCovered === 1 ? "" : "s"}`
+                        : `Last ${trackedCount} day${trackedCount === 1 ? "" : "s"}`}
                 </p>
                 {netLpChange != null && (
-                    <p className={`text-xs font-bold ${netLpChange >= 0 ? "text-positive" : "text-negative"}`}>
-                        {netLpChange >= 0 ? "▲" : "▼"} {Math.abs(netLpChange)} LP
+                    <p className={`text-xs font-bold ${netLpChange > 0 ? "text-positive" : netLpChange < 0 ? "text-negative" : "text-text-secondary"}`}>
+                        {netLpChange > 0 ? "▲ " : netLpChange < 0 ? "▼ " : ""}{netLpChange === 0 ? "±0" : Math.abs(netLpChange)} LP
                     </p>
                 )}
             </div>
@@ -286,9 +350,8 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
                 {referenceLines.length > 0 && (
                     <div className="relative w-7 flex-shrink-0 h-full">
                         {referenceLines.map((line) => {
-                            const range = maxLp - minLp || 1
-                            const clamped = Math.min(Math.max(line.lpValue, minLp), maxLp)
-                            const topPct = 100 - ((clamped - minLp) / range) * 100
+                            const range = yMax - yMin || 1
+                            const topPct = 100 - ((line.lpValue - yMin) / range) * 100
                             return (
                                 <span
                                     key={line.label}
@@ -329,11 +392,11 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
                             <div className="whitespace-nowrap">
                                 <p className="text-text-primary text-xs font-bold">{tooltip.label}</p>
                                 <p className="text-text-primary text-xs">
-                                    {tooltip.point.lp} LP{tooltip.point.isEstimated ? <span className="text-text-secondary"> (estimated)</span> : null}
+                                    {tooltip.point.rankText}{tooltip.point.isEstimated ? <span className="text-text-secondary"> (estimated)</span> : null}
                                 </p>
-                                {tooltip.point.delta != null && (
+                                {tooltip.point.delta != null && tooltip.point.delta !== 0 && (
                                     <p className={`text-[11px] font-semibold ${tooltip.point.delta > 0 ? "text-positive" : "text-negative"}`}>
-                                        {tooltip.point.delta > 0 ? "+" : ""}{tooltip.point.delta} LP this game
+                                        {tooltip.point.delta > 0 ? "+" : ""}{tooltip.point.delta} LP{tooltip.point.placement != null ? " this game" : ""}
                                     </p>
                                 )}
                                 {tooltip.point.placement != null && (
@@ -345,13 +408,13 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
                 </div>
             </div>
             <div className="flex justify-between text-text-secondary text-[9px] mt-1">
-                <span>{gameLabelCount} game{gameLabelCount === 1 ? "" : "s"} ago</span>
-                <span>Last game</span>
+                <span>{firstTimestamp ? formatFullDate(firstTimestamp) : "Start"}</span>
+                <span>Now</span>
             </div>
             <p className="text-text-secondary text-[10px] mt-1.5">
-                {trackedCount < 2
-                    ? "Dashed = estimated from recent placements. Hover for details. We're now tracking your real LP daily."
-                    : "Dashed = estimated, solid = tracked daily since you connected this account. Hover for details."}
+                {gamesCovered > 0
+                    ? "Dashed = estimated from recent placements. We're now tracking your real LP daily. Hover for details."
+                    : "Real LP, tracked daily since you connected this account. Hover for details."}
             </p>
         </div>
     )
