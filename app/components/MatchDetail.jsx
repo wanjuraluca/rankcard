@@ -79,19 +79,28 @@ function ItemIcon({ itemId, ddragonVersion, itemData }) {
 // for unranked/unresolvable players — no broken image, no placeholder icon.
 function RankEmblem({ rankLookupState, rank }) {
     if (rankLookupState === "loading") {
-        return <span className="w-7 h-7 sm:w-9 sm:h-9 flex-shrink-0 rounded-full border border-hairline border-t-accent-soft animate-spin" />
+        return <span className="w-6 h-6 sm:w-7 sm:h-7 flex-shrink-0 rounded-full border border-hairline border-t-accent-soft animate-spin" />
     }
     const url = rankEmblemUrl(rank?.tier)
-    if (!url) return <span className="w-7 h-7 sm:w-9 sm:h-9 flex-shrink-0" />
+    if (!url) return <span className="w-6 h-6 sm:w-7 sm:h-7 flex-shrink-0" />
 
+    // Riot's ranked-emblem PNGs ship with a lot of transparent padding around
+    // the actual badge art — at box size alone the glyph reads as a tiny
+    // smudge (same issue RankBadge.jsx solves for the bigger profile-header
+    // emblem). Render the image oversized and let the fixed-size overflow-
+    // hidden box crop it, so the visible badge actually fills the same
+    // footprint as the champion icon next to it instead of floating in dead
+    // space.
     return (
-        <img
-            src={url}
-            alt={rank.tier}
-            title={`${rank.tier} ${rank.rank ?? ""} · ${rank.leaguePoints} LP`.trim()}
-            className="w-7 h-7 sm:w-9 sm:h-9 flex-shrink-0 object-contain"
-            onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
-        />
+        <div className="w-6 h-6 sm:w-7 sm:h-7 flex-shrink-0 overflow-hidden rounded-full">
+            <img
+                src={url}
+                alt={rank.tier}
+                title={`${rank.tier} ${rank.rank ?? ""} · ${rank.leaguePoints} LP`.trim()}
+                className="w-full h-full object-contain scale-450 translate-y-1"
+                onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
+            />
+        </div>
     )
 }
 
