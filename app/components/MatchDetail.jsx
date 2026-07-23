@@ -79,17 +79,17 @@ function ItemIcon({ itemId, ddragonVersion, itemData }) {
 // for unranked/unresolvable players — no broken image, no placeholder icon.
 function RankEmblem({ rankLookupState, rank }) {
     if (rankLookupState === "loading") {
-        return <span className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 rounded-full border border-hairline border-t-accent-soft animate-spin" />
+        return <span className="w-7 h-7 sm:w-9 sm:h-9 flex-shrink-0 rounded-full border border-hairline border-t-accent-soft animate-spin" />
     }
     const url = rankEmblemUrl(rank?.tier)
-    if (!url) return <span className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+    if (!url) return <span className="w-7 h-7 sm:w-9 sm:h-9 flex-shrink-0" />
 
     return (
         <img
             src={url}
             alt={rank.tier}
             title={`${rank.tier} ${rank.rank ?? ""} · ${rank.leaguePoints} LP`.trim()}
-            className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 object-contain"
+            className="w-7 h-7 sm:w-9 sm:h-9 flex-shrink-0 object-contain"
             onError={(e) => { e.currentTarget.style.visibility = "hidden" }}
         />
     )
