@@ -110,6 +110,44 @@ function formatFullDate(timestamp) {
     return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
 }
 
+// Only project within a recent window so an old slump doesn't drag down the
+// pace of someone who just turned their climb around (and vice versa).
+const PROJECTION_WINDOW_DAYS = 14
+// Below this daily rate the trend is noise — call it "holding steady" instead
+// of projecting a milestone that's months out on a 0.4 LP/day drift.
+const MIN_PACE_LP_PER_DAY = 1
+// An ETA further out than this isn't a prediction, it's a guess — hide it.
+const MAX_PROJECTION_DAYS = 60
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Climb pace + next-milestone ETA, computed ONLY from real tracked snapshots
+// (never the placement estimate — projecting off fabricated data would present
+// fiction as forecast). Returns null until there's enough signal: >= 3 real
+// points spanning >= 3 days inside the recent window. Same logic as the
+// League chart's buildProjection (kept local like the rest of the ladder math).
+function buildProjection(realPoints) {
+    if (realPoints.length < 3) return null
+    const last = realPoints[realPoints.length - 1]
+    const windowStart = last.timestamp - PROJECTION_WINDOW_DAYS * DAY_MS
+    const windowPoints = realPoints.filter(p => p.timestamp >= windowStart)
+    if (windowPoints.length < 3) return null
+    const first = windowPoints[0]
+    const daySpan = (last.timestamp - first.timestamp) / DAY_MS
+    if (daySpan < 3) return null
+
+    const pace = (last.value - first.value) / daySpan
+    if (Math.abs(pace) < MIN_PACE_LP_PER_DAY) return { pace: 0, milestone: null, days: null }
+    if (pace < 0) return { pace, milestone: null, days: null }
+
+    const next = TIER_LADDER.find(e => e.floor > last.value)
+    if (!next) return { pace, milestone: null, days: null }
+    const days = Math.max(1, Math.ceil((next.floor - last.value) / pace))
+    if (days > MAX_PROJECTION_DAYS) return { pace, milestone: null, days: null }
+
+    const name = APEX_TIERS.includes(next.tier) ? titleCase(next.tier) : `${titleCase(next.tier)} ${next.rank}`
+    return { pace, milestone: name, days }
+}
+
 export default function TftLpHistoryChart({ accountId, matchHistory, currentLeaguePoints, accentColor = "#0bc4e3", queueType = "RANKED_TFT", tier = null, rank = null }) {
 
     const [trackedHistory, setTrackedHistory] = useState(null)
@@ -279,7 +317,11 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
             ]
         }
 
-        return { points, labels, data, referenceLines, minLp, maxLp, yMin, yMax, gamesCovered, trackedCount: trackedPoints.length, netLpChange, firstTimestamp: firstPoint?.timestamp ?? null }
+        // Includes the live "right now" cap point when present, so today's games
+        // count toward the pace even before the daily cron records them.
+        const projection = useLadder ? buildProjection(points.filter(p => !p.isEstimated)) : null
+
+        return { points, labels, data, referenceLines, minLp, maxLp, yMin, yMax, gamesCovered, trackedCount: trackedPoints.length, netLpChange, firstTimestamp: firstPoint?.timestamp ?? null, projection }
     }, [trackedHistory, matchHistory, currentLeaguePoints, accentColor, tier, rank])
 
     const options = useMemo(() => {
@@ -330,7 +372,7 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
         return <p className="text-text-secondary text-xs">Loading LP history...</p>
     }
 
-    const { referenceLines, minLp, maxLp, yMin, yMax, gamesCovered, trackedCount, netLpChange, data, firstTimestamp } = derived
+    const { referenceLines, minLp, maxLp, yMin, yMax, gamesCovered, trackedCount, netLpChange, data, firstTimestamp, projection } = derived
 
     return (
         <div className="w-full">
@@ -411,6 +453,18 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
                 <span>{firstTimestamp ? formatFullDate(firstTimestamp) : "Start"}</span>
                 <span>Now</span>
             </div>
+            {projection && (
+                <div className="flex items-center gap-1.5 mt-1.5 text-[11px]">
+                    <span className={`font-semibold ${projection.pace > 0 ? "text-positive" : projection.pace < 0 ? "text-negative" : "text-text-secondary"}`}>
+                        {projection.pace > 0 ? "▲" : projection.pace < 0 ? "▼" : "◆"} {projection.pace === 0 ? "Holding steady" : `${Math.abs(projection.pace).toFixed(1)} LP/day`}
+                    </span>
+                    {projection.milestone && (
+                        <span className="text-text-secondary">
+                            · On pace for <span className="text-text-primary font-semibold">{projection.milestone}</span> in ~{projection.days} day{projection.days === 1 ? "" : "s"}
+                        </span>
+                    )}
+                </div>
+            )}
             <p className="text-text-secondary text-[10px] mt-1.5">
                 {gamesCovered > 0
                     ? "Dashed = estimated from recent placements. We're now tracking your real LP daily. Hover for details."
