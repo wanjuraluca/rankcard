@@ -122,6 +122,14 @@ function buildEstimatedPoints(rankedMatches, anchorValue, anchorTimestamp) {
     return points.reverse() // oldest first
 }
 
+// Local Y-M-D key, used to match a chart point (a calendar day) to whichever
+// ranked game(s) were played that same day — never UTC, so a late-night
+// game and its snapshot line up the same way they do on screen for the viewer.
+function dayKey(timestamp) {
+    const d = new Date(timestamp)
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+}
+
 function formatFullDate(timestamp) {
     return new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
@@ -292,17 +300,20 @@ export default function LpHistoryChart({
                 }
             }
             // Tracked points are daily snapshots, not per-game, so there's no
-            // single champion to attach to any of them in general — except the
-            // very last point on the chart (whether that's today's live cap
-            // point above, or the last real snapshot if it already matches the
-            // live value), which can reasonably borrow the champion from the
-            // most recent ranked game, since that's the game that produced the
-            // rank currently on screen.
-            if (points.length > 0) {
-                const latestRanked = [...matchHistory]
+            // single champion to attach to any of them in general. The one
+            // exception: the most recent point where the LP actually moved —
+            // that's a real game day, not just a flat "no game played" day —
+            // can borrow the champion of a ranked match played on that same
+            // calendar date. Matching by date (not just grabbing whatever
+            // match is globally most recent) matters because the newest
+            // tracked point is very often a flat day after the last real game.
+            const lastMovedPoint = [...points].reverse().find(p => p.delta)
+            if (lastMovedPoint) {
+                const movedDay = dayKey(lastMovedPoint.timestamp)
+                const matchOnDay = matchHistory
                     .filter(m => m.queueId === RANKED_SOLO_QUEUE_ID)
-                    .sort((a, b) => b.gameEndTimestamp - a.gameEndTimestamp)[0]
-                if (latestRanked) points[points.length - 1].champion = latestRanked.champion
+                    .find(m => dayKey(m.gameEndTimestamp) === movedDay)
+                if (matchOnDay) lastMovedPoint.champion = matchOnDay.champion
             }
         } else if (typeof currentAbs === "number") {
             // Bootstrap: reconstruct a recent trail by walking back from the live

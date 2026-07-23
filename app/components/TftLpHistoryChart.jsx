@@ -106,6 +106,14 @@ function buildEstimatedPoints(matchHistory, anchorValue, anchorTimestamp) {
     return points.reverse() // oldest first
 }
 
+// Local Y-M-D key, used to match a chart point (a calendar day) to whichever
+// game(s) were played that same day — never UTC, so a late-night game and its
+// snapshot line up the same way they do on screen for the viewer.
+function dayKey(timestamp) {
+    const d = new Date(timestamp)
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+}
+
 function formatFullDate(timestamp) {
     return new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
@@ -214,16 +222,18 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
                 }
             }
             // Tracked points are daily snapshots, not per-game, so there's no
-            // single match to attach to any of them in general — except the
-            // very last point on the chart (whether that's today's live cap
-            // point above, or the last real snapshot if it already matches the
-            // live value), which can reasonably borrow the top trait from the
-            // most recent game, since that's the game that produced the rank
-            // currently on screen.
-            if (points.length > 0) {
-                const latestMatch = [...matchHistory]
-                    .sort((a, b) => (b.game_datetime ?? 0) - (a.game_datetime ?? 0))[0]
-                if (latestMatch?.topTraits?.[0]) points[points.length - 1].topTrait = latestMatch.topTraits[0]
+            // single match to attach to any of them in general. The one
+            // exception: the most recent point where the LP actually moved —
+            // that's a real game day, not just a flat "no game played" day —
+            // can borrow the top trait of a game played on that same calendar
+            // date. Matching by date (not just grabbing whatever match is
+            // globally most recent) matters because the newest tracked point
+            // is very often a flat day after the last real game.
+            const lastMovedPoint = [...points].reverse().find(p => p.delta)
+            if (lastMovedPoint) {
+                const movedDay = dayKey(lastMovedPoint.timestamp)
+                const matchOnDay = matchHistory.find(m => dayKey(m.game_datetime ?? 0) === movedDay)
+                if (matchOnDay?.topTraits?.[0]) lastMovedPoint.topTrait = matchOnDay.topTraits[0]
             }
         } else if (typeof currentAbs === "number") {
             const estimatedPoints = buildEstimatedPoints(matchHistory, currentAbs, Date.now())
