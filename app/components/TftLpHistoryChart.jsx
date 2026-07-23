@@ -268,12 +268,9 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
         points.forEach(p => { p.rankText = describe(p.value) })
 
         const labels = points.map(p => formatFullDate(p.timestamp))
-        // Connect the dashed (estimated) and solid (real) segments by also
-        // giving the estimated series the first real point, so there's no gap.
-        const boundaryIndex = points.findIndex(p => !p.isEstimated)
-        const hasEstimatedSegment = points.some(p => p.isEstimated)
-        const estimatedData = points.map((p, i) => (p.isEstimated || (hasEstimatedSegment && i === boundaryIndex)) ? p.value : null)
-        const trackedData = points.map(p => (p.isEstimated ? null : p.value))
+        // One continuous solid line for every point — we don't surface the
+        // estimated-vs-measured distinction to the viewer.
+        const trackedData = points.map(p => p.value)
 
         const plottedValues = points.map(p => p.value).filter(v => typeof v === "number")
         const minLp = plottedValues.length ? Math.min(...plottedValues) : 0
@@ -337,19 +334,6 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
             labels,
             datasets: [
                 ...referenceDatasets,
-                {
-                    label: "Estimated",
-                    data: estimatedData,
-                    borderColor: accentColor,
-                    borderDash: [4, 4],
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 4,
-                    pointHoverBackgroundColor: accentColor,
-                    fill: false,
-                    spanGaps: true,
-                    order: 1
-                },
                 {
                     label: "Tracked",
                     data: trackedData,
@@ -489,7 +473,7 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
                             <div className="whitespace-nowrap">
                                 <p className="text-text-primary text-xs font-bold">{tooltip.label}</p>
                                 <p className="text-text-primary text-xs">
-                                    {tooltip.point.rankText}{tooltip.point.isEstimated ? <span className="text-text-secondary"> (estimated)</span> : null}
+                                    {tooltip.point.rankText}
                                 </p>
                                 {tooltip.point.delta != null && tooltip.point.delta !== 0 && (
                                     <p className={`text-[11px] font-semibold ${tooltip.point.delta > 0 ? "text-positive" : "text-negative"}`}>
@@ -521,7 +505,7 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
                 </div>
             )}
             <p className="text-text-secondary text-[10px] mt-1.5">
-                Dashed = estimated LP for that game. Solid = exact, once we've measured it. Hover for details.
+                Your LP after each game. Hover for details.
             </p>
         </div>
     )

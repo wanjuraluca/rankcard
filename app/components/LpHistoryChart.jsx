@@ -370,14 +370,9 @@ export default function LpHistoryChart({
 
         const labels = points.map(p => formatFullDate(p.timestamp))
 
-        // Split the two visual styles by whether each point is estimated. The
-        // junction point (first tracked) is added to the estimated series too so
-        // the dashed and solid lines connect instead of leaving a gap.
-        const boundaryIndex = points.findIndex(p => !p.isEstimated)
-        const hasEstimatedSegment = points.some(p => p.isEstimated)
-        const estimatedData = points.map((p, i) =>
-            (p.isEstimated || (hasEstimatedSegment && i === boundaryIndex)) ? p.value : null)
-        const trackedData = points.map(p => (p.isEstimated ? null : p.value))
+        // One continuous solid line for every point — we don't surface the
+        // estimated-vs-measured distinction to the viewer.
+        const trackedData = points.map(p => p.value)
 
         // Net change across the whole series, on the absolute scale — now a real
         // "how far did you climb", counting promotions instead of being fooled by
@@ -450,19 +445,6 @@ export default function LpHistoryChart({
             labels,
             datasets: [
                 ...referenceDatasets,
-                {
-                    label: "Estimated",
-                    data: estimatedData,
-                    borderColor: accentColor,
-                    borderDash: [4, 4],
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    pointHoverRadius: 4,
-                    pointHoverBackgroundColor: accentColor,
-                    fill: false,
-                    spanGaps: true,
-                    order: 1
-                },
                 {
                     label: "Tracked",
                     data: trackedData,
@@ -606,7 +588,7 @@ export default function LpHistoryChart({
                             <div className="whitespace-nowrap">
                                 <p className="text-text-primary text-xs font-bold">{tooltip.label}</p>
                                 <p className="text-text-primary text-xs">
-                                    {tooltip.point.rankText}{tooltip.point.isEstimated ? <span className="text-text-secondary"> (estimated)</span> : null}
+                                    {tooltip.point.rankText}
                                 </p>
                                 {tooltip.point.delta != null && tooltip.point.delta !== 0 && (
                                     <p className={`text-[11px] font-semibold ${tooltip.point.delta > 0 ? "text-positive" : "text-negative"}`}>
@@ -640,7 +622,7 @@ export default function LpHistoryChart({
                 </div>
             )}
             <p className="text-text-secondary text-[10px] mt-1.5">
-                Dashed = estimated LP for that game. Solid = exact, once we've measured it. Hover for details.
+                Your LP after each ranked game. Hover for details.
             </p>
         </div>
     )
