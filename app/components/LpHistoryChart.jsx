@@ -11,6 +11,7 @@ import {
     Tooltip
 } from "chart.js"
 import { supabase } from "@/lib/supabase"
+import { assignGameDeltas } from "@/lib/gameLpDeltas"
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip)
 
@@ -96,81 +97,11 @@ function fromLadderValue(value) {
     return { name, lp, text: `${name} · ${lp} LP` }
 }
 
-// Local Y-M-D key, used to line games up with the daily snapshot taken the
-// same calendar day. Never UTC, so a late-night game and its snapshot match
-// the way they read on screen for the viewer.
-function dayKey(timestamp) {
-    const d = new Date(timestamp)
-    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
-}
-
-// Give every ranked game its REAL LP delta wherever we can prove it, instead of
-// a blanket win/loss estimate. The daily snapshots (lp_history) hold the true
-// ladder value at the end of each day; the live value is the truth for today.
-// So a game's real delta is derivable when its day's end-value and the prior
-// known day's end-value are both known and only that one game happened that
-// day: delta = todayValue - yesterdayValue (exact, and correct across a
-// promotion — Plat IV 90 -> Plat III 20 reads as +30, not a hardcoded +17).
-//
-// - single game on a day with both day-boundaries known -> exact (isEstimated false)
-// - multiple games that day -> the real net is split across them by their
-//   estimate weights (net stays exact, per-game stays approximate)
-// - day we can't bracket with real values -> fall back to the typical estimate
-function assignGameDeltas(games, snapshots, currentAbs) {
-    // Real end-of-day ladder values: each daily snapshot, then today overridden
-    // by the live value (a snapshot taken earlier today may pre-date today's games).
-    const checkpoints = snapshots.map(s => ({ dayK: dayKey(s.timestamp), t: s.timestamp, value: s.value }))
-    const todayK = dayKey(Date.now())
-    const today = checkpoints.find(c => c.dayK === todayK)
-    if (today) today.value = currentAbs
-    else checkpoints.push({ dayK: todayK, t: Date.now(), value: currentAbs })
-    checkpoints.sort((a, b) => a.t - b.t)
-    const valueByDay = new Map(checkpoints.map(c => [c.dayK, c.value]))
-
-    const gamesByDay = new Map()
-    for (const g of games) {
-        const k = dayKey(g.timestamp)
-        if (!gamesByDay.has(k)) gamesByDay.set(k, [])
-        gamesByDay.get(k).push(g)
-    }
-
-    const estOf = (g) => (g.win ? ESTIMATED_LP_GAIN : -ESTIMATED_LP_LOSS)
-
-    for (const [dayK, dayGames] of gamesByDay) {
-        const after = valueByDay.get(dayK)
-        const idx = checkpoints.findIndex(c => c.dayK === dayK)
-        const before = idx > 0 ? checkpoints[idx - 1].value : undefined
-        if (after != null && before != null) {
-            const realNet = after - before
-            if (dayGames.length === 1) {
-                dayGames[0].delta = realNet
-                dayGames[0].isEstimated = false
-            } else {
-                // Keep the day's real net exact, split it across the day's games
-                // in proportion to their typical estimates (sign-aware). Per-game
-                // stays an estimate; only the daily total is guaranteed real.
-                const estTotal = dayGames.reduce((s, g) => s + estOf(g), 0) || dayGames.length
-                let acc = 0
-                dayGames.forEach((g, i) => {
-                    const share = i === dayGames.length - 1
-                        ? realNet - acc
-                        : Math.round(realNet * (estOf(g) / estTotal))
-                    g.delta = share
-                    g.isEstimated = true
-                    acc += share
-                })
-            }
-        } else {
-            for (const g of dayGames) {
-                // No real bracket for this day — a measured per-game delta from
-                // match_lp is the next best thing, else the typical estimate.
-                g.delta = (!g.isEstimate && g.lpDelta != null) ? g.lpDelta : estOf(g)
-                g.isEstimated = !(g.lpDelta != null && g.isEstimate === false)
-            }
-        }
-    }
-    return games
-}
+// dayKey/assignGameDeltas live in lib/gameLpDeltas.js now — shared with
+// RankHero.jsx's match-history rows, so a game's delta reads the same in both
+// places instead of the chart and the match list disagreeing (chart computes
+// the real ladder delta; match history used to always show a flat estimate).
+const estOf = (g) => (g.win ? ESTIMATED_LP_GAIN : -ESTIMATED_LP_LOSS)
 
 // One point per real ranked game, walking backward from the live current LP.
 // Each point sits at its game and shows the rank the player had AFTER that
@@ -183,7 +114,7 @@ function assignGameDeltas(games, snapshots, currentAbs) {
 // crosses promotion/demotion boundaries smoothly.
 function buildGamePoints(rankedMatches, snapshots, anchorValue) {
     const sorted = [...rankedMatches].sort((a, b) => b.timestamp - a.timestamp)
-    assignGameDeltas(sorted, snapshots, anchorValue)
+    assignGameDeltas(sorted, snapshots, anchorValue, estOf)
 
     let running = anchorValue // LP after the most recent game = live current LP
     const points = []
@@ -352,11 +283,11 @@ export default function LpHistoryChart({
             // cover, always as an estimate (it has no delta/champion).
             const shortRankedMatches = matchHistory
                 .filter(m => m.queueId === RANKED_SOLO_QUEUE_ID)
-                .map(m => ({ matchId: m.matchId, win: m.win, timestamp: m.gameEndTimestamp, champion: m.champion, lpDelta: m.lpDelta, isEstimate: m.lpDeltaIsEstimate }))
+                .map(m => ({ matchId: m.matchId, win: m.win, timestamp: m.gameEndTimestamp, champion: m.champion, measuredDelta: m.lpDeltaIsEstimate === false ? m.lpDelta : null }))
             const knownMatchIds = new Set(shortRankedMatches.map(m => m.matchId))
             const extendedMatches = timelinePoints
                 .filter(p => !knownMatchIds.has(p.matchId))
-                .map(p => ({ matchId: p.matchId, win: p.win, timestamp: p.timestamp, champion: null, lpDelta: null, isEstimate: true }))
+                .map(p => ({ matchId: p.matchId, win: p.win, timestamp: p.timestamp, champion: null, measuredDelta: null }))
             const rankedMatches = [...shortRankedMatches, ...extendedMatches]
 
             points = buildGamePoints(rankedMatches, realTrackedPoints, currentAbs)

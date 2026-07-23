@@ -11,6 +11,7 @@ import {
     Tooltip
 } from "chart.js"
 import { supabase } from "@/lib/supabase"
+import { assignGameDeltas } from "@/lib/gameLpDeltas"
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip)
 
@@ -80,69 +81,10 @@ function fromLadderValue(value) {
     return { name, lp, text: `${name} · ${lp} LP` }
 }
 
-// Local Y-M-D key, used to line games up with the daily snapshot taken the
-// same calendar day. Never UTC, so a late-night game and its snapshot match
-// the way they read on screen for the viewer.
-function dayKey(timestamp) {
-    const d = new Date(timestamp)
-    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
-}
-
-// Give every game its REAL LP delta wherever we can prove it, instead of a
-// blanket placement estimate. The daily snapshots (tft_lp_history) hold the
-// true ladder value at the end of each day; the live value is the truth for
-// today. So a game's real delta is derivable when its day's end-value and the
-// prior known day's end-value are both known and only that one game happened
-// that day: delta = todayValue - yesterdayValue (exact, correct across a
-// promotion). Mirrors the League chart's assignGameDeltas.
-function assignGameDeltas(games, snapshots, currentAbs) {
-    const checkpoints = snapshots.map(s => ({ dayK: dayKey(s.timestamp), t: s.timestamp, value: s.value }))
-    const todayK = dayKey(Date.now())
-    const today = checkpoints.find(c => c.dayK === todayK)
-    if (today) today.value = currentAbs
-    else checkpoints.push({ dayK: todayK, t: Date.now(), value: currentAbs })
-    checkpoints.sort((a, b) => a.t - b.t)
-    const valueByDay = new Map(checkpoints.map(c => [c.dayK, c.value]))
-
-    const gamesByDay = new Map()
-    for (const g of games) {
-        const k = dayKey(g.timestamp)
-        if (!gamesByDay.has(k)) gamesByDay.set(k, [])
-        gamesByDay.get(k).push(g)
-    }
-
-    const estOf = (g) => (ESTIMATED_LP_BY_PLACEMENT[g.placement] ?? 0)
-
-    for (const [dayK, dayGames] of gamesByDay) {
-        const after = valueByDay.get(dayK)
-        const idx = checkpoints.findIndex(c => c.dayK === dayK)
-        const before = idx > 0 ? checkpoints[idx - 1].value : undefined
-        if (after != null && before != null) {
-            const realNet = after - before
-            if (dayGames.length === 1) {
-                dayGames[0].delta = realNet
-                dayGames[0].isEstimated = false
-            } else {
-                const estTotal = dayGames.reduce((s, g) => s + estOf(g), 0) || dayGames.length
-                let acc = 0
-                dayGames.forEach((g, i) => {
-                    const share = i === dayGames.length - 1
-                        ? realNet - acc
-                        : Math.round(realNet * (estOf(g) / estTotal))
-                    g.delta = share
-                    g.isEstimated = true
-                    acc += share
-                })
-            }
-        } else {
-            for (const g of dayGames) {
-                g.delta = estOf(g)
-                g.isEstimated = true
-            }
-        }
-    }
-    return games
-}
+// dayKey/assignGameDeltas live in lib/gameLpDeltas.js now — shared with
+// RankHero.jsx's match-history rows so a game's delta reads the same
+// everywhere instead of the chart and the match list disagreeing.
+const estOf = (g) => (ESTIMATED_LP_BY_PLACEMENT[g.placement] ?? 0)
 
 // One point per real game, walking backward from the live current LP. Each
 // point sits at its game and shows the rank AFTER that game (so the most
@@ -154,7 +96,7 @@ function buildGamePoints(matchHistory, snapshots, anchorValue) {
         .filter(m => m.placement != null)
         .map(m => ({ timestamp: m.game_datetime, placement: m.placement, topTrait: m.topTraits?.[0] ?? null }))
         .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))
-    assignGameDeltas(games, snapshots, anchorValue)
+    assignGameDeltas(games, snapshots, anchorValue, estOf)
 
     let running = anchorValue // LP after the most recent game = live current LP
     const points = []

@@ -1,8 +1,19 @@
 "use client"
-import { useState, useEffect, useLayoutEffect, useRef } from "react"
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react"
 import LpHistoryChart from "./LpHistoryChart"
 import MatchDetail from "./MatchDetail"
 import { HeroSkeleton } from "./Skeleton"
+import { supabase } from "@/lib/supabase"
+import { toLadderValue } from "@/lib/rankLadder"
+import { assignGameDeltas } from "@/lib/gameLpDeltas"
+
+const RANKED_SOLO_QUEUE_ID = 420
+// Duplicated from app/api/summoner/route.js's ESTIMATED_LP_GAIN/LOSS — the
+// same typical-gain/-loss fallback assignGameDeltas uses when a game's day
+// can't be bracketed by real snapshots.
+const ESTIMATED_LP_GAIN = 17
+const ESTIMATED_LP_LOSS = 15
+const estOf = (g) => (g.win ? ESTIMATED_LP_GAIN : -ESTIMATED_LP_LOSS)
 
 function formatDuration(seconds) {
     const minutes = Math.floor(seconds / 60)
@@ -211,6 +222,50 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
     // around so a failed mode-filtered fetch can fall back to filtering data
     // we already have client-side instead of showing an empty dead end.
     const allModesData = useRef({ rankEntry: null, matchHistory: [] })
+    const [lpSnapshots, setLpSnapshots] = useState([])
+
+    useEffect(() => {
+        async function fetchSnapshots() {
+            const { data } = await supabase
+                .from("lp_history")
+                .select("recorded_on, league_points, tier, rank")
+                .eq("connected_account_id", account.id)
+                .order("recorded_on", { ascending: true })
+
+            setLpSnapshots(
+                (data ?? [])
+                    .map(e => ({ timestamp: new Date(e.recorded_on).getTime(), value: toLadderValue(e.tier, e.rank, e.league_points) }))
+                    .filter(p => typeof p.value === "number")
+            )
+        }
+        fetchSnapshots()
+    }, [account.id])
+
+    // Same real-delta derivation the LP chart plots (see lib/gameLpDeltas.js) —
+    // applied here too so a match's LP change reads identically in the match
+    // history list and in the chart's tooltip, instead of the list showing a
+    // flat ~17 estimate while the chart (independently) shows the real value.
+    const correctedMatchHistory = useMemo(() => {
+        const currentAbs = toLadderValue(rankEntry?.tier, rankEntry?.rank, rankEntry?.leaguePoints)
+        if (currentAbs == null) return matchHistory
+
+        const rankedGames = matchHistory.filter(m => m.queueId === RANKED_SOLO_QUEUE_ID)
+        if (rankedGames.length === 0) return matchHistory
+
+        const games = rankedGames.map(m => ({
+            timestamp: m.gameEndTimestamp,
+            win: m.win,
+            measuredDelta: m.lpDeltaIsEstimate === false ? m.lpDelta : null
+        }))
+        assignGameDeltas(games, lpSnapshots, currentAbs, estOf)
+        const deltaByTimestamp = new Map(games.map(g => [g.timestamp, g]))
+
+        return matchHistory.map(m => {
+            const corrected = deltaByTimestamp.get(m.gameEndTimestamp)
+            if (!corrected) return m
+            return { ...m, lpDelta: corrected.delta, lpDeltaIsEstimate: corrected.isEstimated }
+        })
+    }, [matchHistory, lpSnapshots, rankEntry])
 
     function toggleMatch(matchId) {
         scrollYBeforeToggle.current = window.scrollY
@@ -501,7 +556,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                     <p className="text-text-muted text-[11px] uppercase tracking-widest mb-3">LP History</p>
                     <LpHistoryChart
                         accountId={account.id}
-                        matchHistory={matchHistory}
+                        matchHistory={correctedMatchHistory}
                         currentLeaguePoints={rankEntry?.leaguePoints ?? null}
                         accentColor={accentColor}
                         ddragonVersion={ddragonVersion}
@@ -546,7 +601,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                     <p className="text-text-secondary text-sm">No matches found for this mode.</p>
                 ) : (
                     <div className="flex flex-col gap-1.5">
-                        {matchHistory.map((match) => {
+                        {correctedMatchHistory.map((match) => {
                             const isExpanded = expandedMatchId === match.matchId
                             const isArena = match.gameMode === "CHERRY"
                             return (
