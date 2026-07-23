@@ -1,6 +1,6 @@
 import { after } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
-import { getLeagueScore, getValorantScore, getCs2Score, getTftScore, getOverwatchScore, getMarvelRivalsScore, estimateMarvelRivalsRankFromScore } from '@/lib/rankScore'
+import { getLeagueBestEntry, getValorantScore, getCs2Score, getTftScore, getOverwatchScore, getMarvelRivalsScore, estimateMarvelRivalsRankFromScore } from '@/lib/rankScore'
 import { markServiceDown, markServiceUp } from '@/lib/serviceStatus'
 import { detectRouting } from '@/lib/riotPlatform'
 import { toLadderValue } from '@/lib/rankLadder'
@@ -1325,10 +1325,11 @@ async function fetchMatchHistory(puuid, queueId, continent = 'europe') {
 function extractScore(data, platform) {
   try {
     if (platform === 'League of Legends') {
-      const solo = Array.isArray(data.rankData)
-        ? data.rankData.find(e => e.queueType === 'RANKED_SOLO_5x5')
-        : null
-      return solo ? getLeagueScore(solo.tier, solo.rank) : null
+      // Whichever of Solo/Duo or Flex scores higher — same rule the profile's
+      // Overall tab uses (see lib/gameStats.js) — so rank_history (and the
+      // leaderboard/season-high derived from it) don't silently track only
+      // Solo/Duo while ignoring a higher Flex rank.
+      return getLeagueBestEntry(data.rankData)?.score ?? null
     }
     if (platform === 'Valorant') {
       // valorantData is Henrik's v3 by-puuid/mmr response — the current tier

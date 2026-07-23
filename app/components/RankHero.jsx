@@ -203,6 +203,12 @@ function buildTopChampions(matchHistory) {
 export default function RankHero({ account, accentColor = "#b16cff" }) {
 
     const [rankEntry, setRankEntry] = useState(null)
+    // Solo/Duo only — kept separate from the badge's displayed queue below
+    // because the LP chart and match-history real-delta math (lib/gameLpDeltas.js)
+    // is Solo/Duo-specific (queueId 420) and must never silently follow the
+    // viewer's Flex toggle.
+    const [flexRankEntry, setFlexRankEntry] = useState(null)
+    const [selectedQueue, setSelectedQueue] = useState("solo")
     const [matchHistory, setMatchHistory] = useState([])
     const [ddragonVersion, setDdragonVersion] = useState(null)
     const [yourPuuid, setYourPuuid] = useState(null)
@@ -299,9 +305,10 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
             // leave the hero stuck on "Loading rank...".
             const requestFailed = !Array.isArray(data.rankData)
             const entry = requestFailed ? null : data.rankData.find((queue) => queue.queueType === "RANKED_SOLO_5x5") ?? null;
+            const flexEntry = requestFailed ? null : data.rankData.find((queue) => queue.queueType === "RANKED_FLEX_SR") ?? null;
 
             if (!modeFilter && !requestFailed) {
-                allModesData.current = { rankEntry: entry, matchHistory: data.matchHistory ?? [] }
+                allModesData.current = { rankEntry: entry, flexRankEntry: flexEntry, matchHistory: data.matchHistory ?? [] }
             }
 
             if (modeFilter && requestFailed) {
@@ -310,9 +317,11 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                 // than showing an empty/dead-end state. Rank itself doesn't
                 // vary by mode, so that can just reuse the cached value too.
                 setRankEntry(allModesData.current.rankEntry)
+                setFlexRankEntry(allModesData.current.flexRankEntry)
                 setMatchHistory(allModesData.current.matchHistory.filter(m => String(m.queueId) === modeFilter))
             } else {
                 setRankEntry(entry)
+                setFlexRankEntry(flexEntry)
                 setMatchHistory(data.matchHistory ?? [])
             }
             setDdragonVersion(data.ddragonVersion ?? null)
@@ -440,6 +449,12 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
         return ddragonVersion ? `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/champion/${championName}.png` : null
     }
 
+    // The badge (emblem/tier/LP/progress bar) follows the viewer's Solo/Duo-
+    // or-Flex toggle; the chart and match history below stay on `rankEntry`
+    // (Solo/Duo) regardless, since their real-LP-delta math is queue-specific.
+    const displayEntry = selectedQueue === "flex" ? flexRankEntry : rankEntry
+    const displayQueueLabel = selectedQueue === "flex" ? "Flex" : "Solo/Duo"
+
     return (
         <div
             className="bg-surface border border-hairline rounded-2xl p-4 sm:p-5 relative"
@@ -449,10 +464,10 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
 
                 {/* Rank emblem */}
                 <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 overflow-hidden flex items-center justify-center">
-                    {rankEntry && (
+                    {displayEntry && (
                         <img
-                            src={`https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${rankEntry.tier.toLowerCase()}.png`}
-                            alt={rankEntry.tier}
+                            src={`https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${displayEntry.tier.toLowerCase()}.png`}
+                            alt={displayEntry.tier}
                             className="w-full h-full object-contain scale-450 translate-y-2"
                         />
                     )}
@@ -460,18 +475,39 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
 
                 {/* Rank info */}
                 <div className="flex-1 min-w-[180px]">
-                    {rankEntry ? (
+                    {/* Solo/Duo <-> Flex toggle — only worth showing once we
+                        actually have both queues' data, otherwise it's a
+                        control with nothing to switch to. */}
+                    {(rankEntry || flexRankEntry) && (
+                        <div className="flex gap-1 mb-2">
+                            {[["solo", "Solo/Duo", rankEntry], ["flex", "Flex", flexRankEntry]].map(([value, label]) => (
+                                <button
+                                    key={value}
+                                    onClick={() => setSelectedQueue(value)}
+                                    className={`text-[11px] font-bold px-2.5 py-1 rounded-full transition-colors ${
+                                        selectedQueue === value
+                                            ? "text-white"
+                                            : "text-text-secondary hover:text-text-primary bg-surface-deep"
+                                    }`}
+                                    style={selectedQueue === value ? { backgroundColor: accentColor } : undefined}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    {displayEntry ? (
                         <>
                             <p className="text-text-primary font-extrabold text-2xl">
-                                {rankEntry.tier} {rankEntry.rank}
+                                {displayEntry.tier} {displayEntry.rank}
                             </p>
                             <p className="text-text-secondary text-sm mt-1">
-                                {rankEntry.leaguePoints} LP · Solo/Duo
+                                {displayEntry.leaguePoints} LP · {displayQueueLabel}
                             </p>
                             <div className="h-2 bg-hairline rounded-full mt-3 overflow-hidden">
                                 <div
                                     className="h-2 rounded-full transition-[width]"
-                                    style={{ width: `${Math.min(rankEntry.leaguePoints, 100)}%`, backgroundColor: accentColor }}
+                                    style={{ width: `${Math.min(displayEntry.leaguePoints, 100)}%`, backgroundColor: accentColor }}
                                 />
                             </div>
                             <div className="flex justify-between text-text-secondary text-[10px] mt-1">
@@ -482,7 +518,7 @@ export default function RankHero({ account, accentColor = "#b16cff" }) {
                     ) : (
                         <>
                             <p className="text-text-primary font-extrabold text-2xl">Unranked</p>
-                            <p className="text-text-secondary text-sm mt-1">No ranked Solo/Duo games yet</p>
+                            <p className="text-text-secondary text-sm mt-1">No ranked {displayQueueLabel} games yet</p>
                         </>
                     )}
                 </div>

@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 import { RankBadgeSkeleton } from "./Skeleton"
-import { getOverwatchScore } from "@/lib/rankScore"
+import { getOverwatchScore, getLeagueBestEntry } from "@/lib/rankScore"
 
 // Mirrors Cs2Hero's PREMIER_BANDS — kept duplicated rather than shared since
 // this is just a display color, not scoring logic (see lib/rankScore.js).
@@ -18,6 +18,7 @@ const PREMIER_BANDS = [
 export default function RankBadge({ account }) {
 
     const [rankEntry, setRankEntry] = useState(null)
+    const [rankQueue, setRankQueue] = useState(null)
     const [tftEntry, setTftEntry] = useState(null)
     const [valorantEntry, setValorantEntry] = useState(null)
     const [valorantImage, setValorantImage] = useState(null)
@@ -35,8 +36,12 @@ export default function RankBadge({ account }) {
             // Guard with Array.isArray: on a Riot error (rate limit / bad key)
             // the API returns an error object here, not an array — calling
             // .find on it would throw and freeze the badge on "Loading...".
-            const entry = Array.isArray(data.rankData) ? data.rankData.find((queue) => queue.queueType === "RANKED_SOLO_5x5") : null;
-            setRankEntry(entry ?? null)
+            // Whichever of Solo/Duo or Flex is higher represents the player
+            // here (see lib/rankScore.js's getLeagueBestEntry) — same rule
+            // used everywhere else the League rank score matters.
+            const best = getLeagueBestEntry(data.rankData)
+            setRankEntry(best?.entry ?? null)
+            setRankQueue(best?.queue ?? null)
             const tft = Array.isArray(data.tftData) ? data.tftData.find((queue) => queue.queueType === "RANKED_TFT") : null;
             setTftEntry(tft ?? null)
             setValorantEntry(data.valorantData?.data?.current ?? null)
@@ -200,7 +205,7 @@ export default function RankBadge({ account }) {
             </div>
             <div>
                 <p className="text-text-primary text-sm font-bold">{rankEntry.tier} {rankEntry.rank}</p>
-                <p className="text-text-secondary text-[11px]">{rankEntry.leaguePoints} LP · Solo/Duo</p>
+                <p className="text-text-secondary text-[11px]">{rankEntry.leaguePoints} LP · {rankQueue === "flex" ? "Flex" : "Solo/Duo"}</p>
             </div>
             <div className="ml-auto text-right">
                 <p className="text-positive text-xs font-semibold">{winRate}% WR</p>
