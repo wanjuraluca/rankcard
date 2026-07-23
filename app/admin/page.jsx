@@ -10,7 +10,7 @@ import { Search, ExternalLink, Pencil } from "lucide-react"
 
 function formatDate(iso) {
     if (!iso) return "—"
-    return new Date(iso).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })
+    return new Date(iso).toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" })
 }
 
 function timeAgo(iso) {

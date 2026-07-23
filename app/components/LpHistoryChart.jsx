@@ -123,7 +123,7 @@ function buildEstimatedPoints(rankedMatches, anchorValue, anchorTimestamp) {
 }
 
 function formatFullDate(timestamp) {
-    return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+    return new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
 
 // Only project within a recent window so an old slump doesn't drag down the
@@ -290,6 +290,19 @@ export default function LpHistoryChart({
                         delta: Math.round(currentAbs - last.value), champion: null, win: null, matchId: null, isEstimated: false
                     })
                 }
+            }
+            // Tracked points are daily snapshots, not per-game, so there's no
+            // single champion to attach to any of them in general — except the
+            // very last point on the chart (whether that's today's live cap
+            // point above, or the last real snapshot if it already matches the
+            // live value), which can reasonably borrow the champion from the
+            // most recent ranked game, since that's the game that produced the
+            // rank currently on screen.
+            if (points.length > 0) {
+                const latestRanked = [...matchHistory]
+                    .filter(m => m.queueId === RANKED_SOLO_QUEUE_ID)
+                    .sort((a, b) => b.gameEndTimestamp - a.gameEndTimestamp)[0]
+                if (latestRanked) points[points.length - 1].champion = latestRanked.champion
             }
         } else if (typeof currentAbs === "number") {
             // Bootstrap: reconstruct a recent trail by walking back from the live

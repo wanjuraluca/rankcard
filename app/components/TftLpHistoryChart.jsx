@@ -107,7 +107,7 @@ function buildEstimatedPoints(matchHistory, anchorValue, anchorTimestamp) {
 }
 
 function formatFullDate(timestamp) {
-    return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })
+    return new Date(timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
 
 // Only project within a recent window so an old slump doesn't drag down the
@@ -212,6 +212,18 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
                         delta: Math.round(currentAbs - last.value), placement: null, topTrait: null, isEstimated: false
                     })
                 }
+            }
+            // Tracked points are daily snapshots, not per-game, so there's no
+            // single match to attach to any of them in general — except the
+            // very last point on the chart (whether that's today's live cap
+            // point above, or the last real snapshot if it already matches the
+            // live value), which can reasonably borrow the top trait from the
+            // most recent game, since that's the game that produced the rank
+            // currently on screen.
+            if (points.length > 0) {
+                const latestMatch = [...matchHistory]
+                    .sort((a, b) => (b.game_datetime ?? 0) - (a.game_datetime ?? 0))[0]
+                if (latestMatch?.topTraits?.[0]) points[points.length - 1].topTrait = latestMatch.topTraits[0]
             }
         } else if (typeof currentAbs === "number") {
             const estimatedPoints = buildEstimatedPoints(matchHistory, currentAbs, Date.now())
