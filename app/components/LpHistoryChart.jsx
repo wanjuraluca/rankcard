@@ -96,38 +96,110 @@ function fromLadderValue(value) {
     return { name, lp, text: `${name} · ${lp} LP` }
 }
 
-// Riot's API never exposes the LP delta of a past match, so we can't recover
-// exact historical LP. We reconstruct an approximate trail by walking backwards
-// from a known anchor (the earliest real tracked snapshot, or the current live
-// value) using a typical LP-per-game estimate — clearly labeled as an estimate
-// in the UI, never presented as fact.
-//
-// Values are on the absolute ladder scale (buildTierLadder), so the walk
-// crosses promotion/demotion boundaries smoothly: winning up from Plat IV 90 LP
-// to Plat III 5 LP is a continuous climb, not a jump from 90 down to 5. This is
-// the whole fix for "a promotion showed up as an LP loss".
-function buildEstimatedPoints(rankedMatches, anchorValue, anchorTimestamp) {
-    const sorted = [...rankedMatches].sort((a, b) => b.timestamp - a.timestamp)
-
-    let running = anchorValue
-    const points = [{ timestamp: anchorTimestamp, value: running, delta: null, champion: null, win: null, matchId: null, isEstimated: true }]
-
-    for (const match of sorted) {
-        const delta = match.win ? ESTIMATED_LP_GAIN : -ESTIMATED_LP_LOSS
-        const valueBefore = Math.max(0, Math.round(running - delta))
-        points.push({ timestamp: match.timestamp, value: valueBefore, delta, champion: match.champion ?? null, win: match.win, matchId: match.matchId ?? null, isEstimated: true })
-        running = valueBefore
-    }
-
-    return points.reverse() // oldest first
-}
-
-// Local Y-M-D key, used to match a chart point (a calendar day) to whichever
-// ranked game(s) were played that same day — never UTC, so a late-night
-// game and its snapshot line up the same way they do on screen for the viewer.
+// Local Y-M-D key, used to line games up with the daily snapshot taken the
+// same calendar day. Never UTC, so a late-night game and its snapshot match
+// the way they read on screen for the viewer.
 function dayKey(timestamp) {
     const d = new Date(timestamp)
     return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+}
+
+// Give every ranked game its REAL LP delta wherever we can prove it, instead of
+// a blanket win/loss estimate. The daily snapshots (lp_history) hold the true
+// ladder value at the end of each day; the live value is the truth for today.
+// So a game's real delta is derivable when its day's end-value and the prior
+// known day's end-value are both known and only that one game happened that
+// day: delta = todayValue - yesterdayValue (exact, and correct across a
+// promotion — Plat IV 90 -> Plat III 20 reads as +30, not a hardcoded +17).
+//
+// - single game on a day with both day-boundaries known -> exact (isEstimated false)
+// - multiple games that day -> the real net is split across them by their
+//   estimate weights (net stays exact, per-game stays approximate)
+// - day we can't bracket with real values -> fall back to the typical estimate
+function assignGameDeltas(games, snapshots, currentAbs) {
+    // Real end-of-day ladder values: each daily snapshot, then today overridden
+    // by the live value (a snapshot taken earlier today may pre-date today's games).
+    const checkpoints = snapshots.map(s => ({ dayK: dayKey(s.timestamp), t: s.timestamp, value: s.value }))
+    const todayK = dayKey(Date.now())
+    const today = checkpoints.find(c => c.dayK === todayK)
+    if (today) today.value = currentAbs
+    else checkpoints.push({ dayK: todayK, t: Date.now(), value: currentAbs })
+    checkpoints.sort((a, b) => a.t - b.t)
+    const valueByDay = new Map(checkpoints.map(c => [c.dayK, c.value]))
+
+    const gamesByDay = new Map()
+    for (const g of games) {
+        const k = dayKey(g.timestamp)
+        if (!gamesByDay.has(k)) gamesByDay.set(k, [])
+        gamesByDay.get(k).push(g)
+    }
+
+    const estOf = (g) => (g.win ? ESTIMATED_LP_GAIN : -ESTIMATED_LP_LOSS)
+
+    for (const [dayK, dayGames] of gamesByDay) {
+        const after = valueByDay.get(dayK)
+        const idx = checkpoints.findIndex(c => c.dayK === dayK)
+        const before = idx > 0 ? checkpoints[idx - 1].value : undefined
+        if (after != null && before != null) {
+            const realNet = after - before
+            if (dayGames.length === 1) {
+                dayGames[0].delta = realNet
+                dayGames[0].isEstimated = false
+            } else {
+                // Keep the day's real net exact, split it across the day's games
+                // in proportion to their typical estimates (sign-aware). Per-game
+                // stays an estimate; only the daily total is guaranteed real.
+                const estTotal = dayGames.reduce((s, g) => s + estOf(g), 0) || dayGames.length
+                let acc = 0
+                dayGames.forEach((g, i) => {
+                    const share = i === dayGames.length - 1
+                        ? realNet - acc
+                        : Math.round(realNet * (estOf(g) / estTotal))
+                    g.delta = share
+                    g.isEstimated = true
+                    acc += share
+                })
+            }
+        } else {
+            for (const g of dayGames) {
+                // No real bracket for this day — a measured per-game delta from
+                // match_lp is the next best thing, else the typical estimate.
+                g.delta = (!g.isEstimate && g.lpDelta != null) ? g.lpDelta : estOf(g)
+                g.isEstimated = !(g.lpDelta != null && g.isEstimate === false)
+            }
+        }
+    }
+    return games
+}
+
+// One point per real ranked game, walking backward from the live current LP.
+// Each point sits at its game and shows the rank the player had AFTER that
+// game (so the most recent game lands on the current LP, matching what the
+// player sees), with that game's own delta. x-axis is "games played", not
+// calendar days — so there's never a flat stretch on a day nobody played.
+// Deltas come from assignGameDeltas (real where provable, estimate otherwise).
+//
+// Values are on the absolute ladder scale (buildTierLadder), so the walk
+// crosses promotion/demotion boundaries smoothly.
+function buildGamePoints(rankedMatches, snapshots, anchorValue) {
+    const sorted = [...rankedMatches].sort((a, b) => b.timestamp - a.timestamp)
+    assignGameDeltas(sorted, snapshots, anchorValue)
+
+    let running = anchorValue // LP after the most recent game = live current LP
+    const points = []
+    for (const match of sorted) {
+        points.push({
+            timestamp: match.timestamp,
+            value: Math.max(0, Math.round(running)), // rank AFTER this game
+            delta: match.delta,
+            champion: match.champion ?? null,
+            win: match.win,
+            matchId: match.matchId ?? null,
+            isEstimated: match.isEstimated
+        })
+        running = running - match.delta // step back to the rank before this game
+    }
+    return points.reverse() // oldest first
 }
 
 function formatFullDate(timestamp) {
@@ -258,79 +330,37 @@ export default function LpHistoryChart({
         const useLadder = currentAbs != null
         const valueOf = (t, r, lp) => (useLadder ? toLadderValue(t, r, lp) : lp)
 
-        // Real tracked daily snapshots — the accurate part of the history. Each
-        // row carries its own tier/rank, so a past Gold IV day and a current
-        // Plat II day land at their true positions on the ladder.
+        // Real daily snapshots aren't plotted anymore (see buildGamePoints'
+        // doc comment for why a day-based line reads as broken on any day
+        // without a game) — kept only as input to the climb-pace projection
+        // below, which wants a smooth day-over-day real signal.
         const history = trackedHistory ?? []
-        const trackedPoints = history
-            .map((entry) => ({
-                timestamp: new Date(entry.recorded_on).getTime(),
-                value: valueOf(entry.tier, entry.rank, entry.league_points),
-                tier: entry.tier, rank: entry.rank, lp: entry.league_points,
-                delta: null, champion: null, win: null, matchId: null, isEstimated: false
-            }))
+        const realTrackedPoints = history
+            .map((entry) => ({ timestamp: new Date(entry.recorded_on).getTime(), value: valueOf(entry.tier, entry.rank, entry.league_points) }))
             .filter(p => typeof p.value === "number")
-        trackedPoints.forEach((p, i) => {
-            p.delta = i === 0 ? null : Math.round(p.value - trackedPoints[i - 1].value)
-        })
-
-        // Real tracked daily snapshots are the accurate source. Once at least two
-        // exist we show only the real line — clean and exact, the way u.gg/op.gg
-        // do it. The win/loss estimate is only a bootstrap for brand-new accounts
-        // that don't have a couple of days of tracking yet, so a promotion in the
-        // real data reads as an honest upward step (and the net LP is real),
-        // instead of being averaged against a fabricated estimate.
-        const hasEnoughTracked = trackedPoints.length >= 2
 
         let points = []
         let gamesCovered = 0
 
-        if (hasEnoughTracked) {
-            points = [...trackedPoints]
-            // Cap with the live value when it's newer than the last snapshot, so
-            // the chart ends on the real "right now" rank (today's games show up
-            // before the daily cron records them).
-            if (useLadder && points.length > 0) {
-                const last = points[points.length - 1]
-                if (last.value !== currentAbs) {
-                    points.push({
-                        timestamp: Date.now(), value: currentAbs, tier, rank, lp: currentLeaguePoints,
-                        delta: Math.round(currentAbs - last.value), champion: null, win: null, matchId: null, isEstimated: false
-                    })
-                }
-            }
-            // Tracked points are daily snapshots, not per-game, so there's no
-            // single champion to attach to any of them in general. The one
-            // exception: the most recent point where the LP actually moved —
-            // that's a real game day, not just a flat "no game played" day —
-            // can borrow the champion of a ranked match played on that same
-            // calendar date. Matching by date (not just grabbing whatever
-            // match is globally most recent) matters because the newest
-            // tracked point is very often a flat day after the last real game.
-            const lastMovedPoint = [...points].reverse().find(p => p.delta)
-            if (lastMovedPoint) {
-                const movedDay = dayKey(lastMovedPoint.timestamp)
-                const matchOnDay = matchHistory
-                    .filter(m => m.queueId === RANKED_SOLO_QUEUE_ID)
-                    .find(m => dayKey(m.gameEndTimestamp) === movedDay)
-                if (matchOnDay) lastMovedPoint.champion = matchOnDay.champion
-            }
-        } else if (typeof currentAbs === "number") {
-            // Bootstrap: reconstruct a recent trail by walking back from the live
-            // value over recent ranked games. matchHistory (short, detail-rich) is
-            // preferred; the extended timeline only fills games it doesn't cover.
+        if (typeof currentAbs === "number") {
+            // Game-based reconstruction: one point per real ranked game,
+            // walking backward from the live current LP, with each game's real
+            // LP delta derived from the daily snapshots where provable (see
+            // assignGameDeltas). matchHistory (short, detail-rich, carrying a
+            // measured per-game delta where mergeRealLpDeltas found one) is
+            // preferred; the extended timeline only fills games it doesn't
+            // cover, always as an estimate (it has no delta/champion).
             const shortRankedMatches = matchHistory
                 .filter(m => m.queueId === RANKED_SOLO_QUEUE_ID)
-                .map(m => ({ matchId: m.matchId, win: m.win, timestamp: m.gameEndTimestamp, champion: m.champion }))
+                .map(m => ({ matchId: m.matchId, win: m.win, timestamp: m.gameEndTimestamp, champion: m.champion, lpDelta: m.lpDelta, isEstimate: m.lpDeltaIsEstimate }))
             const knownMatchIds = new Set(shortRankedMatches.map(m => m.matchId))
             const extendedMatches = timelinePoints
                 .filter(p => !knownMatchIds.has(p.matchId))
-                .map(p => ({ matchId: p.matchId, win: p.win, timestamp: p.timestamp, champion: null }))
+                .map(p => ({ matchId: p.matchId, win: p.win, timestamp: p.timestamp, champion: null, lpDelta: null, isEstimate: true }))
             const rankedMatches = [...shortRankedMatches, ...extendedMatches]
 
-            const estimatedPoints = buildEstimatedPoints(rankedMatches, currentAbs, Date.now())
-            gamesCovered = Math.max(0, estimatedPoints.length - 1)
-            points = estimatedPoints
+            points = buildGamePoints(rankedMatches, realTrackedPoints, currentAbs)
+            gamesCovered = points.length
         }
 
         // Human-readable rank text per point for the tooltip (estimated points
@@ -449,14 +479,21 @@ export default function LpHistoryChart({
             ]
         }
 
-        // Includes the live "right now" cap point when present, so today's games
-        // count toward the pace even before the daily cron records them.
-        const projection = useLadder ? buildProjection(points.filter(p => !p.isEstimated)) : null
+        // Pace/ETA still wants a smooth day-over-day real signal, not the
+        // game-based line above — built from the daily snapshots, capped with
+        // today's live value when it's newer than the last snapshot so today's
+        // games count toward the pace even before the daily cron records them.
+        const lastRealTracked = realTrackedPoints[realTrackedPoints.length - 1]
+        const projectionPoints = [...realTrackedPoints]
+        if (useLadder && (!lastRealTracked || lastRealTracked.value !== currentAbs)) {
+            projectionPoints.push({ timestamp: Date.now(), value: currentAbs })
+        }
+        const projection = useLadder ? buildProjection(projectionPoints) : null
 
-        return { points, labels, data, gamesCovered, trackedPointsCount: trackedPoints.length, netLpChange, referenceLines, minLp, maxLp, yMin, yMax, firstTimestamp: firstPoint?.timestamp ?? null, projection }
+        return { points, labels, data, gamesCovered, netLpChange, referenceLines, minLp, maxLp, yMin, yMax, firstTimestamp: firstPoint?.timestamp ?? null, projection }
     }, [matchHistory, timelinePoints, trackedHistory, currentLeaguePoints, tier, rank, accentColor])
 
-    const { points, labels, data, gamesCovered, trackedPointsCount, netLpChange, referenceLines, minLp, maxLp, yMin, yMax, firstTimestamp, projection } = derived
+    const { points, labels, data, gamesCovered, netLpChange, referenceLines, minLp, maxLp, yMin, yMax, firstTimestamp, projection } = derived
 
     const options = useMemo(() => ({
         responsive: true,
@@ -521,7 +558,7 @@ export default function LpHistoryChart({
                 <p className="text-text-secondary text-xs">
                     {gamesCovered > 0
                         ? `Last ${gamesCovered} ranked game${gamesCovered === 1 ? "" : "s"}`
-                        : `Last ${trackedPointsCount} day${trackedPointsCount === 1 ? "" : "s"}`}
+                        : "No recent ranked games"}
                 </p>
                 {netLpChange != null && (
                     <p className={`text-xs font-bold ${netLpChange > 0 ? "text-positive" : netLpChange < 0 ? "text-negative" : "text-text-secondary"}`}>
@@ -603,9 +640,7 @@ export default function LpHistoryChart({
                 </div>
             )}
             <p className="text-text-secondary text-[10px] mt-1.5">
-                {gamesCovered > 0
-                    ? "Dashed = estimated from recent match results. We're now tracking your real LP daily. Hover for details."
-                    : "Real LP, tracked daily since you connected this account. Hover for details."}
+                Dashed = estimated LP for that game. Solid = exact, once we've measured it. Hover for details.
             </p>
         </div>
     )

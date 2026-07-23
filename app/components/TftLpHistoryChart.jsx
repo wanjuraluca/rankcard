@@ -80,38 +80,96 @@ function fromLadderValue(value) {
     return { name, lp, text: `${name} · ${lp} LP` }
 }
 
-// Walk backwards from a known anchor on the absolute ladder scale, so a
-// promotion (LP reset in the new division) reads as a continuous climb instead
-// of a drop. Estimate only, clearly labeled — TFT has no per-match LP delta.
-function buildEstimatedPoints(matchHistory, anchorValue, anchorTimestamp) {
-    const sortedMatches = [...matchHistory].sort((a, b) => (b.game_datetime ?? 0) - (a.game_datetime ?? 0))
-
-    let running = anchorValue
-    const points = [{ timestamp: anchorTimestamp, value: running, delta: null, placement: null, topTrait: null, isEstimated: true }]
-
-    for (const match of sortedMatches) {
-        const delta = ESTIMATED_LP_BY_PLACEMENT[match.placement] ?? 0
-        const valueBefore = Math.max(0, Math.round(running - delta))
-        points.push({
-            timestamp: match.game_datetime,
-            value: valueBefore,
-            delta,
-            placement: match.placement,
-            topTrait: match.topTraits?.[0] ?? null,
-            isEstimated: true
-        })
-        running = valueBefore
-    }
-
-    return points.reverse() // oldest first
-}
-
-// Local Y-M-D key, used to match a chart point (a calendar day) to whichever
-// game(s) were played that same day — never UTC, so a late-night game and its
-// snapshot line up the same way they do on screen for the viewer.
+// Local Y-M-D key, used to line games up with the daily snapshot taken the
+// same calendar day. Never UTC, so a late-night game and its snapshot match
+// the way they read on screen for the viewer.
 function dayKey(timestamp) {
     const d = new Date(timestamp)
     return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
+}
+
+// Give every game its REAL LP delta wherever we can prove it, instead of a
+// blanket placement estimate. The daily snapshots (tft_lp_history) hold the
+// true ladder value at the end of each day; the live value is the truth for
+// today. So a game's real delta is derivable when its day's end-value and the
+// prior known day's end-value are both known and only that one game happened
+// that day: delta = todayValue - yesterdayValue (exact, correct across a
+// promotion). Mirrors the League chart's assignGameDeltas.
+function assignGameDeltas(games, snapshots, currentAbs) {
+    const checkpoints = snapshots.map(s => ({ dayK: dayKey(s.timestamp), t: s.timestamp, value: s.value }))
+    const todayK = dayKey(Date.now())
+    const today = checkpoints.find(c => c.dayK === todayK)
+    if (today) today.value = currentAbs
+    else checkpoints.push({ dayK: todayK, t: Date.now(), value: currentAbs })
+    checkpoints.sort((a, b) => a.t - b.t)
+    const valueByDay = new Map(checkpoints.map(c => [c.dayK, c.value]))
+
+    const gamesByDay = new Map()
+    for (const g of games) {
+        const k = dayKey(g.timestamp)
+        if (!gamesByDay.has(k)) gamesByDay.set(k, [])
+        gamesByDay.get(k).push(g)
+    }
+
+    const estOf = (g) => (ESTIMATED_LP_BY_PLACEMENT[g.placement] ?? 0)
+
+    for (const [dayK, dayGames] of gamesByDay) {
+        const after = valueByDay.get(dayK)
+        const idx = checkpoints.findIndex(c => c.dayK === dayK)
+        const before = idx > 0 ? checkpoints[idx - 1].value : undefined
+        if (after != null && before != null) {
+            const realNet = after - before
+            if (dayGames.length === 1) {
+                dayGames[0].delta = realNet
+                dayGames[0].isEstimated = false
+            } else {
+                const estTotal = dayGames.reduce((s, g) => s + estOf(g), 0) || dayGames.length
+                let acc = 0
+                dayGames.forEach((g, i) => {
+                    const share = i === dayGames.length - 1
+                        ? realNet - acc
+                        : Math.round(realNet * (estOf(g) / estTotal))
+                    g.delta = share
+                    g.isEstimated = true
+                    acc += share
+                })
+            }
+        } else {
+            for (const g of dayGames) {
+                g.delta = estOf(g)
+                g.isEstimated = true
+            }
+        }
+    }
+    return games
+}
+
+// One point per real game, walking backward from the live current LP. Each
+// point sits at its game and shows the rank AFTER that game (so the most
+// recent game lands on the current LP), with that game's own delta. x-axis is
+// "games played", not calendar days — so no flat stretch on a day nobody
+// played. Deltas come from assignGameDeltas (real where provable, else estimate).
+function buildGamePoints(matchHistory, snapshots, anchorValue) {
+    const games = matchHistory
+        .filter(m => m.placement != null)
+        .map(m => ({ timestamp: m.game_datetime, placement: m.placement, topTrait: m.topTraits?.[0] ?? null }))
+        .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))
+    assignGameDeltas(games, snapshots, anchorValue)
+
+    let running = anchorValue // LP after the most recent game = live current LP
+    const points = []
+    for (const g of games) {
+        points.push({
+            timestamp: g.timestamp,
+            value: Math.max(0, Math.round(running)), // rank AFTER this game
+            delta: g.delta,
+            placement: g.placement,
+            topTrait: g.topTrait,
+            isEstimated: g.isEstimated
+        })
+        running = running - g.delta // step back to the rank before this game
+    }
+    return points.reverse() // oldest first
 }
 
 function formatFullDate(timestamp) {
@@ -190,62 +248,31 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
         const useLadder = currentAbs != null
         const valueOf = (t, r, lp) => (useLadder ? toLadderValue(t, r, lp) : lp)
 
-        // Real tracked daily snapshots carry their own tier/rank, so each lands at
-        // its true ladder position.
-        const trackedPoints = trackedHistory
-            .map((entry) => ({
-                timestamp: new Date(entry.recorded_on).getTime(),
-                value: valueOf(entry.tier, entry.rank, entry.league_points),
-                tier: entry.tier, rank: entry.rank, lp: entry.league_points,
-                delta: null, placement: null, topTrait: null, isEstimated: false
-            }))
+        // Real daily snapshots aren't plotted anymore (a day-based line reads as
+        // broken on any day without a game) — kept only as the ground truth for
+        // deriving real per-game deltas (assignGameDeltas) and feeding the
+        // climb-pace projection below.
+        const realTrackedPoints = trackedHistory
+            .map((entry) => ({ timestamp: new Date(entry.recorded_on).getTime(), value: valueOf(entry.tier, entry.rank, entry.league_points) }))
             .filter(p => typeof p.value === "number")
-        trackedPoints.forEach((p, i) => {
-            p.delta = i === 0 ? null : Math.round(p.value - trackedPoints[i - 1].value)
-        })
 
-        // Once at least two real snapshots exist, show only the accurate tracked
-        // line; the placement-based estimate is a bootstrap for brand-new accounts.
-        const hasEnoughTracked = trackedPoints.length >= 2
         let points = []
         let gamesCovered = 0
 
-        if (hasEnoughTracked) {
-            points = [...trackedPoints]
-            if (useLadder && points.length > 0) {
-                const last = points[points.length - 1]
-                if (last.value !== currentAbs) {
-                    points.push({
-                        timestamp: Date.now(), value: currentAbs, tier, rank, lp: currentLeaguePoints,
-                        delta: Math.round(currentAbs - last.value), placement: null, topTrait: null, isEstimated: false
-                    })
-                }
-            }
-            // Tracked points are daily snapshots, not per-game, so there's no
-            // single match to attach to any of them in general. The one
-            // exception: the most recent point where the LP actually moved —
-            // that's a real game day, not just a flat "no game played" day —
-            // can borrow the top trait of a game played on that same calendar
-            // date. Matching by date (not just grabbing whatever match is
-            // globally most recent) matters because the newest tracked point
-            // is very often a flat day after the last real game.
-            const lastMovedPoint = [...points].reverse().find(p => p.delta)
-            if (lastMovedPoint) {
-                const movedDay = dayKey(lastMovedPoint.timestamp)
-                const matchOnDay = matchHistory.find(m => dayKey(m.game_datetime ?? 0) === movedDay)
-                if (matchOnDay?.topTraits?.[0]) lastMovedPoint.topTrait = matchOnDay.topTraits[0]
-            }
-        } else if (typeof currentAbs === "number") {
-            const estimatedPoints = buildEstimatedPoints(matchHistory, currentAbs, Date.now())
-            gamesCovered = Math.max(0, estimatedPoints.length - 1)
-            points = estimatedPoints
+        if (typeof currentAbs === "number") {
+            points = buildGamePoints(matchHistory, realTrackedPoints, currentAbs)
+            gamesCovered = points.length
         }
 
         const describe = (v) => (useLadder ? (fromLadderValue(v)?.text ?? `${Math.round(v)} LP`) : `${Math.round(v)} LP`)
         points.forEach(p => { p.rankText = describe(p.value) })
 
         const labels = points.map(p => formatFullDate(p.timestamp))
-        const estimatedData = points.map(p => (p.isEstimated ? p.value : null))
+        // Connect the dashed (estimated) and solid (real) segments by also
+        // giving the estimated series the first real point, so there's no gap.
+        const boundaryIndex = points.findIndex(p => !p.isEstimated)
+        const hasEstimatedSegment = points.some(p => p.isEstimated)
+        const estimatedData = points.map((p, i) => (p.isEstimated || (hasEstimatedSegment && i === boundaryIndex)) ? p.value : null)
         const trackedData = points.map(p => (p.isEstimated ? null : p.value))
 
         const plottedValues = points.map(p => p.value).filter(v => typeof v === "number")
@@ -339,11 +366,17 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
             ]
         }
 
-        // Includes the live "right now" cap point when present, so today's games
-        // count toward the pace even before the daily cron records them.
-        const projection = useLadder ? buildProjection(points.filter(p => !p.isEstimated)) : null
+        // Pace/ETA wants a smooth day-over-day real signal, built from the daily
+        // snapshots (not the game-based line), capped with today's live value so
+        // today's games count even before the daily cron records them.
+        const lastRealTracked = realTrackedPoints[realTrackedPoints.length - 1]
+        const projectionPoints = [...realTrackedPoints]
+        if (useLadder && (!lastRealTracked || lastRealTracked.value !== currentAbs)) {
+            projectionPoints.push({ timestamp: Date.now(), value: currentAbs })
+        }
+        const projection = useLadder ? buildProjection(projectionPoints) : null
 
-        return { points, labels, data, referenceLines, minLp, maxLp, yMin, yMax, gamesCovered, trackedCount: trackedPoints.length, netLpChange, firstTimestamp: firstPoint?.timestamp ?? null, projection }
+        return { points, labels, data, referenceLines, minLp, maxLp, yMin, yMax, gamesCovered, netLpChange, firstTimestamp: firstPoint?.timestamp ?? null, projection }
     }, [trackedHistory, matchHistory, currentLeaguePoints, accentColor, tier, rank])
 
     const options = useMemo(() => {
@@ -394,7 +427,7 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
         return <p className="text-text-secondary text-xs">Loading LP history...</p>
     }
 
-    const { referenceLines, minLp, maxLp, yMin, yMax, gamesCovered, trackedCount, netLpChange, data, firstTimestamp, projection } = derived
+    const { referenceLines, minLp, maxLp, yMin, yMax, gamesCovered, netLpChange, data, firstTimestamp, projection } = derived
 
     return (
         <div className="w-full">
@@ -402,7 +435,7 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
                 <p className="text-text-secondary text-xs">
                     {gamesCovered > 0
                         ? `Last ${gamesCovered} game${gamesCovered === 1 ? "" : "s"}`
-                        : `Last ${trackedCount} day${trackedCount === 1 ? "" : "s"}`}
+                        : "No recent games"}
                 </p>
                 {netLpChange != null && (
                     <p className={`text-xs font-bold ${netLpChange > 0 ? "text-positive" : netLpChange < 0 ? "text-negative" : "text-text-secondary"}`}>
@@ -488,9 +521,7 @@ export default function TftLpHistoryChart({ accountId, matchHistory, currentLeag
                 </div>
             )}
             <p className="text-text-secondary text-[10px] mt-1.5">
-                {gamesCovered > 0
-                    ? "Dashed = estimated from recent placements. We're now tracking your real LP daily. Hover for details."
-                    : "Real LP, tracked daily since you connected this account. Hover for details."}
+                Dashed = estimated LP for that game. Solid = exact, once we've measured it. Hover for details.
             </p>
         </div>
     )
